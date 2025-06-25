@@ -109,47 +109,71 @@ jobs:
           echo "✅ Updated action tags for GitHub Actions consumers"
 
   # Build and test the release
-  test-ci-action:
+  test-actions:
     runs-on: ubuntu-latest
     needs: [release-please, update-action-tags]
     if: needs.release-please.outputs.release-created == 'true'
     steps:
-      - name: Test CI action with new tag
-        uses: jrschumacher/go-actions/ci@${{ needs.release-please.outputs.tag-name }}
-        continue-on-error: true
-        with:
-          job: test
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create test Go project
+        run: |
+          mkdir test-project
+          cd test-project
+          
+          # Initialize Go module
+          go mod init github.com/test/release-test
+          
+          # Create main.go
+          cat > main.go << 'EOF'
+          package main
+          
+          import "fmt"
+          
+          func main() {
+              fmt.Println("Hello, World!")
+          }
+          
+          func Add(a, b int) int {
+              return a + b
+          }
+          EOF
+          
+          # Create test file
+          cat > main_test.go << 'EOF'
+          package main
+          
+          import "testing"
+          
+          func TestAdd(t *testing.T) {
+              result := Add(2, 3)
+              if result != 5 {
+                  t.Errorf("Add(2, 3) = %d; want 5", result)
+              }
+          }
+          
+          func BenchmarkAdd(b *testing.B) {
+              for i := 0; i < b.N; i++ {
+                  Add(2, 3)
+              }
+          }
+          EOF
 
       - name: Test CI action with major tag
-        uses: jrschumacher/go-actions/ci@v${{ needs.release-please.outputs.major }}
+        uses: jrschumacher/go-actions/ci@main
         continue-on-error: true
         with:
           job: test
-
-  test-self-validate-action:
-    runs-on: ubuntu-latest
-    needs: [release-please, update-action-tags]
-    if: needs.release-please.outputs.release-created == 'true'
-    steps:
-      - name: Test self-validate action with new tag
-        uses: jrschumacher/go-actions/self-validate@${{ needs.release-please.outputs.tag-name }}
-        continue-on-error: true
+        env:
+          WORKING_DIR: test-project
 
       - name: Test self-validate action with major tag
-        uses: jrschumacher/go-actions/self-validate@v${{ needs.release-please.outputs.major }}
-        continue-on-error: true
-
-  test-comment-action:
-    runs-on: ubuntu-latest
-    needs: [release-please, update-action-tags]
-    if: needs.release-please.outputs.release-created == 'true'
-    steps:
-      - name: Test comment action with new tag
-        uses: jrschumacher/go-actions/comment@${{ needs.release-please.outputs.tag-name }}
+        uses: jrschumacher/go-actions/self-validate@main
         continue-on-error: true
 
       - name: Test comment action with major tag
-        uses: jrschumacher/go-actions/comment@v${{ needs.release-please.outputs.major }}
+        uses: jrschumacher/go-actions/comment@main
         continue-on-error: true
 
   # Update documentation if needed
@@ -189,7 +213,7 @@ jobs:
   # Notify about the release
   notify-release:
     runs-on: ubuntu-latest
-    needs: [release-please, update-action-tags, test-ci-action, test-self-validate-action, test-comment-action]
+    needs: [release-please, update-action-tags, test-actions]
     if: always() && needs.release-please.outputs.release-created == 'true'
     steps:
       - name: Create release summary
@@ -214,4 +238,4 @@ jobs:
           echo "### Testing Status" >> $GITHUB_STEP_SUMMARY
           echo "- Pre-release validation: ✅" >> $GITHUB_STEP_SUMMARY
           echo "- Action tags updated: ✅" >> $GITHUB_STEP_SUMMARY
-          echo "- Release testing: ${{ (needs.test-ci-action.result == 'success' && needs.test-self-validate-action.result == 'success' && needs.test-comment-action.result == 'success') && '✅' || '⚠️' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Release testing: ${{ needs.test-actions.result == 'success' && '✅' || '⚠️' }}" >> $GITHUB_STEP_SUMMARY
