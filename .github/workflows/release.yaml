@@ -109,31 +109,48 @@ jobs:
           echo "✅ Updated action tags for GitHub Actions consumers"
 
   # Build and test the release
-  test-release:
+  test-ci-action:
     runs-on: ubuntu-latest
     needs: [release-please, update-action-tags]
     if: needs.release-please.outputs.release-created == 'true'
-    strategy:
-      matrix:
-        action: [ci, self-validate, comment]
-        tag: ["${{ needs.release-please.outputs.tag-name }}", "v${{ needs.release-please.outputs.major }}"]
     steps:
-      - name: Test action with new tag
-        uses: jrschumacher/go-actions/${{ matrix.action }}@${{ matrix.tag }}
+      - name: Test CI action with new tag
+        uses: jrschumacher/go-actions/ci@${{ needs.release-please.outputs.tag-name }}
         continue-on-error: true
         with:
           job: test
-        if: matrix.action == 'ci'
 
+      - name: Test CI action with major tag
+        uses: jrschumacher/go-actions/ci@v${{ needs.release-please.outputs.major }}
+        continue-on-error: true
+        with:
+          job: test
+
+  test-self-validate-action:
+    runs-on: ubuntu-latest
+    needs: [release-please, update-action-tags]
+    if: needs.release-please.outputs.release-created == 'true'
+    steps:
       - name: Test self-validate action with new tag
-        uses: jrschumacher/go-actions/${{ matrix.action }}@${{ matrix.tag }}
+        uses: jrschumacher/go-actions/self-validate@${{ needs.release-please.outputs.tag-name }}
         continue-on-error: true
-        if: matrix.action == 'self-validate'
 
-      - name: Test comment action with new tag
-        uses: jrschumacher/go-actions/${{ matrix.action }}@${{ matrix.tag }}
+      - name: Test self-validate action with major tag
+        uses: jrschumacher/go-actions/self-validate@v${{ needs.release-please.outputs.major }}
         continue-on-error: true
-        if: matrix.action == 'comment'
+
+  test-comment-action:
+    runs-on: ubuntu-latest
+    needs: [release-please, update-action-tags]
+    if: needs.release-please.outputs.release-created == 'true'
+    steps:
+      - name: Test comment action with new tag
+        uses: jrschumacher/go-actions/comment@${{ needs.release-please.outputs.tag-name }}
+        continue-on-error: true
+
+      - name: Test comment action with major tag
+        uses: jrschumacher/go-actions/comment@v${{ needs.release-please.outputs.major }}
+        continue-on-error: true
 
   # Update documentation if needed
   update-docs:
@@ -172,7 +189,7 @@ jobs:
   # Notify about the release
   notify-release:
     runs-on: ubuntu-latest
-    needs: [release-please, update-action-tags, test-release]
+    needs: [release-please, update-action-tags, test-ci-action, test-self-validate-action, test-comment-action]
     if: always() && needs.release-please.outputs.release-created == 'true'
     steps:
       - name: Create release summary
@@ -197,4 +214,4 @@ jobs:
           echo "### Testing Status" >> $GITHUB_STEP_SUMMARY
           echo "- Pre-release validation: ✅" >> $GITHUB_STEP_SUMMARY
           echo "- Action tags updated: ✅" >> $GITHUB_STEP_SUMMARY
-          echo "- Release testing: ${{ needs.test-release.result == 'success' && '✅' || '⚠️' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Release testing: ${{ (needs.test-ci-action.result == 'success' && needs.test-self-validate-action.result == 'success' && needs.test-comment-action.result == 'success') && '✅' || '⚠️' }}" >> $GITHUB_STEP_SUMMARY
