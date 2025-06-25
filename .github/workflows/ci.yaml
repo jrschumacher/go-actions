@@ -217,7 +217,7 @@ jobs:
       - name: Test release action (dry-run)
         uses: ./release
         with:
-          release-token: ${{ github.token }}
+          release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         continue-on-error: true  # Release action may fail in test environment
 
   lint-and-format:
@@ -276,5 +276,3 @@ jobs:
 
       - name: Post unified CI results
         uses: ./comment
-        with:
-          github-token: ${{ github.token }}

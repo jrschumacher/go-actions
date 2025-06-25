@@ -89,10 +89,10 @@ jobs:
     steps:
       - uses: jrschumacher/go-actions/release@v1
         with:
-          release-token: ${{ secrets.RELEASE_PAT }}
+          release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 ```
 
-**Important:** You'll need to create a Personal Access Token (PAT) with `contents:write` and `pull_requests:write` permissions and add it as `RELEASE_PAT` in your repository secrets.
+**Important:** You'll need to create a Personal Access Token (PAT) with `contents:write` and `pull_requests:write` permissions and add it as `RELEASE_PLEASE_TOKEN` in your repository secrets.
 
 ## 📋 Required Configuration Files
 
