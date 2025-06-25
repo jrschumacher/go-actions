@@ -1,0 +1,276 @@
+name: Validate Actions
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run weekly to catch any issues with dependencies
+    - cron: '0 0 * * 0'
+
+jobs:
+  validate-action-metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate all action.yaml files
+        run: |
+          echo "🔍 Validating action metadata..."
+          
+          # Find all action.yaml files
+          find . -name "action.yaml" -not -path "./.github/*" | while read -r action_file; do
+            echo "Validating: $action_file"
+            
+            # Check YAML syntax
+            if ! python3 -c "import yaml; yaml.safe_load(open('$action_file'))" 2>/dev/null; then
+              echo "❌ Invalid YAML syntax in $action_file"
+              exit 1
+            fi
+            
+            # Check required fields
+            if ! grep -q "^name:" "$action_file"; then
+              echo "❌ Missing 'name' field in $action_file"
+              exit 1
+            fi
+            
+            if ! grep -q "^description:" "$action_file"; then
+              echo "❌ Missing 'description' field in $action_file"
+              exit 1
+            fi
+            
+            if ! grep -q "using.*composite" "$action_file"; then
+              echo "❌ Not a composite action in $action_file"
+              exit 1
+            fi
+            
+            # Check for TypeScript references
+            if grep -q "scripts-dist" "$action_file"; then
+              script_files=$(grep -o "scripts-dist/[^'\"]*\.js" "$action_file" | sort -u)
+              for script_file in $script_files; do
+                if [ ! -f "$script_file" ]; then
+                  echo "❌ Referenced script file not found: $script_file"
+                  exit 1
+                fi
+              done
+            fi
+            
+            echo "✅ $action_file is valid"
+          done
+
+  test-with-real-go-project:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.19', '1.20', '1.21']
+    steps:
+      - name: Checkout go-actions
+        uses: actions/checkout@v4
+
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Create test Go project
+        run: |
+          mkdir test-project
+          cd test-project
+          
+          # Initialize Go module
+          go mod init github.com/test/project
+          
+          # Create main.go
+          cat > main.go << 'EOF'
+          package main
+          
+          import (
+              "fmt"
+              "math"
+          )
+          
+          func main() {
+              fmt.Printf("Square root of 16 is %.2f\n", Sqrt(16))
+          }
+          
+          // Sqrt calculates the square root of a number
+          func Sqrt(x float64) float64 {
+              return math.Sqrt(x)
+          }
+          
+          // Add returns the sum of two integers
+          func Add(a, b int) int {
+              return a + b
+          }
+          
+          // Multiply returns the product of two integers
+          func Multiply(a, b int) int {
+              return a * b
+          }
+          EOF
+          
+          # Create comprehensive test file
+          cat > main_test.go << 'EOF'
+          package main
+          
+          import (
+              "math"
+              "testing"
+          )
+          
+          func TestSqrt(t *testing.T) {
+              tests := []struct {
+                  input    float64
+                  expected float64
+              }{
+                  {4, 2},
+                  {9, 3},
+                  {16, 4},
+                  {25, 5},
+              }
+              
+              for _, test := range tests {
+                  result := Sqrt(test.input)
+                  if math.Abs(result-test.expected) > 0.01 {
+                      t.Errorf("Sqrt(%.0f) = %.2f; want %.2f", test.input, result, test.expected)
+                  }
+              }
+          }
+          
+          func TestAdd(t *testing.T) {
+              tests := []struct {
+                  a, b, expected int
+              }{
+                  {1, 2, 3},
+                  {0, 0, 0},
+                  {-1, 1, 0},
+                  {10, 5, 15},
+              }
+              
+              for _, test := range tests {
+                  result := Add(test.a, test.b)
+                  if result != test.expected {
+                      t.Errorf("Add(%d, %d) = %d; want %d", test.a, test.b, result, test.expected)
+                  }
+              }
+          }
+          
+          func TestMultiply(t *testing.T) {
+              tests := []struct {
+                  a, b, expected int
+              }{
+                  {2, 3, 6},
+                  {0, 5, 0},
+                  {-2, 3, -6},
+                  {4, 4, 16},
+              }
+              
+              for _, test := range tests {
+                  result := Multiply(test.a, test.b)
+                  if result != test.expected {
+                      t.Errorf("Multiply(%d, %d) = %d; want %d", test.a, test.b, result, test.expected)
+                  }
+              }
+          }
+          
+          func BenchmarkSqrt(b *testing.B) {
+              for i := 0; i < b.N; i++ {
+                  Sqrt(16)
+              }
+          }
+          
+          func BenchmarkAdd(b *testing.B) {
+              for i := 0; i < b.N; i++ {
+                  Add(10, 20)
+              }
+          }
+          
+          func BenchmarkMultiply(b *testing.B) {
+              for i := 0; i < b.N; i++ {
+                  Multiply(10, 20)
+              }
+          }
+          EOF
+          
+          # Create golangci-lint config
+          cat > .golangci.yml << 'EOF'
+          run:
+            timeout: 5m
+          
+          linters:
+            enable:
+              - gofmt
+              - goimports
+              - govet
+              - ineffassign
+              - misspell
+              - revive
+          
+          issues:
+            exclude-use-default: false
+          EOF
+
+      - name: Test CI action with test project
+        uses: ./go-actions/ci
+        with:
+          job: test
+        env:
+          WORKING_DIR: test-project
+
+      - name: Test lint action with test project  
+        uses: ./go-actions/ci
+        with:
+          job: lint
+        env:
+          WORKING_DIR: test-project
+
+      - name: Test benchmark action with test project
+        uses: ./go-actions/ci
+        with:
+          job: benchmark
+        env:
+          WORKING_DIR: test-project
+
+      - name: Test self-validate action
+        uses: ./go-actions/self-validate
+
+  test-edge-cases:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test with empty Go project
+        run: |
+          mkdir empty-project
+          cd empty-project
+          echo 'module empty' > go.mod
+          echo 'go 1.21' >> go.mod
+          
+          # This should fail gracefully
+          echo "Testing with minimal Go project..."
+
+      - name: Test self-validate with empty project
+        uses: ./self-validate
+        continue-on-error: true  # Expected to fail, but shouldn't crash
+
+      - name: Test with project missing dependencies
+        run: |
+          mkdir broken-project  
+          cd broken-project
+          echo 'module broken' > go.mod
+          echo 'go 1.21' >> go.mod
+          
+          # Create Go file with missing import
+          cat > main.go << 'EOF'
+          package main
+          import "nonexistent/package"
+          func main() {}
+          EOF
+
+      - name: Test CI with broken project
+        uses: ./ci
+        with:
+          job: test
+        continue-on-error: true  # Expected to fail, but shouldn't crash
+        env:
+          WORKING_DIR: broken-project

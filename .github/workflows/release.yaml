@@ -1,0 +1,203 @@
+name: Release
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # Build and test before release
+  pre-release-validation:
+    runs-on: ubuntu-latest
+    outputs:
+      scripts-changed: ${{ steps.changes.outputs.scripts }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for change detection
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+      - name: Check for TypeScript changes
+        id: changes
+        run: |
+          # Check if any TypeScript files changed in the last commit
+          if git diff --name-only HEAD~1 HEAD | grep -E '\.(ts|js)$' || git diff --name-only HEAD~1 HEAD | grep 'package\.json'; then
+            echo "scripts=true" >> $GITHUB_OUTPUT
+          else
+            echo "scripts=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate compiled scripts are current
+        if: steps.changes.outputs.scripts == 'true'
+        run: |
+          if [ -n "$(git status --porcelain scripts-dist/)" ]; then
+            echo "❌ TypeScript changes detected but compiled scripts not updated"
+            echo "Please run 'npm run build' and commit the scripts-dist/ changes"
+            exit 1
+          fi
+
+  # Handle Release Please for version management
+  release-please:
+    runs-on: ubuntu-latest
+    needs: pre-release-validation
+    outputs:
+      release-created: ${{ steps.release.outputs.release_created }}
+      tag-name: ${{ steps.release.outputs.tag_name }}
+      major: ${{ steps.release.outputs.major }}
+      minor: ${{ steps.release.outputs.minor }}
+      patch: ${{ steps.release.outputs.patch }}
+    steps:
+      - name: Create Release Please PR or Release
+        uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          # Use GITHUB_TOKEN since we only need basic permissions for Release Please
+          token: ${{ github.token }}
+
+  # Update major/minor tags for GitHub Actions usage
+  update-action-tags:
+    runs-on: ubuntu-latest
+    needs: release-please
+    if: needs.release-please.outputs.release-created == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Update major and minor tags
+        run: |
+          TAG_NAME="${{ needs.release-please.outputs.tag-name }}"
+          MAJOR="${{ needs.release-please.outputs.major }}"
+          MINOR="${{ needs.release-please.outputs.minor }}"
+          
+          echo "New release: $TAG_NAME"
+          echo "Major: $MAJOR, Minor: $MINOR"
+          
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Update major tag (v1, v2, etc.)
+          echo "Updating major tag v$MAJOR"
+          git tag -fa "v$MAJOR" -m "Update major tag to $TAG_NAME"
+          git push origin "v$MAJOR" --force
+          
+          # Update minor tag (v1.2, v1.3, etc.)
+          echo "Updating minor tag v$MAJOR.$MINOR"
+          git tag -fa "v$MAJOR.$MINOR" -m "Update minor tag to $TAG_NAME"
+          git push origin "v$MAJOR.$MINOR" --force
+          
+          echo "✅ Updated action tags for GitHub Actions consumers"
+
+  # Build and test the release
+  test-release:
+    runs-on: ubuntu-latest
+    needs: [release-please, update-action-tags]
+    if: needs.release-please.outputs.release-created == 'true'
+    strategy:
+      matrix:
+        action: [ci, self-validate, comment]
+        tag: ["${{ needs.release-please.outputs.tag-name }}", "v${{ needs.release-please.outputs.major }}"]
+    steps:
+      - name: Test action with new tag
+        uses: jrschumacher/go-actions/${{ matrix.action }}@${{ matrix.tag }}
+        continue-on-error: true
+        with:
+          job: test
+        if: matrix.action == 'ci'
+
+      - name: Test self-validate action with new tag
+        uses: jrschumacher/go-actions/${{ matrix.action }}@${{ matrix.tag }}
+        continue-on-error: true
+        if: matrix.action == 'self-validate'
+
+      - name: Test comment action with new tag
+        uses: jrschumacher/go-actions/${{ matrix.action }}@${{ matrix.tag }}
+        continue-on-error: true
+        if: matrix.action == 'comment'
+
+  # Update documentation if needed
+  update-docs:
+    runs-on: ubuntu-latest
+    needs: [release-please, update-action-tags]
+    if: needs.release-please.outputs.release-created == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ github.token }}
+
+      - name: Update README with latest version
+        run: |
+          TAG_NAME="${{ needs.release-please.outputs.tag-name }}"
+          MAJOR="${{ needs.release-please.outputs.major }}"
+          
+          # Update README.md to reference the new major version
+          if [ -f README.md ]; then
+            # Update any @main references to @v{major} in examples
+            sed -i "s|@main|@v$MAJOR|g" README.md
+            
+            # Check if any changes were made
+            if [ -n "$(git status --porcelain README.md)" ]; then
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              
+              git add README.md
+              git commit -m "docs: update README to use @v$MAJOR tag"
+              git push
+              
+              echo "✅ Updated README.md with new version references"
+            else
+              echo "ℹ️ No documentation updates needed"
+            fi
+          fi
+
+  # Notify about the release
+  notify-release:
+    runs-on: ubuntu-latest
+    needs: [release-please, update-action-tags, test-release]
+    if: always() && needs.release-please.outputs.release-created == 'true'
+    steps:
+      - name: Create release summary
+        run: |
+          TAG_NAME="${{ needs.release-please.outputs.tag-name }}"
+          MAJOR="${{ needs.release-please.outputs.major }}"
+          
+          echo "## 🚀 go-actions $TAG_NAME Released!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### What's New" >> $GITHUB_STEP_SUMMARY
+          echo "- New release $TAG_NAME is now available" >> $GITHUB_STEP_SUMMARY
+          echo "- Major tag \`v$MAJOR\` has been updated" >> $GITHUB_STEP_SUMMARY
+          echo "- All composite actions are ready to use" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Usage" >> $GITHUB_STEP_SUMMARY
+          echo "You can now use:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`jrschumacher/go-actions/ci@v$MAJOR\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`jrschumacher/go-actions/release@v$MAJOR\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`jrschumacher/go-actions/self-validate@v$MAJOR\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`jrschumacher/go-actions/comment@v$MAJOR\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Testing Status" >> $GITHUB_STEP_SUMMARY
+          echo "- Pre-release validation: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Action tags updated: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Release testing: ${{ needs.test-release.result == 'success' && '✅' || '⚠️' }}" >> $GITHUB_STEP_SUMMARY

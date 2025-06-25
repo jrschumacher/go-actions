@@ -1,0 +1,57 @@
+name: 'Go Release Actions'
+description: 'Release workflows for Go projects using Release Please and GoReleaser'
+author: 'Ryan Schumacher'
+
+inputs:
+  go-version:
+    description: 'Go version to use. Defaults to version from go.mod'
+    required: false
+    default: ''
+  go-version-file:
+    description: 'Path to file containing Go version. Defaults to go.mod'
+    required: false
+    default: 'go.mod'
+  working-directory:
+    description: 'Working directory'
+    required: false
+    default: '.'
+  release-token:
+    description: 'Personal Access Token (PAT) for Release Please. Required for creating PRs. Must be passed as a secret (e.g., secrets.RELEASE_PAT)'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+        go-version-file: ${{ !inputs.go-version && inputs.go-version-file || '' }}
+
+    - name: Validate Release Please configuration
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const script = require('${{ github.action_path }}/../scripts-dist/release-action.js');
+          script.validateReleaseConfiguration('${{ inputs.working-directory }}');
+        
+    - name: Run Release Please
+      uses: googleapis/release-please-action@v4
+      id: release
+      with:
+        token: ${{ inputs.release-token }}
+        
+    - name: Run GoReleaser
+      if: steps.release.outputs.release_created
+      uses: goreleaser/goreleaser-action@v6
+      with:
+        distribution: goreleaser
+        version: latest
+        args: release --clean
+      env:
+        GITHUB_TOKEN: ${{ inputs.release-token || github.token }}

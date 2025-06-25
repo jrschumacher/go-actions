@@ -1,0 +1,124 @@
+name: 'Go CI Actions'
+description: 'CI workflows for Go projects - test, lint, and benchmark'
+author: 'Ryan Schumacher'
+
+inputs:
+  job:
+    description: 'Job type to run: test, lint, or benchmark'
+    required: true
+  go-version:
+    description: 'Go version to use (all jobs). Defaults to version from go.mod'
+    required: false
+    default: ''
+  go-version-file:
+    description: 'Path to file containing Go version (all jobs). Defaults to go.mod'
+    required: false
+    default: 'go.mod'
+  working-directory:
+    description: 'Working directory (all jobs)'
+    required: false
+    default: '.'
+  
+  # Test job specific inputs
+  test-args:
+    description: 'Additional arguments for go test (test job only)'
+    required: false
+    default: '-v -race -coverprofile=coverage.out'
+  
+  # Lint job specific inputs
+  golangci-lint-version:
+    description: 'golangci-lint version (lint job only). Defaults to latest v2'
+    required: false
+    default: 'v2'
+  lint-args:
+    description: 'Additional arguments for golangci-lint (lint job only)'
+    required: false
+    default: ''
+  
+  # Benchmark job specific inputs
+  benchmark-args:
+    description: 'Additional arguments for go test -bench (benchmark job only)'
+    required: false
+    default: '-bench=. -benchmem'
+  benchmark-count:
+    description: 'Number of benchmark runs (benchmark job only)'
+    required: false
+    default: '5'
+
+outputs:
+  coverage:
+    description: "Test coverage percentage"
+    value: ${{ steps.coverage.outputs.coverage }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Validate job input
+      shell: bash
+      run: |
+        valid_jobs="test lint benchmark"
+        job="${{ inputs.job }}"
+        if [[ ! " $valid_jobs " =~ " $job " ]]; then
+          echo "::error::Invalid job type: $job. Valid options are: $valid_jobs"
+          exit 1
+        fi
+
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+        go-version-file: ${{ !inputs.go-version && inputs.go-version-file || '' }}
+
+    # Test job
+    - name: Run tests
+      if: inputs.job == 'test'
+      id: test
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Running Go tests..."
+        go test ${{ inputs.test-args }} ./...
+
+    - name: Extract coverage
+      if: inputs.job == 'test'
+      id: coverage
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const script = require('${{ github.action_path }}/../scripts-dist/ci-action.js');
+          script.extractTestCoverage('${{ inputs.working-directory }}');
+
+    # Benchmark job
+    - name: Run benchmarks
+      if: inputs.job == 'benchmark'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const script = require('${{ github.action_path }}/../scripts-dist/ci-action.js');
+          script.runBenchmarkJob('${{ inputs.working-directory }}', '${{ inputs.benchmark-args }}', ${{ inputs.benchmark-count }});
+
+    # Lint job  
+    - name: Run golangci-lint
+      if: inputs.job == 'lint'
+      uses: golangci/golangci-lint-action@v8
+      with:
+        version: ${{ inputs.golangci-lint-version }}
+        working-directory: ${{ inputs.working-directory }}
+        args: ${{ inputs.lint-args }}
+
+    - name: Store lint results
+      if: inputs.job == 'lint' && always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const script = require('${{ github.action_path }}/../scripts-dist/unified-pr-comment.js');
+          const status = '${{ job.status }}' === 'success' ? 'success' : 'failure';
+          await script.storeJobResults('lint', { status });
+
+    # Store results for unified comment (will be posted by a separate action)
+    # Individual job comments are now consolidated into a single unified comment

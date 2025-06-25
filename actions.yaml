@@ -1,0 +1,262 @@
+name: 'Go Actions'
+description: 'Unified GitHub Action for Go projects - lint, test, and release'
+author: 'Ryan Schumacher'
+
+inputs:
+  job:
+    description: 'Job type to run: test, lint, release, benchmark, or self-validate'
+    required: true
+    type: choice
+    options:
+      - test
+      - lint
+      - release
+      - benchmark
+      - self-validate
+  go-version:
+    description: 'Go version to use (all jobs). Defaults to version from go.mod'
+    required: false
+    default: ''
+  go-version-file:
+    description: 'Path to file containing Go version (all jobs). Defaults to go.mod'
+    required: false
+    default: 'go.mod'
+  working-directory:
+    description: 'Working directory (all jobs)'
+    required: false
+    default: '.'
+  
+  # Test job specific inputs
+  test-args:
+    description: 'Additional arguments for go test (test job only)'
+    required: false
+    default: '-v -race -coverprofile=coverage.out'
+  
+  # Lint job specific inputs
+  golangci-lint-version:
+    description: 'golangci-lint version (lint job only)'
+    required: false
+    default: 'latest'
+  lint-args:
+    description: 'Additional arguments for golangci-lint (lint job only)'
+    required: false
+    default: ''
+  
+  # Release job specific inputs
+  release-token:
+    description: 'Personal Access Token (PAT) for Release Please (release job only). Required for creating PRs. Must be passed as a secret (e.g., secrets.RELEASE_PAT)'
+    required: false
+    default: ''
+  
+  # Benchmark job specific inputs
+  benchmark-args:
+    description: 'Additional arguments for go test -bench (benchmark job only)'
+    required: false
+    default: '-bench=. -benchmem'
+  benchmark-count:
+    description: 'Number of benchmark runs (benchmark job only)'
+    required: false
+    default: '5'
+
+outputs:
+  coverage:
+    description: "Test coverage percentage"
+    value: ${{ steps.test.outputs.coverage }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      if: inputs.job == 'test' || inputs.job == 'lint' || inputs.job == 'release' || inputs.job == 'benchmark' || inputs.job == 'self-validate'
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      if: inputs.job == 'test' || inputs.job == 'lint' || inputs.job == 'release' || inputs.job == 'benchmark' || inputs.job == 'self-validate'
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+        go-version-file: ${{ !inputs.go-version && inputs.go-version-file || '' }}
+
+    # Test job
+    - name: Run tests
+      if: inputs.job == 'test'
+      id: test
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Running Go tests..."
+        go test ${{ inputs.test-args }} ./...
+        
+        # Extract coverage if coverage profile was generated
+        if [ -f coverage.out ]; then
+          coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+          echo "coverage=${coverage}" >> $GITHUB_OUTPUT
+          echo "Test coverage: ${coverage}"
+        fi
+
+    # Benchmark job
+    - name: Run benchmarks
+      if: inputs.job == 'benchmark'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Running Go benchmarks..."
+        for i in $(seq 1 ${{ inputs.benchmark-count }}); do
+          echo "Benchmark run $i/${{ inputs.benchmark-count }}"
+          go test ${{ inputs.benchmark-args }} ./...
+        done
+
+    # Self-validate job
+    - name: Validate Go project structure
+      if: inputs.job == 'self-validate'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "🔍 Validating Go project structure..."
+        validation_errors=()
+        
+        # Check for go.mod
+        if [ ! -f "go.mod" ]; then
+          validation_errors+=("❌ Missing go.mod file")
+        else
+          echo "✅ go.mod found"
+        fi
+        
+        # Check for Go files
+        if ! find . -name "*.go" -not -path "./vendor/*" | head -1 | grep -q .; then
+          validation_errors+=("❌ No Go source files found")
+        else
+          echo "✅ Go source files found"
+        fi
+        
+        # Check for test files
+        if ! find . -name "*_test.go" -not -path "./vendor/*" | head -1 | grep -q .; then
+          echo "⚠️  No test files found (recommended for test job)"
+        else
+          echo "✅ Test files found"
+        fi
+        
+        # Check for benchmark files
+        if ! grep -r "func Benchmark" . --include="*_test.go" >/dev/null 2>&1; then
+          echo "⚠️  No benchmark functions found (required for benchmark job)"
+        else
+          echo "✅ Benchmark functions found"
+        fi
+        
+        # Check Release Please configuration
+        echo ""
+        echo "🔍 Validating Release Please configuration..."
+        if [ ! -f ".release-please-config.json" ]; then
+          echo "⚠️  Missing .release-please-config.json (required for release job)"
+          echo "   Create with: {\"packages\":{\".\":{\"release-type\":\"go\",\"package-name\":\"your-module-name\"}}}"
+        else
+          echo "✅ .release-please-config.json found"
+        fi
+        
+        if [ ! -f ".release-please-manifest.json" ]; then
+          echo "⚠️  Missing .release-please-manifest.json (required for release job)"
+          echo "   Create with: {\".\":\"0.1.0\"}"
+        else
+          echo "✅ .release-please-manifest.json found"
+        fi
+        
+        # Check GoReleaser configuration
+        echo ""
+        echo "🔍 Validating GoReleaser configuration..."
+        if [ ! -f ".goreleaser.yaml" ] && [ ! -f ".goreleaser.yml" ]; then
+          echo "⚠️  Missing .goreleaser.yaml or .goreleaser.yml (required for release job)"
+          echo "   Run 'goreleaser init' to create a basic configuration"
+        else
+          echo "✅ GoReleaser configuration found"
+        fi
+        
+        # Check golangci-lint configuration
+        echo ""
+        echo "🔍 Validating golangci-lint configuration..."
+        if [ ! -f ".golangci.yml" ] && [ ! -f ".golangci.yaml" ]; then
+          echo "⚠️  No .golangci.yml or .golangci.yaml found (optional but recommended for lint job)"
+          echo "   golangci-lint will use default configuration"
+        else
+          echo "✅ golangci-lint configuration found"
+        fi
+        
+        # Report validation results
+        echo ""
+        if [ ${#validation_errors[@]} -eq 0 ]; then
+          echo "✅ Validation completed successfully! Project is ready for go-actions."
+        else
+          echo "❌ Validation failed with ${#validation_errors[@]} error(s):"
+          printf '%s\n' "${validation_errors[@]}"
+          exit 1
+        fi
+
+    # Lint job  
+    - name: Run golangci-lint
+      if: inputs.job == 'lint'
+      uses: golangci/golangci-lint-action@v8
+      with:
+        version: ${{ inputs.golangci-lint-version }}
+        working-directory: ${{ inputs.working-directory }}
+        args: ${{ inputs.lint-args }}
+
+    # Release job
+    - name: Validate release token
+      if: inputs.job == 'release' && !inputs.release-token
+      shell: bash
+      run: |
+        echo "::error::Release job requires a Personal Access Token (PAT) to be passed via release-token input"
+        exit 1
+        
+    - name: Validate Release Please configuration
+      if: inputs.job == 'release'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        missing_files=()
+        
+        if [ ! -f ".release-please-config.json" ]; then
+          missing_files+=(".release-please-config.json")
+        fi
+        
+        if [ ! -f ".release-please-manifest.json" ]; then
+          missing_files+=(".release-please-manifest.json")
+        fi
+        
+        if [ ${#missing_files[@]} -ne 0 ]; then
+          echo "::error::Missing required Release Please configuration files: ${missing_files[*]}"
+          echo ""
+          echo "Create .release-please-config.json:"
+          echo '{'
+          echo '  "packages": {'
+          echo '    ".": {'
+          echo '      "release-type": "go",'
+          echo '      "package-name": "your-module-name"'
+          echo '    }'
+          echo '  }'
+          echo '}'
+          echo ""
+          echo "Create .release-please-manifest.json:"
+          echo '{'
+          echo '  ".": "0.1.0"'
+          echo '}'
+          exit 1
+        fi
+        
+    - name: Run Release Please
+      if: inputs.job == 'release'
+      uses: googleapis/release-please-action@v4
+      id: release
+      with:
+        token: ${{ inputs.release-token }}
+        
+    - name: Run GoReleaser
+      if: inputs.job == 'release' && steps.release.outputs.release_created
+      uses: goreleaser/goreleaser-action@v6
+      with:
+        distribution: goreleaser
+        version: latest
+        args: release --clean
+      env:
+        GITHUB_TOKEN: ${{ inputs.release-token || github.token }}

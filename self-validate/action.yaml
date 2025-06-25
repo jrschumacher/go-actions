@@ -1,0 +1,30 @@
+name: 'Go Actions Self-Validator'
+description: 'Validates project configuration when go-actions are used in workflows'
+author: 'Ryan Schumacher'
+
+inputs:
+  workflow-paths:
+    description: 'Comma-separated list of workflow files to check (e.g., .github/workflows/ci.yaml,.github/workflows/release.yaml)'
+    required: false
+    default: '.github/workflows/*.yaml,.github/workflows/*.yml'
+  comment-on-pr:
+    description: 'Whether to comment on PR with validation results'
+    required: false
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Validate go-actions usage
+      id: validate
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const script = require('${{ github.action_path }}/../scripts-dist/self-validate.js');
+          script.selfValidate({ workingDirectory: '.' });
+
+    # Self-validation results are now stored for unified comment
+    # Individual validation comments are consolidated into a single unified comment

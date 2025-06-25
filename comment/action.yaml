@@ -1,0 +1,21 @@
+name: 'Go Actions PR Comment'
+description: 'Posts unified CI results comment to PRs'
+author: 'Ryan Schumacher'
+
+inputs:
+  github-token:
+    description: 'GitHub token for PR comments. Defaults to GITHUB_TOKEN'
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Post unified CI results comment
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const script = require('${{ github.action_path }}/../scripts-dist/post-unified-comment.js');
+          await script.main();
