@@ -274,3 +274,81 @@ jobs:
         continue-on-error: true  # Expected to fail, but shouldn't crash
         env:
           WORKING_DIR: broken-project
+
+  test-fixtures:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        fixture: ['go-valid', 'go-invalid']
+        go-version: ['1.21']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Test CI action with ${{ matrix.fixture }} fixture
+        uses: ./ci
+        with:
+          job: test
+          working-directory: fixtures/${{ matrix.fixture }}
+        continue-on-error: ${{ matrix.fixture == 'go-invalid' }}
+
+      - name: Test lint action with ${{ matrix.fixture }} fixture
+        uses: ./ci
+        with:
+          job: lint
+          working-directory: fixtures/${{ matrix.fixture }}
+        continue-on-error: ${{ matrix.fixture == 'go-invalid' }}
+        if: matrix.fixture == 'go-valid'  # Only run lint on valid fixture
+
+      - name: Test benchmark action with ${{ matrix.fixture }} fixture
+        uses: ./ci
+        with:
+          job: benchmark
+          working-directory: fixtures/${{ matrix.fixture }}
+        continue-on-error: ${{ matrix.fixture == 'go-invalid' }}
+        if: matrix.fixture == 'go-valid'  # Only run benchmark on valid fixture
+
+      - name: Test self-validate action with ${{ matrix.fixture }} fixture
+        uses: ./self-validate
+        with:
+          workflow-paths: fixtures/${{ matrix.fixture }}/.github/workflows/*.yaml
+        continue-on-error: ${{ matrix.fixture == 'go-invalid' }}
+
+  test-example-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Test CI action with example project
+        uses: ./ci
+        with:
+          job: test
+          working-directory: example
+
+      - name: Test lint action with example project
+        uses: ./ci
+        with:
+          job: lint
+          working-directory: example
+
+      - name: Test benchmark action with example project
+        uses: ./ci
+        with:
+          job: benchmark
+          working-directory: example
+
+      - name: Test self-validate action with example project
+        uses: ./self-validate
+        with:
+          workflow-paths: example/.github/workflows/*.yaml

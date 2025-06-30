@@ -88,7 +88,16 @@ class WorkflowValidator {
         const errors = [];
         const actionsFound = new Set();
         const workflowFiles = this.findWorkflowFiles();
+        // Check if this is the go-actions repository itself
+        const isGoActionsRepo = this.fileExists('ci/action.yaml') &&
+            this.fileExists('release/action.yaml') &&
+            this.fileExists('self-validate/action.yaml');
         if (workflowFiles.length === 0) {
+            return { isValid: true, actionsFound: [], errors: [] };
+        }
+        // If this is the go-actions repository itself, skip validation
+        // since it's the provider, not a consumer of the actions
+        if (isGoActionsRepo) {
             return { isValid: true, actionsFound: [], errors: [] };
         }
         for (const workflowFile of workflowFiles) {

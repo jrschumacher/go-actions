@@ -1,0 +1,16 @@
+project_name: go-valid
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+
+archives:
+  - format: tar.gz
+
+checksum:
+  name_template: 'checksums.txt'

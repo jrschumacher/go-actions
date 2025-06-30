@@ -1,4 +1,4 @@
-import { WorkflowValidator } from './workflow-validator';
+import { WorkflowValidator, validateWorkflows } from './workflow-validator';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -575,4 +575,5 @@ jobs:
       expect(result.isValid).toBe(true); // No version extraction = no comparison
     });
   });
+
 });
