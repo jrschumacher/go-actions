@@ -90,8 +90,18 @@ runs:
       uses: actions/github-script@v7
       with:
         script: |
-          const script = require('${{ github.action_path }}/../scripts-dist/ci-action.js');
-          script.extractTestCoverage('${{ inputs.working-directory }}');
+          const { extractCoverage } = require('${{ github.action_path }}/../scripts-dist/coverage-extractor.js');
+          const workingDir = '${{ inputs.working-directory }}' || '.';
+          
+          const result = extractCoverage(workingDir);
+          
+          if (result.hasCoverage && result.coverage !== null) {
+            console.log(`Coverage: ${result.coverage}%`);
+            core.setOutput('coverage', result.coverage.toString());
+          } else {
+            console.log('No coverage data found');
+            core.setOutput('coverage', '0');
+          }
 
     # Benchmark job
     - name: Run benchmarks
@@ -99,8 +109,13 @@ runs:
       uses: actions/github-script@v7
       with:
         script: |
-          const script = require('${{ github.action_path }}/../scripts-dist/ci-action.js');
-          script.runBenchmarkJob('${{ inputs.working-directory }}', '${{ inputs.benchmark-args }}', ${{ inputs.benchmark-count }});
+          const { runBenchmarks } = require('${{ github.action_path }}/../scripts-dist/benchmark-runner.js');
+          const workingDir = '${{ inputs.working-directory }}' || '.';
+          const benchmarkArgs = '${{ inputs.benchmark-args }}' || '-bench=. -benchmem';
+          const benchmarkCount = parseInt('${{ inputs.benchmark-count }}') || 5;
+          
+          const result = runBenchmarks(workingDir, benchmarkArgs, benchmarkCount);
+          console.log('Benchmark results:', result);
 
     # Lint job  
     - name: Run golangci-lint
@@ -113,12 +128,10 @@ runs:
 
     - name: Store lint results
       if: inputs.job == 'lint' && always()
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const script = require('${{ github.action_path }}/../scripts-dist/unified-pr-comment.js');
-          const status = '${{ job.status }}' === 'success' ? 'success' : 'failure';
-          await script.storeJobResults('lint', { status });
+      shell: bash
+      run: |
+        echo "Lint job completed with status: ${{ job.status }}"
+        # Note: Lint results are captured by the golangci-lint action output
 
     # Store results for unified comment (will be posted by a separate action)
     # Individual job comments are now consolidated into a single unified comment

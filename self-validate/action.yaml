@@ -23,8 +23,66 @@ runs:
       uses: actions/github-script@v7
       with:
         script: |
-          const script = require('${{ github.action_path }}/../scripts-dist/self-validate.js');
-          script.selfValidate({ workingDirectory: '.' });
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Load the workflow validator directly without @actions dependencies
+          const { validateWorkflows } = require('${{ github.action_path }}/../scripts-dist/workflow-validator.js');
+          
+          const result = validateWorkflows('.');
+          
+          console.log('Found go-actions usage:', result.actionsFound);
+          
+          // Set outputs
+          core.setOutput('actions_found', result.actionsFound.join(','));
+          core.setOutput('validation_failed', (!result.isValid).toString());
+          
+          if (!result.isValid) {
+            const errorMessages = result.errors.map(error => `- ${error.message}`).join('\n');
+            console.log('\n::error::Validation failed:');
+            console.log(errorMessages);
+            core.setOutput('error_messages', errorMessages);
+            core.setFailed(`Validation failed with ${result.errors.length} error(s)`);
+          } else {
+            console.log('✅ All validations passed!');
+          }
+          
+          // Generate PR comment if requested
+          const commentOnPr = '${{ inputs.comment-on-pr }}' === 'true';
+          if (commentOnPr && github.context.eventName === 'pull_request') {
+            const { WorkflowValidator } = require('${{ github.action_path }}/../scripts-dist/workflow-validator.js');
+            const validator = new WorkflowValidator('.');
+            const comment = validator.formatPRComment(result);
+            
+            // Post or update comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: github.context.repo.owner,
+              repo: github.context.repo.repo,
+              issue_number: github.context.issue.number,
+            });
+            
+            const existingComment = comments.find(comment => 
+              comment.body.includes('## 🔍 Go Actions Validation')
+            );
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: github.context.repo.owner,
+                repo: github.context.repo.repo,
+                comment_id: existingComment.id,
+                body: comment
+              });
+              console.log('Updated existing validation comment');
+            } else {
+              await github.rest.issues.createComment({
+                owner: github.context.repo.owner,
+                repo: github.context.repo.repo,
+                issue_number: github.context.issue.number,
+                body: comment
+              });
+              console.log('Created new validation comment');
+            }
+          }
 
     # Self-validation results are now stored for unified comment
     # Individual validation comments are consolidated into a single unified comment
