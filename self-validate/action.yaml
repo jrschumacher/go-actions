@@ -27,7 +27,7 @@ runs:
           const path = require('path');
           
           // Load the workflow validator directly without @actions dependencies
-          const { validateWorkflows } = require('${{ github.action_path }}/../scripts-dist/workflow-validator.js');
+          const { validateWorkflows } = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js');
           
           const result = validateWorkflows('.');
           
@@ -50,7 +50,7 @@ runs:
           // Generate PR comment if requested
           const commentOnPr = '${{ inputs.comment-on-pr }}' === 'true';
           if (commentOnPr && github.context.eventName === 'pull_request') {
-            const { WorkflowValidator } = require('${{ github.action_path }}/../scripts-dist/workflow-validator.js');
+            const { WorkflowValidator } = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js');
             const validator = new WorkflowValidator('.');
             const comment = validator.formatPRComment(result);
             

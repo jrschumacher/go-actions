@@ -37,7 +37,7 @@ runs:
       uses: actions/github-script@v7
       with:
         script: |
-          const script = require('${{ github.action_path }}/../scripts-dist/release-action.js');
+          const script = require('${{ github.action_path }}/../scripts-dist/release-action-bundle/index.js');
           script.validateReleaseConfiguration('${{ inputs.working-directory }}');
         
     - name: Run Release Please

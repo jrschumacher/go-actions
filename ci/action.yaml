@@ -90,7 +90,7 @@ runs:
       uses: actions/github-script@v7
       with:
         script: |
-          const { extractCoverage } = require('${{ github.action_path }}/../scripts-dist/coverage-extractor.js');
+          const { extractCoverage } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
           const workingDir = '${{ inputs.working-directory }}' || '.';
           
           const result = extractCoverage(workingDir);
@@ -109,7 +109,7 @@ runs:
       uses: actions/github-script@v7
       with:
         script: |
-          const { runBenchmarks } = require('${{ github.action_path }}/../scripts-dist/benchmark-runner.js');
+          const { runBenchmarks } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
           const workingDir = '${{ inputs.working-directory }}' || '.';
           const benchmarkArgs = '${{ inputs.benchmark-args }}' || '-bench=. -benchmem';
           const benchmarkCount = parseInt('${{ inputs.benchmark-count }}') || 5;
