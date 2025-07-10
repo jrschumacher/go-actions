@@ -1,0 +1,22 @@
+name: 'Test Go Actions Validation'
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: validate project configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Validate go-actions configuration
+        uses: ./self-validate
+        with:
+          comment-on-pr: true
