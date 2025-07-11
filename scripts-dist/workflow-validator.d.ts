@@ -4,11 +4,12 @@ export interface ValidationResult {
     errors: ValidationError[];
 }
 export interface ValidationError {
-    type: 'missing_file' | 'version_mismatch' | 'incompatible_versions';
+    type: 'missing_file' | 'version_mismatch' | 'incompatible_versions' | 'goreleaser_config' | 'release_please_config';
     message: string;
     file?: string;
     expected?: string;
     actual?: string;
+    severity?: 'error' | 'warning';
 }
 export declare class WorkflowValidator {
     private workingDir;
@@ -20,6 +21,11 @@ export declare class WorkflowValidator {
     private getMajorVersion;
     validate(): ValidationResult;
     private validateGolangciLintAction;
+    private validateGoReleaserConfig;
+    private validateReleasePleaseConfig;
     formatPRComment(result: ValidationResult): string;
+    private groupErrorsByType;
+    private getPassingChecks;
+    private generateConfigurationTemplates;
 }
 export declare function validateWorkflows(workingDir?: string): ValidationResult;

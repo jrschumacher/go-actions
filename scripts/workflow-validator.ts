@@ -8,11 +8,12 @@ export interface ValidationResult {
 }
 
 export interface ValidationError {
-  type: 'missing_file' | 'version_mismatch' | 'incompatible_versions';
+  type: 'missing_file' | 'version_mismatch' | 'incompatible_versions' | 'goreleaser_config' | 'release_please_config';
   message: string;
   file?: string;
   expected?: string;
   actual?: string;
+  severity?: 'error' | 'warning';
 }
 
 interface WorkflowConfig {
@@ -192,7 +193,13 @@ export class WorkflowValidator {
             message: '.goreleaser.yaml or .goreleaser.yml (required for release action)',
             file: '.goreleaser.yaml'
           });
+        } else {
+          // Validate GoReleaser configuration content
+          this.validateGoReleaserConfig(errors);
         }
+        
+        // Validate Release Please configuration content
+        this.validateReleasePleaseConfig(errors);
       }
       
       // Check for self-validate action
@@ -245,100 +252,356 @@ export class WorkflowValidator {
     }
   }
 
-  public formatPRComment(result: ValidationResult): string {
-    let comment = '## 🔍 Go Actions Validation\n\n';
+  private validateGoReleaserConfig(errors: ValidationError[]): void {
+    const configPath = this.fileExists('.goreleaser.yaml') ? '.goreleaser.yaml' : '.goreleaser.yml';
+    if (!configPath) return;
     
-    if (!result.isValid) {
-      comment += '❌ **Validation Failed**\n\n';
-      comment += 'Your workflows use go-actions but are missing required configuration files:\n\n';
+    try {
+      const configContent = fs.readFileSync(path.join(this.workingDir, configPath), 'utf8');
+      const yamlContent = configContent.toLowerCase();
       
-      for (const error of result.errors) {
-        comment += `- ${error.message}\n`;
+      // Check for common misconfigurations
+      if (!yamlContent.includes('builds:') && !yamlContent.includes('builds ')) {
+        errors.push({
+          type: 'goreleaser_config',
+          message: 'GoReleaser config missing required "builds" section',
+          file: configPath,
+          severity: 'error'
+        });
       }
       
-      comment += '\n### 📝 Required Configuration Examples\n\n';
-      
-      // Add examples for missing files
-      const missingFiles = result.errors.filter(e => e.type === 'missing_file').map(e => e.file);
-      
-      if (missingFiles.includes('.release-please-config.json')) {
-        comment += '**`.release-please-config.json`:**\n```json\n{\n  "packages": {\n    ".": {\n      "release-type": "go",\n      "package-name": "your-module-name"\n    }\n  }\n}\n```\n\n';
+      // Check for binary naming issues
+      if (yamlContent.includes('binary:') && !yamlContent.includes('{{ .ProjectName }}')) {
+        errors.push({
+          type: 'goreleaser_config',
+          message: 'GoReleaser binary naming may cause issues. Consider using "{{ .ProjectName }}"',
+          file: configPath,
+          severity: 'warning'
+        });
       }
       
-      if (missingFiles.includes('.release-please-manifest.json')) {
-        comment += '**`.release-please-manifest.json`:**\n```json\n{\n  ".": "0.1.0"\n}\n```\n\n';
+      // Check for archive format compatibility
+      if (yamlContent.includes('format: zip') && yamlContent.includes('goos: linux')) {
+        errors.push({
+          type: 'goreleaser_config',
+          message: 'ZIP format for Linux archives may cause compatibility issues. Consider tar.gz',
+          file: configPath,
+          severity: 'warning'
+        });
       }
       
-      if (missingFiles.includes('.goreleaser.yaml')) {
-        comment += '**`.goreleaser.yaml`:** Run `goreleaser init` to create this file\n\n';
-      }
-      
-      // Add version mismatch help
-      const versionErrors = result.errors.filter(e => e.type === 'version_mismatch');
-      if (versionErrors.length > 0) {
-        comment += '### ⚠️ Version Mismatch\n\n';
-        comment += 'Your golangci-lint configuration file version doesn\'t match what\'s expected by the workflow.\n\n';
-        comment += 'To fix this, update the `version:` field in your `.golangci.yml` or `.golangci.yaml` file to match the workflow\'s expected version.\n\n';
+    } catch (error) {
+      errors.push({
+        type: 'goreleaser_config',
+        message: `Invalid GoReleaser configuration: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        file: configPath,
+        severity: 'error'
+      });
+    }
+  }
+
+  private validateReleasePleaseConfig(errors: ValidationError[]): void {
+    // Validate .release-please-config.json
+    if (this.fileExists('.release-please-config.json')) {
+      try {
+        const configContent = fs.readFileSync(path.join(this.workingDir, '.release-please-config.json'), 'utf8');
+        const config = JSON.parse(configContent);
         
-        for (const error of versionErrors) {
-          if (error.expected) {
-            comment += `Example for ${error.file}:\n\`\`\`yaml\nversion: ${error.expected}\n\`\`\`\n\n`;
-          }
-        }
-      }
-      
-      // Add incompatible versions help
-      const incompatibleErrors = result.errors.filter(e => e.type === 'incompatible_versions');
-      if (incompatibleErrors.length > 0) {
-        comment += '### 🚫 Incompatible Versions\n\n';
-        comment += 'Found incompatible version combinations that will cause workflow failures:\n\n';
-        
-        for (const error of incompatibleErrors) {
-          comment += `❌ **${error.message}**\n\n`;
+        if (!config.packages || !config.packages['.']) {
+          errors.push({
+            type: 'release_please_config',
+            message: 'Release Please config missing packages["."] configuration',
+            file: '.release-please-config.json',
+            severity: 'error'
+          });
+        } else {
+          const packageConfig = config.packages['.'];
           
-          if (error.message.includes('golangci-lint-action@v8')) {
-            // Direct golangci-lint-action usage
-            comment += '**Quick Fix Options:**\n\n';
-            comment += '**Option 1: Use compatible golangci-lint version**\n';
-            comment += '```yaml\n';
-            comment += '- uses: golangci/golangci-lint-action@v8\n';
-            comment += '  with:\n';
-            comment += '    version: v2.1.0  # or latest\n';
-            comment += '```\n\n';
-            comment += '**Option 2: Downgrade action version**\n';
-            comment += '```yaml\n';
-            comment += '- uses: golangci/golangci-lint-action@v6\n';
-            comment += '  with:\n';
-            comment += `    version: ${error.actual}\n`;
-            comment += '```\n\n';
-            comment += '**Option 3: Use our go-actions/ci (recommended)**\n';
-            comment += '```yaml\n';
-            comment += '- uses: jrschumacher/go-actions/ci@v1\n';
-            comment += '  with:\n';
-            comment += '    job: lint\n';
-            comment += '    golangci-lint-version: v2  # compatible version\n';
-            comment += '```\n\n';
-          } else if (error.message.includes('go-actions/ci')) {
-            // go-actions/ci usage with incompatible version
-            comment += '**Quick Fix:**\n';
-            comment += '```yaml\n';
-            comment += '- uses: jrschumacher/go-actions/ci@v1\n';
-            comment += '  with:\n';
-            comment += '    job: lint\n';
-            comment += '    golangci-lint-version: v2  # change from ' + error.actual + '\n';
-            comment += '```\n\n';
-            comment += '**Why this is needed:** go-actions/ci uses golangci-lint-action@v8 internally, which requires golangci-lint v2+.\n\n';
+          if (packageConfig['release-type'] !== 'go') {
+            errors.push({
+              type: 'release_please_config',
+              message: 'Release Please config should use "release-type": "go" for Go projects',
+              file: '.release-please-config.json',
+              severity: 'warning'
+            });
+          }
+          
+          if (!packageConfig['package-name']) {
+            errors.push({
+              type: 'release_please_config',
+              message: 'Release Please config missing "package-name" field',
+              file: '.release-please-config.json',
+              severity: 'error'
+            });
           }
         }
         
-        comment += '💡 **Tip**: golangci-lint v2 has better performance and more features than v1. [Migration guide](https://golangci-lint.run/usage/migration-guide/)\n\n';
+        // Check for branch configuration
+        if (config['target-branch'] && config['target-branch'] !== 'main' && config['target-branch'] !== 'master') {
+          errors.push({
+            type: 'release_please_config',
+            message: `Unusual target branch "${config['target-branch']}". Verify this is correct`,
+            file: '.release-please-config.json',
+            severity: 'warning'
+          });
+        }
+        
+      } catch (error) {
+        errors.push({
+          type: 'release_please_config',
+          message: `Invalid Release Please config JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          file: '.release-please-config.json',
+          severity: 'error'
+        });
       }
-    } else {
-      comment += '✅ **All validations passed!**\n\n';
-      comment += `Your project is properly configured for the go-actions used: ${result.actionsFound.join(', ')}`;
     }
     
+    // Validate .release-please-manifest.json
+    if (this.fileExists('.release-please-manifest.json')) {
+      try {
+        const manifestContent = fs.readFileSync(path.join(this.workingDir, '.release-please-manifest.json'), 'utf8');
+        const manifest = JSON.parse(manifestContent);
+        
+        if (!manifest['.']) {
+          errors.push({
+            type: 'release_please_config',
+            message: 'Release Please manifest missing "." entry for root package',
+            file: '.release-please-manifest.json',
+            severity: 'error'
+          });
+        } else {
+          const version = manifest['.'];
+          // Basic semantic version check
+          if (!/^\d+\.\d+\.\d+/.test(version)) {
+            errors.push({
+              type: 'release_please_config',
+              message: `Invalid version format "${version}". Use semantic versioning (e.g., "1.0.0")`,
+              file: '.release-please-manifest.json',
+              severity: 'error'
+            });
+          }
+        }
+        
+      } catch (error) {
+        errors.push({
+          type: 'release_please_config',
+          message: `Invalid Release Please manifest JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          file: '.release-please-manifest.json',
+          severity: 'error'
+        });
+      }
+    }
+  }
+
+  public formatPRComment(result: ValidationResult): string {
+    const hasErrors = !result.isValid;
+    const errorsByType = this.groupErrorsByType(result.errors);
+    
+    let comment = '## 🔍 go-actions Validation Report\n\n';
+    
+    if (hasErrors) {
+      // Issues Found section
+      comment += '### ❌ Issues Found\n\n';
+      let issueNumber = 1;
+      
+      // GoReleaser issues
+      if (errorsByType.missing_file?.some(e => e.file?.includes('goreleaser')) || errorsByType.goreleaser_config) {
+        comment += `${issueNumber}. **GoReleaser Config** - Configuration issues detected\n`;
+        
+        if (errorsByType.missing_file?.some(e => e.file?.includes('goreleaser'))) {
+          comment += '   - 📁 Expected: `.goreleaser.yaml`\n';
+          comment += '   - 🔧 Fix: Run `goreleaser init` to create initial config\n';
+        }
+        
+        if (errorsByType.goreleaser_config) {
+          for (const error of errorsByType.goreleaser_config) {
+            const icon = error.severity === 'warning' ? '⚠️' : '❌';
+            comment += `   - ${icon} ${error.message}\n`;
+          }
+        }
+        
+        comment += '   - 📖 [GoReleaser Documentation](https://goreleaser.com/quick-start/)\n\n';
+        issueNumber++;
+      }
+      
+      // Release Please issues
+      if (errorsByType.missing_file?.some(e => e.file?.includes('release-please')) || errorsByType.release_please_config) {
+        comment += `${issueNumber}. **Release Please Config** - Configuration issues detected\n`;
+        
+        if (errorsByType.missing_file?.some(e => e.file?.includes('release-please'))) {
+          comment += '   - 📁 Expected: `.release-please-config.json` and `.release-please-manifest.json`\n';
+        }
+        
+        if (errorsByType.release_please_config) {
+          for (const error of errorsByType.release_please_config) {
+            const icon = error.severity === 'warning' ? '⚠️' : '❌';
+            comment += `   - ${icon} ${error.message}\n`;
+          }
+        }
+        
+        comment += '   - 🔧 Quick fix: Create config files with templates below\n';
+        comment += '   - 📖 [Release Please Documentation](https://github.com/googleapis/release-please)\n\n';
+        issueNumber++;
+      }
+      
+      // golangci-lint incompatibility issues
+      if (errorsByType.incompatible_versions) {
+        for (const error of errorsByType.incompatible_versions) {
+          comment += `${issueNumber}. **golangci-lint Compatibility** - Incompatible version combination\n`;
+          comment += `   - ❌ Issue: ${error.message}\n`;
+          comment += '   - 🔧 Quick fix: Update configuration as shown below\n';
+          comment += '   - 💡 Suggestion: Use golangci-lint v2+ for better performance\n\n';
+          issueNumber++;
+        }
+      }
+      
+      // Version mismatch issues
+      if (errorsByType.version_mismatch) {
+        for (const error of errorsByType.version_mismatch) {
+          comment += `${issueNumber}. **Version Mismatch** - Configuration file version mismatch\n`;
+          comment += `   - 📁 File: ${error.file}\n`;
+          comment += `   - 🔧 Quick fix: Update version to ${error.expected}\n`;
+          comment += '   - 📖 [Version Compatibility Guide](https://docs.anthropic.com/en/docs/claude-code)\n\n';
+          issueNumber++;
+        }
+      }
+    }
+    
+    // Passing Checks section
+    const passingChecks = this.getPassingChecks(result, errorsByType);
+    if (passingChecks.length > 0) {
+      comment += '### ✅ Passing Checks\n\n';
+      for (const check of passingChecks) {
+        comment += `- ${check}\n`;
+      }
+      comment += '\n';
+    }
+    
+    if (hasErrors) {
+      // Configuration Templates section
+      comment += '### 📝 Configuration Templates\n\n';
+      comment += this.generateConfigurationTemplates(errorsByType);
+      
+      // Next Steps section
+      comment += '### 🚀 Next Steps\n\n';
+      comment += '1. Apply the fixes shown above\n';
+      comment += '2. Push your changes to trigger re-validation\n';
+      comment += '3. Once all checks pass, your go-actions workflows will run smoothly\n';
+      comment += '4. Need help? Check the [go-actions documentation](https://docs.anthropic.com/en/docs/claude-code)\n\n';
+    } else {
+      comment += '🎉 **Perfect!** All validations passed.\n\n';
+      comment += `Your project is properly configured for: ${result.actionsFound.join(', ')}\n\n`;
+      comment += '**What this means:**\n';
+      comment += '- ✅ All required configuration files are present\n';
+      comment += '- ✅ Version compatibility verified\n';
+      comment += '- ✅ Workflow syntax is valid\n';
+      comment += '- ✅ Ready for automated CI/CD\n\n';
+    }
+    
+    comment += '*🤖 This comment will update automatically as you push changes.*\n';
+    comment += '*Generated by [go-actions](https://github.com/jrschumacher/go-actions)*';
+    
     return comment;
+  }
+  
+  private groupErrorsByType(errors: ValidationError[]): Record<string, ValidationError[]> {
+    const grouped: Record<string, ValidationError[]> = {};
+    for (const error of errors) {
+      if (!grouped[error.type]) {
+        grouped[error.type] = [];
+      }
+      grouped[error.type].push(error);
+    }
+    return grouped;
+  }
+  
+  private getPassingChecks(result: ValidationResult, errorsByType: Record<string, ValidationError[]>): string[] {
+    const checks: string[] = [];
+    
+    // Check if go.mod format is valid (no go.mod errors)
+    if (!errorsByType.missing_file?.some(e => e.file === 'go.mod')) {
+      checks.push('go.mod format');
+    }
+    
+    // Check if CI workflow syntax is valid (assuming if we found actions, syntax is OK)
+    if (result.actionsFound.length > 0) {
+      checks.push('CI workflow syntax');
+    }
+    
+    // Check if golangci-lint config is compatible
+    if (!errorsByType.incompatible_versions?.some(e => e.message.includes('golangci-lint'))) {
+      checks.push('golangci-lint configuration');
+    }
+    
+    // Check if release config is present
+    if (!errorsByType.missing_file?.some(e => e.file?.includes('release-please'))) {
+      checks.push('Release Please configuration');
+    }
+    
+    // Check if goreleaser config is present
+    if (!errorsByType.missing_file?.some(e => e.file?.includes('goreleaser'))) {
+      checks.push('GoReleaser configuration');
+    }
+    
+    return checks;
+  }
+  
+  private generateConfigurationTemplates(errorsByType: Record<string, ValidationError[]>): string {
+    let templates = '';
+    
+    // Release Please templates
+    if (errorsByType.missing_file?.some(e => e.file?.includes('release-please'))) {
+      templates += '**`.release-please-config.json`:**\n';
+      templates += '```json\n';
+      templates += '{\n';
+      templates += '  "packages": {\n';
+      templates += '    ".": {\n';
+      templates += '      "release-type": "go",\n';
+      templates += '      "package-name": "your-module-name"\n';
+      templates += '    }\n';
+      templates += '  }\n';
+      templates += '}\n';
+      templates += '```\n\n';
+      
+      templates += '**`.release-please-manifest.json`:**\n';
+      templates += '```json\n';
+      templates += '{\n';
+      templates += '  ".": "0.1.0"\n';
+      templates += '}\n';
+      templates += '```\n\n';
+    }
+    
+    // GoReleaser template
+    if (errorsByType.missing_file?.some(e => e.file?.includes('goreleaser'))) {
+      templates += '**`.goreleaser.yaml`:**\n';
+      templates += '```bash\n';
+      templates += '# Initialize with: goreleaser init\n';
+      templates += 'goreleaser init\n';
+      templates += '```\n\n';
+    }
+    
+    // golangci-lint compatibility fixes
+    if (errorsByType.incompatible_versions) {
+      for (const error of errorsByType.incompatible_versions) {
+        if (error.message.includes('golangci-lint-action@v8')) {
+          templates += '**golangci-lint Compatibility Fix:**\n';
+          templates += '```yaml\n';
+          templates += '# Option 1: Update to compatible version\n';
+          templates += '- uses: golangci/golangci-lint-action@v8\n';
+          templates += '  with:\n';
+          templates += '    version: v2.1.0  # Use v2+ for compatibility\n';
+          templates += '\n';
+          templates += '# Option 2: Use go-actions/ci (recommended)\n';
+          templates += '- uses: jrschumacher/go-actions/ci@v1\n';
+          templates += '  with:\n';
+          templates += '    job: lint\n';
+          templates += '    golangci-lint-version: v2\n';
+          templates += '```\n\n';
+        }
+      }
+    }
+    
+    return templates;
   }
 }
 
