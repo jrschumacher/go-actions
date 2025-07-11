@@ -51,6 +51,11 @@ runs:
           const commentOnPr = '${{ inputs.comment-on-pr }}' === 'true';
           if (commentOnPr) {
             try {
+              console.log('Debug: github object type:', typeof github);
+              console.log('Debug: github.context type:', typeof github?.context);
+              console.log('Debug: event name:', github?.context?.eventName);
+              console.log('Debug: payload keys:', github?.context?.payload ? Object.keys(github.context.payload) : 'no payload');
+              
               if (!github || !github.context || github.context.eventName !== 'pull_request') {
                 console.log('Skipping PR comment - not a pull request event or github context unavailable');
                 return;
