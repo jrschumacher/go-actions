@@ -47,65 +47,36 @@ runs:
             console.log('✅ All validations passed!');
           }
           
-          // Generate PR comment if requested
+          // Store results for unified PR comment
           const commentOnPr = '${{ inputs.comment-on-pr }}' === 'true';
           if (commentOnPr) {
             try {
-              // Check if this is a pull request event using environment variables
+              // Store validation results for unified comment system
+              const { UnifiedPRComment, updateUnifiedComment, loadAllResults } = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js');
+              
+              const selfValidateResult = {
+                status: result.isValid ? 'success' : 'failure',
+                actionsFound: result.actionsFound,
+                errors: result.errors
+              };
+              
+              // Store this job's results
+              await UnifiedPRComment.storeResults('selfValidate', selfValidateResult);
+              
+              // Check if this is a pull request event
               const eventName = process.env.GITHUB_EVENT_NAME;
               if (eventName !== 'pull_request') {
                 console.log('Skipping PR comment - not a pull request event');
                 return;
               }
               
-              // Get context information from environment variables
-              const owner = process.env.GITHUB_REPOSITORY.split('/')[0];
-              const repo = process.env.GITHUB_REPOSITORY.split('/')[1];
-              const prNumber = process.env.GITHUB_REF_NAME.split('/')[0]; // This might not work, let's use a different approach
+              // Load all stored results and update unified comment
+              const allResults = UnifiedPRComment.loadStoredResults();
+              await updateUnifiedComment(allResults);
               
-              // For PR events, we need to get the PR number differently
-              const eventPath = process.env.GITHUB_EVENT_PATH;
-              const event = JSON.parse(require('fs').readFileSync(eventPath, 'utf8'));
-              const issueNumber = event.pull_request ? event.pull_request.number : event.issue ? event.issue.number : null;
-              
-              if (!issueNumber) {
-                console.log('Could not determine PR/issue number');
-                return;
-              }
-              const { WorkflowValidator } = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js');
-              const validator = new WorkflowValidator('.');
-              const comment = validator.formatPRComment(result);
-              
-              // Post or update comment
-              const { data: comments } = await github.rest.issues.listComments({
-                owner: owner,
-                repo: repo,
-                issue_number: issueNumber,
-              });
-              
-              const existingComment = comments.find(comment => 
-                comment.body.includes('## 🔍 go-actions Validation Report')
-              );
-              
-              if (existingComment) {
-                await github.rest.issues.updateComment({
-                  owner: owner,
-                  repo: repo,
-                  comment_id: existingComment.id,
-                  body: comment
-                });
-                console.log('Updated existing validation comment');
-              } else {
-                await github.rest.issues.createComment({
-                  owner: owner,
-                  repo: repo,
-                  issue_number: issueNumber,
-                  body: comment
-                });
-                console.log('Created new validation comment');
-              }
+              console.log('Updated unified go-actions comment');
             } catch (commentError) {
-              console.log('Failed to post PR comment:', commentError.message);
+              console.log('Failed to update unified comment:', commentError.message);
               // Don't fail the action if commenting fails
             }
           }

@@ -393,15 +393,36 @@ export class WorkflowValidator {
     }
   }
 
+  public createUnifiedSection(result: ValidationResult) {
+    // Create section for unified comment system
+    const { UnifiedPRComment } = require('./unified-pr-comment');
+    
+    const selfValidateResult = {
+      status: result.isValid ? 'success' as const : 'failure' as const,
+      actionsFound: result.actionsFound,
+      errors: result.errors
+    };
+    
+    return UnifiedPRComment.storeResults('selfValidate', selfValidateResult);
+  }
+
   public formatPRComment(result: ValidationResult): string {
     const hasErrors = !result.isValid;
     const errorsByType = this.groupErrorsByType(result.errors);
     
-    let comment = '## 🔍 go-actions Validation Report\n\n';
+    let comment = '# Go Actions Report\n\n';
+    
+    // Status line for validation
+    if (hasErrors) {
+      comment += '❌ **Validation Failed**\n';
+    } else {
+      comment += '✅ **Validated**\n';
+    }
+    comment += '\n';
     
     if (hasErrors) {
-      // Issues Found section
-      comment += '### ❌ Issues Found\n\n';
+      // Issues in details section
+      comment += '<details open><summary>Validation Issues</summary>\n\n';
       let issueNumber = 1;
       
       // GoReleaser issues
@@ -480,7 +501,7 @@ export class WorkflowValidator {
     
     if (hasErrors) {
       // Configuration Templates section
-      comment += '### 📝 Configuration Templates\n\n';
+      comment += '\n### 📝 Configuration Templates\n\n';
       comment += this.generateConfigurationTemplates(errorsByType);
       
       // Next Steps section
@@ -489,14 +510,17 @@ export class WorkflowValidator {
       comment += '2. Push your changes to trigger re-validation\n';
       comment += '3. Once all checks pass, your go-actions workflows will run smoothly\n';
       comment += '4. Need help? Check the [go-actions documentation](https://docs.anthropic.com/en/docs/claude-code)\n\n';
+      
+      comment += '</details>\n\n';
     } else {
-      comment += '🎉 **Perfect!** All validations passed.\n\n';
-      comment += `Your project is properly configured for: ${result.actionsFound.join(', ')}\n\n`;
-      comment += '**What this means:**\n';
-      comment += '- ✅ All required configuration files are present\n';
-      comment += '- ✅ Version compatibility verified\n';
-      comment += '- ✅ Workflow syntax is valid\n';
-      comment += '- ✅ Ready for automated CI/CD\n\n';
+      // Success case - minimal with details collapsed
+      comment += '<details><summary>Validation Details</summary>\n\n';
+      comment += `**Actions configured:** ${result.actionsFound.join(', ')}\n\n`;
+      comment += '**Checks passed:**\n';
+      comment += '- Configuration files present\n';
+      comment += '- Version compatibility verified\n';
+      comment += '- Workflow syntax valid\n\n';
+      comment += '</details>\n\n';
     }
     
     comment += '*🤖 This comment will update automatically as you push changes.*\n';

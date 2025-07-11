@@ -23,6 +23,7 @@ export declare class WorkflowValidator {
     private validateGolangciLintAction;
     private validateGoReleaserConfig;
     private validateReleasePleaseConfig;
+    createUnifiedSection(result: ValidationResult): any;
     formatPRComment(result: ValidationResult): string;
     private groupErrorsByType;
     private getPassingChecks;

@@ -29935,12 +29935,16 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.WorkflowValidator = exports.validateWorkflows = void 0;
+exports.loadAllResults = exports.updateUnifiedComment = exports.UnifiedPRComment = exports.WorkflowValidator = exports.validateWorkflows = void 0;
 // Entry point for self-validate bundle
 var workflow_validator_1 = __nccwpck_require__(3738);
 Object.defineProperty(exports, "validateWorkflows", ({ enumerable: true, get: function () { return workflow_validator_1.validateWorkflows; } }));
 Object.defineProperty(exports, "WorkflowValidator", ({ enumerable: true, get: function () { return workflow_validator_1.WorkflowValidator; } }));
 __exportStar(__nccwpck_require__(3377), exports);
+var unified_pr_comment_1 = __nccwpck_require__(5671);
+Object.defineProperty(exports, "UnifiedPRComment", ({ enumerable: true, get: function () { return unified_pr_comment_1.UnifiedPRComment; } }));
+Object.defineProperty(exports, "updateUnifiedComment", ({ enumerable: true, get: function () { return unified_pr_comment_1.updateUnifiedComment; } }));
+Object.defineProperty(exports, "loadAllResults", ({ enumerable: true, get: function () { return unified_pr_comment_1.loadAllResults; } }));
 //# sourceMappingURL=self-validate-entry.js.map
 
 /***/ }),
@@ -30103,7 +30107,7 @@ class UnifiedPRComment {
             issue_number: github.context.issue.number,
         });
         const botComment = comments.find(c => c.user?.type === 'Bot' &&
-            c.body?.includes('## 🚀 Go Actions CI Results'));
+            c.body?.includes('# Go Actions Report'));
         if (botComment) {
             // Update existing comment
             await octokit.rest.issues.updateComment({
@@ -30126,42 +30130,65 @@ class UnifiedPRComment {
         }
     }
     formatUnifiedComment(results) {
-        const sections = [];
         const hasAnyResults = Object.keys(results).some(key => results[key] && results[key].status !== 'skipped');
         if (!hasAnyResults) {
             return this.formatEmptyComment();
         }
-        // Header
-        const overallStatus = this.getOverallStatus(results);
-        const emoji = overallStatus === 'success' ? '✅' : overallStatus === 'failure' ? '❌' : '⚠️';
-        sections.push(`## 🚀 Go Actions CI Results`);
-        sections.push('');
-        sections.push(`**Overall Status:** ${emoji} ${overallStatus.toUpperCase()}`);
-        sections.push('');
-        // Summary table
-        sections.push(this.formatSummaryTable(results));
-        sections.push('');
-        // Detailed sections
+        let comment = '# Go Actions Report\n\n';
+        // Status lines
+        if (results.selfValidate && results.selfValidate.status !== 'skipped') {
+            const icon = results.selfValidate.status === 'success' ? '✅' : '❌';
+            comment += `${icon} **Validated**`;
+            if (results.selfValidate.status === 'failure') {
+                comment += ` (${results.selfValidate.errors.length} issue${results.selfValidate.errors.length === 1 ? '' : 's'})`;
+            }
+            comment += '\n';
+        }
         if (results.test && results.test.status !== 'skipped') {
-            sections.push(this.formatTestSection(results.test));
-            sections.push('');
+            const icon = results.test.status === 'success' ? '✅' : '❌';
+            comment += `${icon} **Tests**`;
+            if (results.test.coverage) {
+                comment += ` (${results.test.coverage} coverage)`;
+            }
+            else if (results.test.status === 'failure') {
+                comment += ' (failed)';
+            }
+            comment += '\n';
         }
         if (results.lint && results.lint.status !== 'skipped') {
-            sections.push(this.formatLintSection(results.lint));
-            sections.push('');
+            const icon = results.lint.status === 'success' ? '✅' : '❌';
+            comment += `${icon} **Lint**`;
+            if (results.lint.status === 'failure') {
+                comment += ' (issues found)';
+            }
+            comment += '\n';
         }
         if (results.benchmark && results.benchmark.status !== 'skipped') {
-            sections.push(this.formatBenchmarkSection(results.benchmark));
-            sections.push('');
+            const icon = results.benchmark.status === 'success' ? '✅' : '❌';
+            comment += `${icon} **Benchmarks**`;
+            if (results.benchmark.status === 'failure') {
+                comment += ' (failed)';
+            }
+            comment += '\n';
         }
+        comment += '\n';
+        // Details sections
         if (results.selfValidate && results.selfValidate.status !== 'skipped') {
-            sections.push(this.formatSelfValidateSection(results.selfValidate));
-            sections.push('');
+            comment += this.formatValidationDetails(results.selfValidate);
+        }
+        if (results.test && results.test.status !== 'skipped') {
+            comment += this.formatTestDetails(results.test);
+        }
+        if (results.lint && results.lint.status !== 'skipped') {
+            comment += this.formatLintDetails(results.lint);
+        }
+        if (results.benchmark && results.benchmark.status !== 'skipped') {
+            comment += this.formatBenchmarkDetails(results.benchmark);
         }
         // Footer
-        sections.push('---');
-        sections.push('*Generated by [go-actions](https://github.com/jrschumacher/go-actions)*');
-        return sections.join('\n');
+        comment += '*🤖 This comment will update automatically as you push changes.*\n';
+        comment += '*Generated by [go-actions](https://github.com/jrschumacher/go-actions)*';
+        return comment;
     }
     getOverallStatus(results) {
         const statuses = Object.values(results)
@@ -30295,12 +30322,66 @@ ${selfValidate.actionsFound.length > 0 ?
                 `**Actions detected:** ${selfValidate.actionsFound.join(', ')}` : ''}`;
         }
     }
+    formatValidationDetails(selfValidate) {
+        if (selfValidate.status === 'success') {
+            return `<details><summary>Validation Details</summary>\n\n**Actions configured:** ${selfValidate.actionsFound.join(', ')}\n\n**Checks passed:**\n- Configuration files present\n- Version compatibility verified\n- Workflow syntax valid\n\n</details>\n\n`;
+        }
+        else {
+            let details = '<details open><summary>Validation Issues</summary>\n\n';
+            for (let i = 0; i < selfValidate.errors.length; i++) {
+                details += `${i + 1}. ${selfValidate.errors[i].message}\n`;
+            }
+            details += '\n</details>\n\n';
+            return details;
+        }
+    }
+    formatTestDetails(test) {
+        if (test.status === 'success') {
+            if (test.coverage) {
+                const coveragePercent = parseFloat(test.coverage.replace('%', ''));
+                const emoji = coveragePercent >= 80 ? '🎉' : coveragePercent >= 60 ? '⚠️' : '🚨';
+                return `<details><summary>Test Details</summary>\n\n**Coverage: ${test.coverage}**\n\n${emoji} ${coveragePercent >= 80 ?
+                    'Excellent test coverage!' :
+                    coveragePercent >= 60 ?
+                        'Good coverage, consider adding more tests.' :
+                        'Low test coverage detected. Please add more tests.'}\n\n</details>\n\n`;
+            }
+            else {
+                return `<details><summary>Test Details</summary>\n\nAll tests passed successfully!\n\n</details>\n\n`;
+            }
+        }
+        else {
+            return `<details open><summary>Test Issues</summary>\n\n**Tests failed!**\n\n${test.error ? `**Error:** ${test.error}` : 'Please check the test logs for details.'}\n\n</details>\n\n`;
+        }
+    }
+    formatLintDetails(lint) {
+        if (lint.status === 'success') {
+            return `<details><summary>Lint Details</summary>\n\nCode quality checks passed!\n\n</details>\n\n`;
+        }
+        else {
+            return `<details open><summary>Lint Issues</summary>\n\n**Linting failed!**\n\n${lint.error ? `**Error:** ${lint.error}` : 'Please check the lint logs for details.'}\n\n</details>\n\n`;
+        }
+    }
+    formatBenchmarkDetails(benchmark) {
+        if (benchmark.status === 'success') {
+            return `<details><summary>Benchmark Details</summary>\n\nBenchmarks completed successfully!\n\n${benchmark.config ? `**Configuration:**\n- Args: \`${benchmark.config.args}\`\n- Runs: ${benchmark.config.count}` : ''}\n\n</details>\n\n`;
+        }
+        else {
+            return `<details open><summary>Benchmark Issues</summary>\n\n**Benchmarks failed!**\n\n${benchmark.error ? `**Error:** ${benchmark.error}` : ''}\n\n${benchmark.config ? `**Configuration:**\n- Args: \`${benchmark.config.args}\`\n- Runs: ${benchmark.config.count}` : ''}\n\n</details>\n\n`;
+        }
+    }
     formatEmptyComment() {
-        return `## 🚀 Go Actions CI Results
+        return `# Go Actions Report
+
+⏳ **Pending**
+
+<details><summary>Details</summary>
 
 No CI jobs have run yet. Results will appear here as jobs complete.
 
----
+</details>
+
+*🤖 This comment will update automatically as you push changes.*
 *Generated by [go-actions](https://github.com/jrschumacher/go-actions)*`;
     }
     // Static method to store results in GitHub Actions artifacts/environment
@@ -30715,13 +30796,31 @@ class WorkflowValidator {
             }
         }
     }
+    createUnifiedSection(result) {
+        // Create section for unified comment system
+        const { UnifiedPRComment } = __nccwpck_require__(5671);
+        const selfValidateResult = {
+            status: result.isValid ? 'success' : 'failure',
+            actionsFound: result.actionsFound,
+            errors: result.errors
+        };
+        return UnifiedPRComment.storeResults('selfValidate', selfValidateResult);
+    }
     formatPRComment(result) {
         const hasErrors = !result.isValid;
         const errorsByType = this.groupErrorsByType(result.errors);
-        let comment = '## 🔍 go-actions Validation Report\n\n';
+        let comment = '# Go Actions Report\n\n';
+        // Status line for validation
         if (hasErrors) {
-            // Issues Found section
-            comment += '### ❌ Issues Found\n\n';
+            comment += '❌ **Validation Failed**\n';
+        }
+        else {
+            comment += '✅ **Validated**\n';
+        }
+        comment += '\n';
+        if (hasErrors) {
+            // Issues in details section
+            comment += '<details open><summary>Validation Issues</summary>\n\n';
             let issueNumber = 1;
             // GoReleaser issues
             if (errorsByType.missing_file?.some(e => e.file?.includes('goreleaser')) || errorsByType.goreleaser_config) {
@@ -30788,7 +30887,7 @@ class WorkflowValidator {
         }
         if (hasErrors) {
             // Configuration Templates section
-            comment += '### 📝 Configuration Templates\n\n';
+            comment += '\n### 📝 Configuration Templates\n\n';
             comment += this.generateConfigurationTemplates(errorsByType);
             // Next Steps section
             comment += '### 🚀 Next Steps\n\n';
@@ -30796,15 +30895,17 @@ class WorkflowValidator {
             comment += '2. Push your changes to trigger re-validation\n';
             comment += '3. Once all checks pass, your go-actions workflows will run smoothly\n';
             comment += '4. Need help? Check the [go-actions documentation](https://docs.anthropic.com/en/docs/claude-code)\n\n';
+            comment += '</details>\n\n';
         }
         else {
-            comment += '🎉 **Perfect!** All validations passed.\n\n';
-            comment += `Your project is properly configured for: ${result.actionsFound.join(', ')}\n\n`;
-            comment += '**What this means:**\n';
-            comment += '- ✅ All required configuration files are present\n';
-            comment += '- ✅ Version compatibility verified\n';
-            comment += '- ✅ Workflow syntax is valid\n';
-            comment += '- ✅ Ready for automated CI/CD\n\n';
+            // Success case - minimal with details collapsed
+            comment += '<details><summary>Validation Details</summary>\n\n';
+            comment += `**Actions configured:** ${result.actionsFound.join(', ')}\n\n`;
+            comment += '**Checks passed:**\n';
+            comment += '- Configuration files present\n';
+            comment += '- Version compatibility verified\n';
+            comment += '- Workflow syntax valid\n\n';
+            comment += '</details>\n\n';
         }
         comment += '*🤖 This comment will update automatically as you push changes.*\n';
         comment += '*Generated by [go-actions](https://github.com/jrschumacher/go-actions)*';

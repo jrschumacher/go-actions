@@ -40,6 +40,10 @@ export declare class UnifiedPRComment {
     private formatLintSection;
     private formatBenchmarkSection;
     private formatSelfValidateSection;
+    private formatValidationDetails;
+    private formatTestDetails;
+    private formatLintDetails;
+    private formatBenchmarkDetails;
     private formatEmptyComment;
     static storeResults(jobType: keyof CIResults, jobResults: any): Promise<void>;
     static loadStoredResults(): CIResults;
