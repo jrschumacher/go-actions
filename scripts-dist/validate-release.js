@@ -80,6 +80,12 @@ class ReleaseValidator {
         if (!this.fileExists('.release-please-manifest.json')) {
             console.log(`Missing: ${path.join(this.workingDir, '.release-please-manifest.json')}`);
             missingFiles.push('.release-please-manifest.json');
+            // Check for common mistake (without dot prefix)
+            if (this.fileExists('release-please-manifest.json')) {
+                console.log(`::error::Found release-please-manifest.json but Release Please expects .release-please-manifest.json (with dot prefix)`);
+                console.log(`Please rename release-please-manifest.json to .release-please-manifest.json`);
+                missingFiles.push('.release-please-manifest.json (incorrect filename)');
+            }
         }
         else {
             console.log(`Found: .release-please-manifest.json`);
