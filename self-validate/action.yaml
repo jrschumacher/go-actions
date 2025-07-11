@@ -84,7 +84,7 @@ runs:
               });
               
               const existingComment = comments.find(comment => 
-                comment.body.includes('## 🔍 Go Actions Validation')
+                comment.body.includes('## 🔍 go-actions Validation Report')
               );
               
               if (existingComment) {
