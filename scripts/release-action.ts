@@ -25,13 +25,12 @@ export class ReleaseAction {
       
       // Log helpful setup instructions
       console.log('');
-      console.log('Create .release-please-config.json:');
+      console.log('Create .release-please-config.json (Release Please v16+ format):');
       console.log(JSON.stringify({
+        'release-type': 'go',
+        'package-name': 'your-module-name',
         packages: {
-          '.': {
-            'release-type': 'go',
-            'package-name': 'your-module-name'
-          }
+          '.': {}
         }
       }, null, 2));
       
