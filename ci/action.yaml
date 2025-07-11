@@ -84,13 +84,13 @@ runs:
         echo "Running Go tests..."
         go test ${{ inputs.test-args }} ./...
 
-    - name: Extract coverage
+    - name: Extract coverage and store results
       if: inputs.job == 'test'
       id: coverage
       uses: actions/github-script@v7
       with:
         script: |
-          const { extractCoverage } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
+          const { extractCoverage, UnifiedPRComment, updateUnifiedComment } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
           const workingDir = '${{ inputs.working-directory }}' || '.';
           
           const result = extractCoverage(workingDir);
@@ -102,24 +102,86 @@ runs:
             console.log('No coverage data found');
             core.setOutput('coverage', '0');
           }
+          
+          // Store test results for unified comment
+          const testResult = {
+            status: '${{ steps.test.outcome }}' === 'success' ? 'success' : 'failure',
+            coverage: result.hasCoverage && result.coverage !== null ? `${result.coverage}%` : undefined,
+            error: '${{ steps.test.outcome }}' !== 'success' ? 'Test execution failed' : undefined
+          };
+          
+          await UnifiedPRComment.storeResults('test', testResult);
+          
+          // Update unified comment if this is a PR
+          if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
+            try {
+              const allResults = UnifiedPRComment.loadStoredResults();
+              await updateUnifiedComment(allResults);
+              console.log('Updated unified go-actions comment with test results');
+            } catch (error) {
+              console.log('Failed to update unified comment:', error.message);
+            }
+          }
 
     # Benchmark job
-    - name: Run benchmarks
+    - name: Run benchmarks and store results
       if: inputs.job == 'benchmark'
+      id: benchmark
       uses: actions/github-script@v7
       with:
         script: |
-          const { runBenchmarks } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
+          const { runBenchmarks, UnifiedPRComment, updateUnifiedComment } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
           const workingDir = '${{ inputs.working-directory }}' || '.';
           const benchmarkArgs = '${{ inputs.benchmark-args }}' || '-bench=. -benchmem';
           const benchmarkCount = parseInt('${{ inputs.benchmark-count }}') || 5;
           
-          const result = runBenchmarks(workingDir, benchmarkArgs, benchmarkCount);
-          console.log('Benchmark results:', result);
+          try {
+            const result = runBenchmarks(workingDir, benchmarkArgs, benchmarkCount);
+            console.log('Benchmark results:', result);
+            
+            // Store benchmark results for unified comment
+            const benchmarkResult = {
+              status: 'success',
+              config: {
+                args: benchmarkArgs,
+                count: benchmarkCount
+              }
+            };
+            
+            await UnifiedPRComment.storeResults('benchmark', benchmarkResult);
+            
+          } catch (error) {
+            console.error('Benchmark failed:', error.message);
+            
+            // Store failure results
+            const benchmarkResult = {
+              status: 'failure',
+              error: error.message,
+              config: {
+                args: benchmarkArgs,
+                count: benchmarkCount
+              }
+            };
+            
+            await UnifiedPRComment.storeResults('benchmark', benchmarkResult);
+            throw error; // Re-throw to fail the job
+          }
+          
+          // Update unified comment if this is a PR
+          if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
+            try {
+              const allResults = UnifiedPRComment.loadStoredResults();
+              await updateUnifiedComment(allResults);
+              console.log('Updated unified go-actions comment with benchmark results');
+            } catch (error) {
+              console.log('Failed to update unified comment:', error.message);
+            }
+          }
 
     # Lint job  
     - name: Run golangci-lint
       if: inputs.job == 'lint'
+      id: golangci-lint
       uses: golangci/golangci-lint-action@v8
       with:
         version: ${{ inputs.golangci-lint-version }}
@@ -128,10 +190,30 @@ runs:
 
     - name: Store lint results
       if: inputs.job == 'lint' && always()
-      shell: bash
-      run: |
-        echo "Lint job completed with status: ${{ job.status }}"
-        # Note: Lint results are captured by the golangci-lint action output
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { UnifiedPRComment, updateUnifiedComment } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
+          
+          // Capture golangci-lint results
+          const lintOutcome = '${{ steps.golangci-lint.outcome }}';
+          const lintResult = {
+            status: lintOutcome === 'success' ? 'success' : 'failure',
+            error: lintOutcome !== 'success' ? 'Linting issues found - check logs for details' : undefined
+          };
+          
+          await UnifiedPRComment.storeResults('lint', lintResult);
+          
+          // Update unified comment if this is a PR
+          if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
+            try {
+              const allResults = UnifiedPRComment.loadStoredResults();
+              await updateUnifiedComment(allResults);
+              console.log('Updated unified go-actions comment with lint results');
+            } catch (error) {
+              console.log('Failed to update unified comment:', error.message);
+            }
+          }
 
-    # Store results for unified comment (will be posted by a separate action)
-    # Individual job comments are now consolidated into a single unified comment
+    # Results are automatically stored and unified comment is updated by each job
+    # All CI results (test, lint, benchmark) appear in a single "Go Actions Report" comment

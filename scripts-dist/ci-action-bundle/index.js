@@ -29982,13 +29982,17 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.runBenchmarks = exports.extractCoverage = void 0;
+exports.loadAllResults = exports.updateUnifiedComment = exports.UnifiedPRComment = exports.runBenchmarks = exports.extractCoverage = void 0;
 // Entry point for ci-action bundle
 var coverage_extractor_1 = __nccwpck_require__(7183);
 Object.defineProperty(exports, "extractCoverage", ({ enumerable: true, get: function () { return coverage_extractor_1.extractCoverage; } }));
 var benchmark_runner_1 = __nccwpck_require__(2856);
 Object.defineProperty(exports, "runBenchmarks", ({ enumerable: true, get: function () { return benchmark_runner_1.runBenchmarks; } }));
 __exportStar(__nccwpck_require__(279), exports);
+var unified_pr_comment_1 = __nccwpck_require__(5671);
+Object.defineProperty(exports, "UnifiedPRComment", ({ enumerable: true, get: function () { return unified_pr_comment_1.UnifiedPRComment; } }));
+Object.defineProperty(exports, "updateUnifiedComment", ({ enumerable: true, get: function () { return unified_pr_comment_1.updateUnifiedComment; } }));
+Object.defineProperty(exports, "loadAllResults", ({ enumerable: true, get: function () { return unified_pr_comment_1.loadAllResults; } }));
 //# sourceMappingURL=ci-action-entry.js.map
 
 /***/ }),
