@@ -7,6 +7,9 @@ import * as github from '@actions/github';
 export interface CIActionOptions {
   workingDirectory?: string;
   job?: string;
+  testArgs?: string;
+  golangciLintVersion?: string;
+  lintArgs?: string;
   benchmarkArgs?: string;
   benchmarkCount?: number;
 }
@@ -14,14 +17,33 @@ export interface CIActionOptions {
 export class CIAction {
   private workingDirectory: string;
   private job: string;
+  private testArgs: string;
+  private golangciLintVersion: string;
+  private lintArgs: string;
   private benchmarkArgs: string;
   private benchmarkCount: number;
 
   constructor(options: CIActionOptions = {}) {
     this.workingDirectory = options.workingDirectory || '.';
-    this.job = options.job || 'test';
+    this.job = this.validateJob(options.job || 'test');
+    this.testArgs = options.testArgs || '-v -race -coverprofile=coverage.out';
+    this.golangciLintVersion = options.golangciLintVersion || 'v2.1.0';
+    this.lintArgs = options.lintArgs || '';
     this.benchmarkArgs = options.benchmarkArgs || '-bench=. -benchmem';
-    this.benchmarkCount = options.benchmarkCount || 1;
+    this.benchmarkCount = options.benchmarkCount || 5;
+  }
+
+  /**
+   * Validates that the job type is valid
+   */
+  private validateJob(job: string): string {
+    const validJobs = ['test', 'lint', 'benchmark'];
+    if (!validJobs.includes(job)) {
+      const message = `Invalid job type: ${job}. Valid options are: ${validJobs.join(', ')}`;
+      core.setFailed(message);
+      throw new Error(message);
+    }
+    return job;
   }
 
   async extractTestCoverage(): Promise<CoverageResult> {
@@ -97,13 +119,75 @@ export class CIAction {
     return result;
   }
 
+  /**
+   * Handles lint job result storage
+   */
+  async storeLintResults(lintOutcome: string): Promise<void> {
+    if (this.job !== 'lint') {
+      console.log('Skipping lint result storage - job is not lint');
+      return;
+    }
+
+    console.log(`Storing lint results with outcome: ${lintOutcome}`);
+    
+    const lintResult = {
+      status: lintOutcome === 'success' ? 'success' as const : 'failure' as const,
+      error: lintOutcome !== 'success' ? 'Linting issues found - check logs for details' : undefined
+    };
+
+    await storeJobResults('lint', lintResult);
+    console.log('✅ Lint results stored for unified comment');
+  }
+
+  /**
+   * Gets the golangci-lint version for this job
+   */
+  getGolangciLintVersion(): string {
+    return this.golangciLintVersion;
+  }
+
+  /**
+   * Gets the lint args for this job
+   */
+  getLintArgs(): string {
+    return this.lintArgs;
+  }
+
+  /**
+   * Gets the test args for this job
+   */
+  getTestArgs(): string {
+    return this.testArgs;
+  }
+
+  /**
+   * Logs the current job configuration
+   */
+  logConfiguration(): void {
+    console.log('CI Action Configuration:');
+    console.log(`- Job: ${this.job}`);
+    console.log(`- Working directory: ${this.workingDirectory}`);
+    
+    if (this.job === 'test') {
+      console.log(`- Test args: ${this.testArgs}`);
+    } else if (this.job === 'lint') {
+      console.log(`- golangci-lint version: ${this.golangciLintVersion}`);
+      console.log(`- Lint args: ${this.lintArgs || 'default'}`);
+    } else if (this.job === 'benchmark') {
+      console.log(`- Benchmark args: ${this.benchmarkArgs}`);
+      console.log(`- Benchmark count: ${this.benchmarkCount}`);
+    }
+  }
 
   getInputs() {
     return {
       job: core.getInput('job') || 'test',
       workingDirectory: core.getInput('working-directory') || '.',
+      testArgs: core.getInput('test-args') || '-v -race -coverprofile=coverage.out',
+      golangciLintVersion: core.getInput('golangci-lint-version') || 'v2.1.0',
+      lintArgs: core.getInput('lint-args') || '',
       benchmarkArgs: core.getInput('benchmark-args') || '-bench=. -benchmem',
-      benchmarkCount: parseInt(core.getInput('benchmark-count') || '1'),
+      benchmarkCount: parseInt(core.getInput('benchmark-count') || '5'),
     };
   }
 }
@@ -122,5 +206,15 @@ export async function runBenchmarkJob(workingDirectory?: string, benchmarkArgs?:
     benchmarkCount 
   });
   return action.runBenchmarks();
+}
+
+export async function storeLintResults(lintOutcome: string, workingDirectory?: string): Promise<void> {
+  const action = new CIAction({ workingDirectory, job: 'lint' });
+  return action.storeLintResults(lintOutcome);
+}
+
+export function validateJobInput(job: string): string {
+  const action = new CIAction({ job });
+  return job; // If we get here, validation passed
 }
 

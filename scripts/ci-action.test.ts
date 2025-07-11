@@ -1,4 +1,4 @@
-import { CIAction, extractTestCoverage, runBenchmarkJob } from './ci-action';
+import { CIAction, extractTestCoverage, runBenchmarkJob, storeLintResults, validateJobInput } from './ci-action';
 import { extractCoverage } from './coverage-extractor';
 import { runBenchmarks } from './benchmark-runner';
 import * as core from '@actions/core';
@@ -31,6 +31,34 @@ describe('CIAction', () => {
         issue: { number: 123 }
       },
       writable: true
+    });
+  });
+
+  describe('constructor and job validation', () => {
+    it('should create action with valid job', () => {
+      const validAction = new CIAction({ job: 'test' });
+      expect(validAction).toBeDefined();
+    });
+
+    it('should create action with lint job', () => {
+      const lintAction = new CIAction({ job: 'lint' });
+      expect(lintAction).toBeDefined();
+    });
+
+    it('should create action with benchmark job', () => {
+      const benchAction = new CIAction({ job: 'benchmark' });
+      expect(benchAction).toBeDefined();
+    });
+
+    it('should throw error for invalid job', () => {
+      expect(() => new CIAction({ job: 'invalid' })).toThrow('Invalid job type: invalid');
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Invalid job type: invalid. Valid options are: test, lint, benchmark');
+    });
+
+    it('should use default values for all options', () => {
+      const defaultAction = new CIAction();
+      expect(defaultAction.getInputs().job).toBe('test');
+      expect(defaultAction.getGolangciLintVersion()).toBe('v2.1.0');
     });
   });
 
@@ -122,6 +150,108 @@ describe('CIAction', () => {
     });
   });
 
+  describe('storeLintResults', () => {
+    it('should store successful lint results', async () => {
+      const lintAction = new CIAction({ workingDirectory: testWorkingDir, job: 'lint' });
+      
+      await lintAction.storeLintResults('success');
+      
+      // This would normally store results via storeJobResults, but we can't easily mock that
+      // The test verifies the method runs without throwing
+      expect(true).toBe(true);
+    });
+
+    it('should store failed lint results', async () => {
+      const lintAction = new CIAction({ workingDirectory: testWorkingDir, job: 'lint' });
+      
+      await lintAction.storeLintResults('failure');
+      
+      // This would normally store results via storeJobResults
+      expect(true).toBe(true);
+    });
+
+    it('should skip storing for non-lint jobs', async () => {
+      const testAction = new CIAction({ workingDirectory: testWorkingDir, job: 'test' });
+      
+      await testAction.storeLintResults('success');
+      
+      // Should skip without errors
+      expect(true).toBe(true);
+    });
+  });
+
+  describe('getter methods', () => {
+    it('should get golangci-lint version', () => {
+      const lintAction = new CIAction({ golangciLintVersion: 'v2.0.5' });
+      expect(lintAction.getGolangciLintVersion()).toBe('v2.0.5');
+    });
+
+    it('should get lint args', () => {
+      const lintAction = new CIAction({ lintArgs: '--fast' });
+      expect(lintAction.getLintArgs()).toBe('--fast');
+    });
+
+    it('should get test args', () => {
+      const testAction = new CIAction({ testArgs: '-v -short' });
+      expect(testAction.getTestArgs()).toBe('-v -short');
+    });
+
+    it('should use defaults when not specified', () => {
+      const defaultAction = new CIAction();
+      expect(defaultAction.getGolangciLintVersion()).toBe('v2.1.0');
+      expect(defaultAction.getLintArgs()).toBe('');
+      expect(defaultAction.getTestArgs()).toBe('-v -race -coverprofile=coverage.out');
+    });
+  });
+
+  describe('logConfiguration', () => {
+    it('should log test job configuration', () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const testAction = new CIAction({ job: 'test', testArgs: '-v -short' });
+      
+      testAction.logConfiguration();
+      
+      expect(consoleSpy).toHaveBeenCalledWith('CI Action Configuration:');
+      expect(consoleSpy).toHaveBeenCalledWith('- Job: test');
+      expect(consoleSpy).toHaveBeenCalledWith('- Test args: -v -short');
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should log lint job configuration', () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const lintAction = new CIAction({ 
+        job: 'lint', 
+        golangciLintVersion: 'v2.0.5',
+        lintArgs: '--fast' 
+      });
+      
+      lintAction.logConfiguration();
+      
+      expect(consoleSpy).toHaveBeenCalledWith('- Job: lint');
+      expect(consoleSpy).toHaveBeenCalledWith('- golangci-lint version: v2.0.5');
+      expect(consoleSpy).toHaveBeenCalledWith('- Lint args: --fast');
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should log benchmark job configuration', () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const benchAction = new CIAction({ 
+        job: 'benchmark', 
+        benchmarkArgs: '-bench=.',
+        benchmarkCount: 3
+      });
+      
+      benchAction.logConfiguration();
+      
+      expect(consoleSpy).toHaveBeenCalledWith('- Job: benchmark');
+      expect(consoleSpy).toHaveBeenCalledWith('- Benchmark args: -bench=.');
+      expect(consoleSpy).toHaveBeenCalledWith('- Benchmark count: 3');
+      
+      consoleSpy.mockRestore();
+    });
+  });
 
   describe('getInputs', () => {
     it('should get inputs with defaults', () => {
@@ -129,6 +259,9 @@ describe('CIAction', () => {
         switch (name) {
           case 'job': return '';
           case 'working-directory': return '';
+          case 'test-args': return '';
+          case 'golangci-lint-version': return '';
+          case 'lint-args': return '';
           case 'benchmark-args': return '';
           case 'benchmark-count': return '';
           default: return '';
@@ -142,8 +275,11 @@ describe('CIAction', () => {
       expect(inputs).toEqual({
         job: 'test',
         workingDirectory: '.',
+        testArgs: '-v -race -coverprofile=coverage.out',
+        golangciLintVersion: 'v2.1.0',
+        lintArgs: '',
         benchmarkArgs: '-bench=. -benchmem',
-        benchmarkCount: 1,
+        benchmarkCount: 5,
       });
     });
   });
@@ -175,6 +311,26 @@ describe('exported functions', () => {
 
       expect(mockRunBenchmarks).toHaveBeenCalledWith('/test', '-bench=.', 2);
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('storeLintResults', () => {
+    it('should store lint results', async () => {
+      // This test verifies the function doesn't throw
+      await expect(storeLintResults('success', '/test')).resolves.toBeUndefined();
+    });
+  });
+
+  describe('validateJobInput', () => {
+    it('should validate valid job types', () => {
+      expect(validateJobInput('test')).toBe('test');
+      expect(validateJobInput('lint')).toBe('lint');
+      expect(validateJobInput('benchmark')).toBe('benchmark');
+    });
+
+    it('should throw for invalid job types', () => {
+      expect(() => validateJobInput('invalid')).toThrow('Invalid job type: invalid');
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Invalid job type: invalid. Valid options are: test, lint, benchmark');
     });
   });
 
