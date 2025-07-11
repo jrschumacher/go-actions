@@ -1,0 +1,76 @@
+# Complete CI workflow with go-actions
+# Copy this to .github/workflows/ci.yaml in your Go project
+
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Required for unified PR comments
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # Step 1: Validate go-actions configuration
+  validate:
+    name: Validate Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: jrschumacher/go-actions/self-validate@v1
+
+  # Step 2: Run CI jobs (only if validation passes)
+  test:
+    name: Tests
+    needs: [validate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: jrschumacher/go-actions/ci@v1
+        with:
+          job: test
+
+  lint:
+    name: Lint
+    needs: [validate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: jrschumacher/go-actions/ci@v1
+        with:
+          job: lint
+          golangci-lint-version: v2  # Use v2 for best compatibility
+
+  benchmark:
+    name: Benchmarks
+    needs: [validate]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'  # Only run on main branch pushes
+    steps:
+      - uses: jrschumacher/go-actions/ci@v1
+        with:
+          job: benchmark
+          benchmark-count: 3  # Number of benchmark runs
+
+  # Step 3: Post unified results comment (runs after all jobs complete)
+  comment:
+    name: Post Results
+    needs: [validate, test, lint, benchmark]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    steps:
+      - uses: jrschumacher/go-actions/comment@v1
+
+# This workflow will:
+# 1. ✅ Validate your go-actions configuration
+# 2. ✅ Run tests with coverage reporting  
+# 3. ✅ Run linting with golangci-lint v2
+# 4. ✅ Run benchmarks (on main branch only)
+# 5. ✅ Post unified comment with all results
+#
+# The unified comment will show:
+# - Real-time status for each component
+# - Expandable details for failures
+# - Actionable guidance for configuration issues
+# - Clean, professional format

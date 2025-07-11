@@ -47,12 +47,12 @@ runs:
             console.log('✅ All validations passed!');
           }
           
-          // Store results for unified PR comment
+          // Store results for unified PR comment (if this is a PR)
           const commentOnPr = '${{ inputs.comment-on-pr }}' === 'true';
-          if (commentOnPr) {
+          if (commentOnPr && process.env.GITHUB_EVENT_NAME === 'pull_request') {
             try {
               // Store validation results for unified comment system
-              const { UnifiedPRComment, updateUnifiedComment, loadAllResults } = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js');
+              const { UnifiedPRComment } = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js');
               
               const selfValidateResult = {
                 status: result.isValid ? 'success' : 'failure',
@@ -60,12 +60,12 @@ runs:
                 errors: result.errors
               };
               
-              // Store this job's results
+              // Store this job's results for later comment consolidation
               await UnifiedPRComment.storeResults('selfValidate', selfValidateResult);
               console.log('Stored validation results for unified comment');
             } catch (commentError) {
-              console.log('Failed to update unified comment:', commentError.message);
-              // Don't fail the action if commenting fails
+              console.log('Failed to store validation results:', commentError.message);
+              // Don't fail the action if storing fails
             }
           }
 

@@ -1,0 +1,44 @@
+# Minimal CI workflow with go-actions
+# Copy this to .github/workflows/ci.yaml for basic Go projects
+
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Required for PR comments
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: jrschumacher/go-actions/self-validate@v1
+
+  test:
+    needs: [validate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: jrschumacher/go-actions/ci@v1
+        with:
+          job: test
+
+  lint:
+    needs: [validate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: jrschumacher/go-actions/ci@v1
+        with:
+          job: lint
+
+  comment:
+    needs: [validate, test, lint]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    steps:
+      - uses: jrschumacher/go-actions/comment@v1

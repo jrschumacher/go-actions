@@ -6,43 +6,9 @@ Go Actions is a composite action that simplifies the management of GitHub Action
 
 Setting up CI/CD for Go projects can be complex, but we'll guide you through it step by step. Follow these three simple steps to get a complete CI/CD setup:
 
-### Step 1: Self-Validator Workflow 🔍
+### Step 1: Complete CI Workflow 🔍🧪
 
-First, let's make sure your project is ready for automation. Create `.github/workflows/go-action-validator.yaml`:
-
-```yaml
-name: Go Actions Validator
-
-on:
-  pull_request:
-    paths:
-      - '.github/workflows/**'
-      - 'go.mod'
-      - 'go.sum'
-      - '.release-please-config.json'
-      - '.release-please-manifest.json'
-      - '.goreleaser.yaml'
-      - '.goreleaser.yml'
-      - '.golangci.yml'
-      - '.golangci.yaml'
-
-# Required for self-validator to comment on PRs
-permissions:
-  contents: read
-  pull-requests: write
-
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: jrschumacher/go-actions/self-validate@v1
-```
-
-This workflow runs whenever you modify your project configuration and validates that everything is set up correctly for the other workflows. **Important:** The `pull-requests: write` permission is required for the self-validator to post helpful guidance comments on PRs.
-
-### Step 2: CI Workflow 🧪
-
-Once validation passes, add continuous integration with `.github/workflows/ci.yaml`:
+Create a single unified workflow `.github/workflows/ci.yaml` that handles validation, testing, and PR comments:
 
 ```yaml
 name: CI
@@ -53,8 +19,21 @@ on:
   pull_request:
     branches: [ main ]
 
+# Required for unified PR comments
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
+  # Step 1: Validate go-actions configuration
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: jrschumacher/go-actions/self-validate@v1
+
+  # Step 2: Run CI jobs (only if validation passes)
   test:
+    needs: [validate]
     runs-on: ubuntu-latest
     steps:
       - uses: jrschumacher/go-actions/ci@v1
@@ -62,6 +41,7 @@ jobs:
           job: test
 
   lint:
+    needs: [validate]
     runs-on: ubuntu-latest
     steps:
       - uses: jrschumacher/go-actions/ci@v1
@@ -69,17 +49,32 @@ jobs:
           job: lint
 
   benchmark:
+    needs: [validate]
     runs-on: ubuntu-latest
     if: github.event_name == 'push'  # Only on main branch
     steps:
       - uses: jrschumacher/go-actions/ci@v1
         with:
           job: benchmark
+
+  # Step 3: Post unified results comment (runs after all jobs)
+  comment:
+    needs: [validate, test, lint, benchmark]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    steps:
+      - uses: jrschumacher/go-actions/comment@v1
 ```
 
-### Step 3: Release Workflow 🚀
+This single workflow:
+- ✅ **Validates** your go-actions configuration first
+- ✅ **Runs CI jobs** only if validation passes
+- ✅ **Posts unified comment** with all results
+- ✅ **No race conditions** - proper job dependencies
 
-Finally, automate your releases with `.github/workflows/release.yaml`:
+### Step 2: Release Workflow 🚀
+
+Add automated releases with `.github/workflows/release.yaml`:
 
 ```yaml
 name: Release
@@ -149,54 +144,38 @@ The self-validator will guide you, but here are the files you'll need:
 - Consolidates test coverage, lint results, and benchmark results
 - Updates existing comments instead of creating new ones
 
-## 🔄 Unified PR Comments
+## 🔄 Unified Go Actions Report
 
-To get beautiful unified PR comments that consolidate all CI results, add this job to your CI workflow:
+The CI workflow above automatically creates a beautiful unified comment on pull requests:
 
-```yaml
-# Required for comment action to post PR comments
-permissions:
-  contents: read
-  pull-requests: write
+```
+# Go Actions Report
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: jrschumacher/go-actions/ci@v1
-        with:
-          job: test
+✅ **Validated**
+✅ **Tests** (85% coverage)  
+❌ **Lint** (issues found)
+✅ **Benchmarks**
 
-  lint:
-    runs-on: ubuntu-latest  
-    steps:
-      - uses: jrschumacher/go-actions/ci@v1
-        with:
-          job: lint
+<details><summary>Validation Details</summary>
+Actions configured: ci, self-validate, release
+All configuration files present and valid
+</details>
 
-  benchmark:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: jrschumacher/go-actions/ci@v1
-        with:
-          job: benchmark
-
-  # Post unified comment after all jobs complete
-  comment:
-    runs-on: ubuntu-latest
-    needs: [test, lint, benchmark]
-    if: always() && github.event_name == 'pull_request'
-    steps:
-      - uses: jrschumacher/go-actions/comment@v1
+<details open><summary>Lint Issues</summary>
+golangci-lint Version - Upgrade needed for compatibility
+- ❌ Current: v1.62.2
+- ✅ Required: v2.0.0 or higher
+- 🔧 Simple fix: Update version in your workflow
+</details>
 ```
 
-This creates a single comment that shows:
-- ✅ Overall status (success/failure)  
-- 📊 Summary table of all job results
-- 🧪 Detailed test coverage with guidelines
-- 🔍 Lint results and any errors
-- ⚡ Benchmark results and configuration
-- 🔧 Self-validation results (if used)
+This unified comment shows:
+- ✅ **Real-time status** for all go-actions components
+- 📊 **Clean overview** with expandable details  
+- 🧪 **Test coverage** with improvement suggestions
+- 🔍 **Lint issues** with actionable fix guidance
+- ⚡ **Benchmark results** and configuration
+- 🔧 **Configuration validation** with specific solutions
 
 ## 📦 Versioning and Releases
 
