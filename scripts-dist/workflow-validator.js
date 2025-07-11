@@ -262,17 +262,43 @@ class WorkflowValidator {
                 comment += '### 🚫 Incompatible Versions\n\n';
                 comment += 'Found incompatible version combinations that will cause workflow failures:\n\n';
                 for (const error of incompatibleErrors) {
-                    comment += `- **Issue**: ${error.message}\n`;
-                    if (error.expected && error.actual) {
-                        comment += `  - **Found**: ${error.actual}\n`;
-                        comment += `  - **Expected**: ${error.expected}\n`;
+                    comment += `❌ **${error.message}**\n\n`;
+                    if (error.message.includes('golangci-lint-action@v8')) {
+                        // Direct golangci-lint-action usage
+                        comment += '**Quick Fix Options:**\n\n';
+                        comment += '**Option 1: Use compatible golangci-lint version**\n';
+                        comment += '```yaml\n';
+                        comment += '- uses: golangci/golangci-lint-action@v8\n';
+                        comment += '  with:\n';
+                        comment += '    version: v2.1.0  # or latest\n';
+                        comment += '```\n\n';
+                        comment += '**Option 2: Downgrade action version**\n';
+                        comment += '```yaml\n';
+                        comment += '- uses: golangci/golangci-lint-action@v6\n';
+                        comment += '  with:\n';
+                        comment += `    version: ${error.actual}\n`;
+                        comment += '```\n\n';
+                        comment += '**Option 3: Use our go-actions/ci (recommended)**\n';
+                        comment += '```yaml\n';
+                        comment += '- uses: jrschumacher/go-actions/ci@v1\n';
+                        comment += '  with:\n';
+                        comment += '    job: lint\n';
+                        comment += '    golangci-lint-version: v2  # compatible version\n';
+                        comment += '```\n\n';
                     }
-                    comment += '\n';
+                    else if (error.message.includes('go-actions/ci')) {
+                        // go-actions/ci usage with incompatible version
+                        comment += '**Quick Fix:**\n';
+                        comment += '```yaml\n';
+                        comment += '- uses: jrschumacher/go-actions/ci@v1\n';
+                        comment += '  with:\n';
+                        comment += '    job: lint\n';
+                        comment += '    golangci-lint-version: v2  # change from ' + error.actual + '\n';
+                        comment += '```\n\n';
+                        comment += '**Why this is needed:** go-actions/ci uses golangci-lint-action@v8 internally, which requires golangci-lint v2+.\n\n';
+                    }
                 }
-                comment += '**How to fix:**\n';
-                comment += '- Update your workflow to use compatible versions\n';
-                comment += '- For go-actions/ci, use `golangci-lint-version: v2` or later\n';
-                comment += '- For direct golangci-lint-action usage, use v6 or earlier with v1.x versions\n\n';
+                comment += '💡 **Tip**: golangci-lint v2 has better performance and more features than v1. [Migration guide](https://golangci-lint.run/usage/migration-guide/)\n\n';
             }
         }
         else {

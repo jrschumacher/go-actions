@@ -51,8 +51,8 @@ runs:
           const commentOnPr = '${{ inputs.comment-on-pr }}' === 'true';
           if (commentOnPr) {
             try {
-              if (github.context.eventName !== 'pull_request') {
-                console.log('Skipping PR comment - not a pull request event');
+              if (!github || !github.context || github.context.eventName !== 'pull_request') {
+                console.log('Skipping PR comment - not a pull request event or github context unavailable');
                 return;
               }
               const { WorkflowValidator } = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js');
