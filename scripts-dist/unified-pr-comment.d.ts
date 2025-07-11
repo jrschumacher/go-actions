@@ -7,6 +7,7 @@ export interface CIResults {
     lint?: {
         status: 'success' | 'failure' | 'skipped';
         error?: string;
+        issues?: string;
     };
     benchmark?: {
         status: 'success' | 'failure' | 'skipped';

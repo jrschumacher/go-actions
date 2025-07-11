@@ -158,14 +158,25 @@ async function runLintJob(inputs: CIJobInputs): Promise<void> {
     // Install golangci-lint
     await exec.exec('go', ['install', `github.com/golangci/golangci-lint/cmd/golangci-lint@${golangciLintVersion}`]);
     
-    // Run golangci-lint
+    // Run golangci-lint and capture output
     const lintCommand = ['golangci-lint', 'run'];
     if (lintArgs) {
       lintCommand.push(...lintArgs.split(' '));
     }
     
+    let lintOutput = '';
+    let lintErrors = '';
+    
     await exec.exec(lintCommand[0], lintCommand.slice(1), {
-      cwd: workingDir
+      cwd: workingDir,
+      listeners: {
+        stdout: (data: Buffer) => {
+          lintOutput += data.toString();
+        },
+        stderr: (data: Buffer) => {
+          lintErrors += data.toString();
+        }
+      }
     });
     
     // Store successful lint results
@@ -177,10 +188,38 @@ async function runLintJob(inputs: CIJobInputs): Promise<void> {
     console.log('Stored lint results for unified comment');
     
   } catch (error) {
-    // Store failure results
+    // Capture actual lint output for failed linting
+    let lintOutput = '';
+    let lintErrors = '';
+    
+    try {
+      const lintCommand = ['golangci-lint', 'run'];
+      if (lintArgs) {
+        lintCommand.push(...lintArgs.split(' '));
+      }
+      
+      await exec.exec(lintCommand[0], lintCommand.slice(1), {
+        cwd: workingDir,
+        ignoreReturnCode: true, // Don't throw on non-zero exit
+        listeners: {
+          stdout: (data: Buffer) => {
+            lintOutput += data.toString();
+          },
+          stderr: (data: Buffer) => {
+            lintErrors += data.toString();
+          }
+        }
+      });
+    } catch (captureError) {
+      // If we can't capture output, use the original error
+    }
+    
+    // Store failure results with actual lint issues
+    const issueOutput = lintOutput || lintErrors || 'No specific issues captured - check workflow logs';
     const lintResult = {
       status: 'failure' as const,
-      error: 'Linting issues found - check logs for details'
+      error: 'Linting issues found',
+      issues: issueOutput.trim()
     };
     
     await UnifiedPRComment.storeResults('lint', lintResult);

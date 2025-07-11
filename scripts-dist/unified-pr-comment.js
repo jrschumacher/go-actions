@@ -113,10 +113,10 @@ class UnifiedPRComment {
             comment += '\n';
         }
         if (results.lint && results.lint.status !== 'skipped') {
-            const icon = results.lint.status === 'success' ? '✅' : '❌';
+            const icon = results.lint.status === 'success' ? '✅' : '🚨';
             comment += `${icon} **Lint**`;
             if (results.lint.status === 'failure') {
-                comment += ' (issues found)';
+                comment += ' **- Issues Found!**';
             }
             comment += '\n';
         }
@@ -316,7 +316,24 @@ ${selfValidate.actionsFound.length > 0 ?
             return `<details><summary>Lint Details</summary>\n\nCode quality checks passed!\n\n</details>\n\n`;
         }
         else {
-            return `<details open><summary>Lint Issues</summary>\n\n**Linting failed!**\n\n${lint.error ? `**Error:** ${lint.error}` : 'Please check the lint logs for details.'}\n\n</details>\n\n`;
+            let issuesOutput = '';
+            if (lint.issues && lint.issues.trim()) {
+                // Format the lint issues for better readability
+                const issues = lint.issues.trim();
+                // Truncate if too long (GitHub comment limit considerations)
+                const maxLength = 3000;
+                const truncatedIssues = issues.length > maxLength
+                    ? issues.substring(0, maxLength) + '\n\n... (truncated, see workflow logs for full output)'
+                    : issues;
+                issuesOutput = `\n\`\`\`\n${truncatedIssues}\n\`\`\`\n`;
+            }
+            else if (lint.error) {
+                issuesOutput = `\n**Error:** ${lint.error}\n\nPlease check the workflow logs for details.`;
+            }
+            else {
+                issuesOutput = '\nPlease check the workflow logs for details.';
+            }
+            return `<details open><summary>🚨 Lint Issues Found</summary>\n\n**Code quality checks failed!**${issuesOutput}\n\n</details>\n\n`;
         }
     }
     formatBenchmarkDetails(benchmark) {
