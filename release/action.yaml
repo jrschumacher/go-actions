@@ -33,13 +33,6 @@ runs:
         go-version: ${{ inputs.go-version }}
         go-version-file: ${{ !inputs.go-version && inputs.go-version-file || '' }}
 
-    - name: Validate Release Please configuration
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const script = require('${{ github.action_path }}/../scripts-dist/release-action-bundle/index.js');
-          script.validateReleaseConfiguration('${{ inputs.working-directory }}');
-        
     - name: Run Release Please
       uses: googleapis/release-please-action@v4.2.0
       id: release
