@@ -405,10 +405,11 @@ class WorkflowValidator {
             // golangci-lint incompatibility issues
             if (errorsByType.incompatible_versions) {
                 for (const error of errorsByType.incompatible_versions) {
-                    comment += `${issueNumber}. **golangci-lint Compatibility** - Incompatible version combination\n`;
-                    comment += `   - ❌ Issue: ${error.message}\n`;
-                    comment += '   - 🔧 Quick fix: Update configuration as shown below\n';
-                    comment += '   - 💡 Suggestion: Use golangci-lint v2+ for better performance\n\n';
+                    comment += `${issueNumber}. **golangci-lint Version** - Upgrade needed for compatibility\n`;
+                    comment += `   - ❌ Current: ${error.actual}\n`;
+                    comment += '   - ✅ Required: v2.0.0 or higher\n';
+                    comment += '   - 🚀 Benefits: Better performance, more linters, active development\n';
+                    comment += '   - 🔧 Simple fix: Update version in your workflow (see template below)\n\n';
                     issueNumber++;
                 }
             }
@@ -520,22 +521,38 @@ class WorkflowValidator {
             templates += 'goreleaser init\n';
             templates += '```\n\n';
         }
-        // golangci-lint compatibility fixes
+        // golangci-lint version upgrade
         if (errorsByType.incompatible_versions) {
             for (const error of errorsByType.incompatible_versions) {
-                if (error.message.includes('golangci-lint-action@v8')) {
-                    templates += '**golangci-lint Compatibility Fix:**\n';
+                if (error.message.includes('golangci-lint')) {
+                    templates += '**Update your CI workflow to use golangci-lint v2:**\n';
                     templates += '```yaml\n';
-                    templates += '# Option 1: Update to compatible version\n';
-                    templates += '- uses: golangci/golangci-lint-action@v8\n';
-                    templates += '  with:\n';
-                    templates += '    version: v2.1.0  # Use v2+ for compatibility\n';
-                    templates += '\n';
-                    templates += '# Option 2: Use go-actions/ci (recommended)\n';
+                    templates += '# In your .github/workflows/ci.yaml\n';
                     templates += '- uses: jrschumacher/go-actions/ci@v1\n';
                     templates += '  with:\n';
                     templates += '    job: lint\n';
-                    templates += '    golangci-lint-version: v2\n';
+                    templates += '    golangci-lint-version: v2  # Updated from ' + error.actual + '\n';
+                    templates += '```\n\n';
+                    templates += '**Optional: Create `.golangci.yaml` for custom configuration:**\n';
+                    templates += '```yaml\n';
+                    templates += 'version: 2\n';
+                    templates += '\n';
+                    templates += 'linters:\n';
+                    templates += '  enable:\n';
+                    templates += '    - gofmt\n';
+                    templates += '    - golint\n';
+                    templates += '    - govet\n';
+                    templates += '    - errcheck\n';
+                    templates += '    - staticcheck\n';
+                    templates += '    - ineffassign\n';
+                    templates += '    - misspell\n';
+                    templates += '\n';
+                    templates += 'linters-settings:\n';
+                    templates += '  govet:\n';
+                    templates += '    check-shadowing: true\n';
+                    templates += '\n';
+                    templates += 'issues:\n';
+                    templates += '  exclude-use-default: false\n';
                     templates += '```\n\n';
                 }
             }
