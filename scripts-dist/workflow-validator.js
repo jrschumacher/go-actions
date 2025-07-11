@@ -120,6 +120,15 @@ class WorkflowValidator {
                 if (expectedVersion === 'latest') {
                     expectedVersion = 'v2';
                 }
+                // Check if the specified version is compatible with our CI action
+                if (expectedVersion.startsWith('v1') || expectedVersion.startsWith('1.')) {
+                    errors.push({
+                        type: 'incompatible_versions',
+                        message: `go-actions/ci uses golangci-lint-action@v8 internally, which doesn't support golangci-lint ${expectedVersion}. Use golangci-lint-version: v2 or later`,
+                        expected: 'v2.x.x',
+                        actual: expectedVersion
+                    });
+                }
                 // Check if golangci config exists and validate version
                 let configFile = null;
                 if (this.fileExists('.golangci.yml')) {
@@ -145,6 +154,8 @@ class WorkflowValidator {
                     }
                 }
             }
+            // Check for direct golangci-lint-action usage and validate compatibility
+            this.validateGolangciLintAction(content, errors);
             // Check for release action
             if (content.includes('jrschumacher/go-actions/release@')) {
                 actionsFound.add('release');
@@ -182,6 +193,37 @@ class WorkflowValidator {
             errors
         };
     }
+    validateGolangciLintAction(content, errors) {
+        // Check for golangci-lint-action usage
+        const golangciActionRegex = /uses:\s*golangci\/golangci-lint-action@v(\d+)/g;
+        let match;
+        while ((match = golangciActionRegex.exec(content)) !== null) {
+            const actionVersion = parseInt(match[1]);
+            // Look for version configuration in the same action block
+            const actionStartIndex = match.index;
+            const nextActionIndex = content.indexOf('- uses:', actionStartIndex + 1);
+            const actionBlock = nextActionIndex === -1
+                ? content.substring(actionStartIndex)
+                : content.substring(actionStartIndex, nextActionIndex);
+            // Extract golangci-lint version from the action block
+            const versionMatch = actionBlock.match(/version:\s*["']?([^"'\s\n]+)["']?/);
+            if (versionMatch) {
+                const golangciVersion = versionMatch[1];
+                // Check for incompatible combinations (consolidated check)
+                if (actionVersion >= 7 && (golangciVersion.startsWith('v1') || golangciVersion.startsWith('1.'))) {
+                    const message = actionVersion >= 8
+                        ? `golangci-lint-action@v${actionVersion} requires golangci-lint v2+. Found: ${golangciVersion}`
+                        : `golangci-lint-action@v${actionVersion} doesn't support golangci-lint ${golangciVersion}. Use golangci-lint v2+ or downgrade to golangci-lint-action@v6`;
+                    errors.push({
+                        type: 'incompatible_versions',
+                        message,
+                        expected: 'v2.x.x',
+                        actual: golangciVersion
+                    });
+                }
+            }
+        }
+    }
     formatPRComment(result) {
         let comment = '## 🔍 Go Actions Validation\n\n';
         if (!result.isValid) {
@@ -213,6 +255,24 @@ class WorkflowValidator {
                         comment += `Example for ${error.file}:\n\`\`\`yaml\nversion: ${error.expected}\n\`\`\`\n\n`;
                     }
                 }
+            }
+            // Add incompatible versions help
+            const incompatibleErrors = result.errors.filter(e => e.type === 'incompatible_versions');
+            if (incompatibleErrors.length > 0) {
+                comment += '### 🚫 Incompatible Versions\n\n';
+                comment += 'Found incompatible version combinations that will cause workflow failures:\n\n';
+                for (const error of incompatibleErrors) {
+                    comment += `- **Issue**: ${error.message}\n`;
+                    if (error.expected && error.actual) {
+                        comment += `  - **Found**: ${error.actual}\n`;
+                        comment += `  - **Expected**: ${error.expected}\n`;
+                    }
+                    comment += '\n';
+                }
+                comment += '**How to fix:**\n';
+                comment += '- Update your workflow to use compatible versions\n';
+                comment += '- For go-actions/ci, use `golangci-lint-version: v2` or later\n';
+                comment += '- For direct golangci-lint-action usage, use v6 or earlier with v1.x versions\n\n';
             }
         }
         else {

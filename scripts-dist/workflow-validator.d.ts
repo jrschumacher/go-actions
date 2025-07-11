@@ -4,7 +4,7 @@ export interface ValidationResult {
     errors: ValidationError[];
 }
 export interface ValidationError {
-    type: 'missing_file' | 'version_mismatch';
+    type: 'missing_file' | 'version_mismatch' | 'incompatible_versions';
     message: string;
     file?: string;
     expected?: string;
@@ -19,6 +19,7 @@ export declare class WorkflowValidator {
     private extractConfigVersion;
     private getMajorVersion;
     validate(): ValidationResult;
+    private validateGolangciLintAction;
     formatPRComment(result: ValidationResult): string;
 }
 export declare function validateWorkflows(workingDir?: string): ValidationResult;

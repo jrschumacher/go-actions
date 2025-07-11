@@ -228,10 +228,17 @@ jobs:
       const result = validator.validate();
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0].type).toBe('version_mismatch');
-      expect(result.errors[0].expected).toBe('v1');
-      expect(result.errors[0].actual).toBe('v2');
+      expect(result.errors).toHaveLength(2);
+      
+      // First error should be incompatible version
+      expect(result.errors[0].type).toBe('incompatible_versions');
+      expect(result.errors[0].expected).toBe('v2.x.x');
+      expect(result.errors[0].actual).toBe('v1');
+      
+      // Second error should be version mismatch
+      expect(result.errors[1].type).toBe('version_mismatch');
+      expect(result.errors[1].expected).toBe('v1');
+      expect(result.errors[1].actual).toBe('v2');
     });
 
     it('should default to v2 when golangci-lint-version is not specified', () => {
@@ -315,7 +322,7 @@ jobs:
       - uses: jrschumacher/go-actions/ci@main
         with:
           job: lint
-          golangci-lint-version: 1.54.2
+          golangci-lint-version: 2.1.0
       `;
 
       mockFs.existsSync.mockImplementation((filePath: any) => {
@@ -332,7 +339,7 @@ jobs:
           return workflowContent;
         }
         if (filePath.includes('.golangci.yml')) {
-          return 'version: 1.50.1'; // Same major version
+          return 'version: v2'; // Compatible version
         }
         return '';
       });
@@ -573,6 +580,80 @@ jobs:
 
       // Should handle gracefully, not crash
       expect(result.isValid).toBe(true); // No version extraction = no comparison
+    });
+
+    it('should detect incompatible golangci-lint versions with go-actions/ci', () => {
+      const workflowContent = `
+name: CI
+jobs:
+  lint:
+    steps:
+      - uses: jrschumacher/go-actions/ci@v1
+        with:
+          job: lint
+          golangci-lint-version: v1.62.2
+      `;
+
+      mockFs.existsSync.mockImplementation((filePath: any) => {
+        if (filePath.includes('.github/workflows')) {
+          return true;
+        }
+        const file = path.basename(filePath as string);
+        return file === 'go.mod';
+      });
+
+      mockFs.readdirSync.mockReturnValue(['ci.yaml'] as any);
+      mockFs.readFileSync.mockImplementation((filePath: any) => {
+        if (filePath.includes('ci.yaml')) {
+          return workflowContent;
+        }
+        return '';
+      });
+
+      const result = validator.validate();
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].type).toBe('incompatible_versions');
+      expect(result.errors[0].message).toContain('go-actions/ci uses golangci-lint-action@v8 internally');
+      expect(result.errors[0].actual).toBe('v1.62.2');
+      expect(result.errors[0].expected).toBe('v2.x.x');
+    });
+
+    it('should detect incompatible direct golangci-lint-action usage', () => {
+      const workflowContent = `
+name: CI
+jobs:
+  lint:
+    steps:
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v1.62.2
+      `;
+
+      mockFs.existsSync.mockImplementation((filePath: any) => {
+        if (filePath.includes('.github/workflows')) {
+          return true;
+        }
+        return false;
+      });
+
+      mockFs.readdirSync.mockReturnValue(['ci.yaml'] as any);
+      mockFs.readFileSync.mockImplementation((filePath: any) => {
+        if (filePath.includes('ci.yaml')) {
+          return workflowContent;
+        }
+        return '';
+      });
+
+      const result = validator.validate();
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].type).toBe('incompatible_versions');
+      expect(result.errors[0].message).toContain('golangci-lint-action@v8 requires golangci-lint v2+');
+      expect(result.errors[0].actual).toBe('v1.62.2');
+      expect(result.errors[0].expected).toBe('v2.x.x');
     });
   });
 
