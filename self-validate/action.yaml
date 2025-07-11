@@ -50,37 +50,42 @@ runs:
           // Generate PR comment if requested
           const commentOnPr = '${{ inputs.comment-on-pr }}' === 'true';
           if (commentOnPr && github.context.eventName === 'pull_request') {
-            const { WorkflowValidator } = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js');
-            const validator = new WorkflowValidator('.');
-            const comment = validator.formatPRComment(result);
-            
-            // Post or update comment
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: github.context.repo.owner,
-              repo: github.context.repo.repo,
-              issue_number: github.context.issue.number,
-            });
-            
-            const existingComment = comments.find(comment => 
-              comment.body.includes('## 🔍 Go Actions Validation')
-            );
-            
-            if (existingComment) {
-              await github.rest.issues.updateComment({
-                owner: github.context.repo.owner,
-                repo: github.context.repo.repo,
-                comment_id: existingComment.id,
-                body: comment
-              });
-              console.log('Updated existing validation comment');
-            } else {
-              await github.rest.issues.createComment({
+            try {
+              const { WorkflowValidator } = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js');
+              const validator = new WorkflowValidator('.');
+              const comment = validator.formatPRComment(result);
+              
+              // Post or update comment
+              const { data: comments } = await github.rest.issues.listComments({
                 owner: github.context.repo.owner,
                 repo: github.context.repo.repo,
                 issue_number: github.context.issue.number,
-                body: comment
               });
-              console.log('Created new validation comment');
+              
+              const existingComment = comments.find(comment => 
+                comment.body.includes('## 🔍 Go Actions Validation')
+              );
+              
+              if (existingComment) {
+                await github.rest.issues.updateComment({
+                  owner: github.context.repo.owner,
+                  repo: github.context.repo.repo,
+                  comment_id: existingComment.id,
+                  body: comment
+                });
+                console.log('Updated existing validation comment');
+              } else {
+                await github.rest.issues.createComment({
+                  owner: github.context.repo.owner,
+                  repo: github.context.repo.repo,
+                  issue_number: github.context.issue.number,
+                  body: comment
+                });
+                console.log('Created new validation comment');
+              }
+            } catch (commentError) {
+              console.log('Failed to post PR comment:', commentError.message);
+              // Don't fail the action if commenting fails
             }
           }
 
