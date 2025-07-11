@@ -360,6 +360,12 @@ No CI jobs have run yet. Results will appear here as jobs complete.
     }
     // Static method to store results in GitHub Actions artifacts
     static async storeResults(jobType, jobResults) {
+        // Skip artifact upload if not in GitHub Actions environment
+        if (!process.env.ACTIONS_RUNTIME_TOKEN) {
+            console.log(`Skipping artifact upload for ${jobType} - not in GitHub Actions environment`);
+            core.setOutput(`${jobType}_results`, JSON.stringify(jobResults));
+            return;
+        }
         try {
             const artifactClient = new artifact_1.DefaultArtifactClient();
             const filename = `${jobType}-results.json`;
@@ -380,6 +386,11 @@ No CI jobs have run yet. Results will appear here as jobs complete.
     static async loadStoredResults() {
         const results = {};
         const jobTypes = ['test', 'lint', 'benchmark', 'selfValidate'];
+        // Skip artifact download if not in GitHub Actions environment
+        if (!process.env.ACTIONS_RUNTIME_TOKEN) {
+            console.log('Skipping artifact download - not in GitHub Actions environment');
+            return results;
+        }
         try {
             const artifactClient = new artifact_1.DefaultArtifactClient();
             // List all artifacts to find our job results

@@ -396,6 +396,13 @@ No CI jobs have run yet. Results will appear here as jobs complete.
 
   // Static method to store results in GitHub Actions artifacts
   static async storeResults(jobType: keyof CIResults, jobResults: any) {
+    // Skip artifact upload if not in GitHub Actions environment
+    if (!process.env.ACTIONS_RUNTIME_TOKEN) {
+      console.log(`Skipping artifact upload for ${jobType} - not in GitHub Actions environment`);
+      core.setOutput(`${jobType}_results`, JSON.stringify(jobResults));
+      return;
+    }
+
     try {
       const artifactClient = new DefaultArtifactClient();
       const filename = `${jobType}-results.json`;
@@ -419,6 +426,12 @@ No CI jobs have run yet. Results will appear here as jobs complete.
   static async loadStoredResults(): Promise<CIResults> {
     const results: CIResults = {};
     const jobTypes: (keyof CIResults)[] = ['test', 'lint', 'benchmark', 'selfValidate'];
+    
+    // Skip artifact download if not in GitHub Actions environment
+    if (!process.env.ACTIONS_RUNTIME_TOKEN) {
+      console.log('Skipping artifact download - not in GitHub Actions environment');
+      return results;
+    }
     
     try {
       const artifactClient = new DefaultArtifactClient();
