@@ -46,8 +46,8 @@ export declare class UnifiedPRComment {
     private formatBenchmarkDetails;
     private formatEmptyComment;
     static storeResults(jobType: keyof CIResults, jobResults: any): Promise<void>;
-    static loadStoredResults(): CIResults;
+    static loadStoredResults(): Promise<CIResults>;
 }
 export declare function updateUnifiedComment(results: CIResults, options?: PRCommentOptions): Promise<void>;
 export declare function storeJobResults(jobType: keyof CIResults, jobResults: any): Promise<void>;
-export declare function loadAllResults(): CIResults;
+export declare function loadAllResults(): Promise<CIResults>;

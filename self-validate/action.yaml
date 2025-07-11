@@ -21,53 +21,14 @@ runs:
     - name: Validate go-actions usage
       id: validate
       uses: actions/github-script@v7
+      env:
+        INPUT_WORKFLOW_PATHS: ${{ inputs.workflow-paths }}
+        INPUT_COMMENT_ON_PR: ${{ inputs.comment-on-pr }}
+        INPUT_WORKING_DIRECTORY: '.'
       with:
         script: |
-          const fs = require('fs');
-          const path = require('path');
-          
-          // Load the workflow validator directly without @actions dependencies
-          const { validateWorkflows } = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js');
-          
-          const result = validateWorkflows('.');
-          
-          console.log('Found go-actions usage:', result.actionsFound);
-          
-          // Set outputs
-          core.setOutput('actions_found', result.actionsFound.join(','));
-          core.setOutput('validation_failed', (!result.isValid).toString());
-          
-          if (!result.isValid) {
-            const errorMessages = result.errors.map(error => `- ${error.message}`).join('\n');
-            console.log('\n::error::Validation failed:');
-            console.log(errorMessages);
-            core.setOutput('error_messages', errorMessages);
-            core.setFailed(`Validation failed with ${result.errors.length} error(s)`);
-          } else {
-            console.log('✅ All validations passed!');
-          }
-          
-          // Store results for unified PR comment (if this is a PR)
-          const commentOnPr = '${{ inputs.comment-on-pr }}' === 'true';
-          if (commentOnPr && process.env.GITHUB_EVENT_NAME === 'pull_request') {
-            try {
-              // Store validation results for unified comment system
-              const { UnifiedPRComment } = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js');
-              
-              const selfValidateResult = {
-                status: result.isValid ? 'success' : 'failure',
-                actionsFound: result.actionsFound,
-                errors: result.errors
-              };
-              
-              // Store this job's results for later comment consolidation
-              await UnifiedPRComment.storeResults('selfValidate', selfValidateResult);
-              console.log('Stored validation results for unified comment');
-            } catch (commentError) {
-              console.log('Failed to store validation results:', commentError.message);
-              // Don't fail the action if storing fails
-            }
-          }
+          const actionSelfValidate = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js').actionSelfValidate;
+          await actionSelfValidate();
 
     # Self-validation results are now stored for unified comment
     # Individual validation comments are consolidated into a single unified comment

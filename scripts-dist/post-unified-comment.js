@@ -6,7 +6,7 @@ const unified_pr_comment_1 = require("./unified-pr-comment");
 async function postUnifiedComment() {
     try {
         console.log('Loading stored CI results for unified comment...');
-        const results = (0, unified_pr_comment_1.loadAllResults)();
+        const results = await (0, unified_pr_comment_1.loadAllResults)();
         console.log('Loaded results:', JSON.stringify(results, null, 2));
         if (Object.keys(results).length === 0) {
             console.log('No CI results found, skipping unified comment');

@@ -5,7 +5,7 @@ export async function postUnifiedComment() {
   try {
     console.log('Loading stored CI results for unified comment...');
     
-    const results = loadAllResults();
+    const results = await loadAllResults();
     console.log('Loaded results:', JSON.stringify(results, null, 2));
     
     if (Object.keys(results).length === 0) {

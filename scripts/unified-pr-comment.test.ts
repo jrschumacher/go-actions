@@ -1,10 +1,13 @@
 import { UnifiedPRComment, updateUnifiedComment, storeJobResults, loadAllResults } from './unified-pr-comment';
 import * as core from '@actions/core';
 import * as github from '@actions/github';
+import { DefaultArtifactClient } from '@actions/artifact';
 
 // Mock dependencies
 jest.mock('@actions/core');
 jest.mock('@actions/github');
+jest.mock('@actions/artifact');
+jest.mock('fs/promises');
 
 const mockCore = core as jest.Mocked<typeof core>;
 const mockGithub = github as jest.Mocked<typeof github>;
@@ -235,37 +238,68 @@ describe('static methods', () => {
   });
 
   describe('loadStoredResults', () => {
-    it('should load stored results from environment', () => {
+    it('should load stored results from artifacts', async () => {
       const testResults = { status: 'success', coverage: '85%' };
       const lintResults = { status: 'failure', error: 'Lint failed' };
       
-      process.env.GO_ACTIONS_TEST_RESULTS = JSON.stringify(testResults);
-      process.env.GO_ACTIONS_LINT_RESULTS = JSON.stringify(lintResults);
+      // Mock artifact client
+      const mockArtifactClient = {
+        listArtifacts: jest.fn().mockResolvedValue({
+          artifacts: [
+            { id: 1, name: 'go-actions-test' },
+            { id: 2, name: 'go-actions-lint' }
+          ]
+        }),
+        downloadArtifact: jest.fn().mockResolvedValue({}),
+      };
+      
+      (DefaultArtifactClient as jest.MockedClass<typeof DefaultArtifactClient>).mockImplementation(() => mockArtifactClient as any);
+      
+      const fs = require('fs/promises');
+      fs.readFile = jest.fn()
+        .mockResolvedValueOnce(JSON.stringify(testResults))
+        .mockResolvedValueOnce(JSON.stringify(lintResults));
 
-      const results = UnifiedPRComment.loadStoredResults();
+      const results = await UnifiedPRComment.loadStoredResults();
 
       expect(results.test).toEqual(testResults);
       expect(results.lint).toEqual(lintResults);
       expect(results.benchmark).toBeUndefined();
     });
 
-    it('should handle malformed JSON gracefully', () => {
+    it('should handle malformed JSON gracefully', async () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
       
-      process.env.GO_ACTIONS_TEST_RESULTS = 'invalid json';
+      const mockArtifactClient = {
+        listArtifacts: jest.fn().mockResolvedValue({
+          artifacts: [{ id: 1, name: 'go-actions-test' }]
+        }),
+        downloadArtifact: jest.fn().mockResolvedValue({}),
+      };
+      
+      (DefaultArtifactClient as jest.MockedClass<typeof DefaultArtifactClient>).mockImplementation(() => mockArtifactClient as any);
+      
+      const fs = require('fs/promises');
+      fs.readFile = jest.fn().mockResolvedValue('invalid json');
 
-      const results = UnifiedPRComment.loadStoredResults();
+      const results = await UnifiedPRComment.loadStoredResults();
 
       expect(results.test).toBeUndefined();
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to parse stored results for test')
+        expect.stringContaining('Failed to load test artifact')
       );
       
       consoleSpy.mockRestore();
     });
 
-    it('should return empty object when no results stored', () => {
-      const results = UnifiedPRComment.loadStoredResults();
+    it('should return empty object when no results stored', async () => {
+      const mockArtifactClient = {
+        listArtifacts: jest.fn().mockResolvedValue({ artifacts: [] }),
+      };
+      
+      (DefaultArtifactClient as jest.MockedClass<typeof DefaultArtifactClient>).mockImplementation(() => mockArtifactClient as any);
+      
+      const results = await UnifiedPRComment.loadStoredResults();
       
       expect(results).toEqual({});
     });
@@ -306,10 +340,20 @@ describe('exported functions', () => {
   });
 
   describe('loadAllResults', () => {
-    it('should load all results', () => {
-      process.env.GO_ACTIONS_TEST_RESULTS = JSON.stringify({ status: 'success' });
+    it('should load all results', async () => {
+      const mockArtifactClient = {
+        listArtifacts: jest.fn().mockResolvedValue({
+          artifacts: [{ id: 1, name: 'go-actions-test' }]
+        }),
+        downloadArtifact: jest.fn().mockResolvedValue({}),
+      };
       
-      const results = loadAllResults();
+      (DefaultArtifactClient as jest.MockedClass<typeof DefaultArtifactClient>).mockImplementation(() => mockArtifactClient as any);
+      
+      const fs = require('fs/promises');
+      fs.readFile = jest.fn().mockResolvedValue(JSON.stringify({ status: 'success' }));
+      
+      const results = await loadAllResults();
       
       expect(results.test).toEqual({ status: 'success' });
     });

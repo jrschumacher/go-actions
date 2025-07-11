@@ -35,6 +35,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WorkflowValidator = void 0;
 exports.validateWorkflows = validateWorkflows;
+exports.validateWorkflowsForAction = validateWorkflowsForAction;
+exports.default = default_1;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 class WorkflowValidator {
@@ -581,9 +583,60 @@ class WorkflowValidator {
     }
 }
 exports.WorkflowValidator = WorkflowValidator;
-// Main execution function for github-script
+// Main execution function for github-script  
 function validateWorkflows(workingDir = '.') {
     const validator = new WorkflowValidator(workingDir);
     return validator.validate();
+}
+// Consolidated function that handles everything for GitHub Actions
+async function validateWorkflowsForAction(workingDir = '.', workflowPaths = '.github/workflows/*.yaml,.github/workflows/*.yml', commentOnPr = true) {
+    const core = require('@actions/core');
+    try {
+        const result = validateWorkflows(workingDir);
+        console.log('Found go-actions usage:', result.actionsFound);
+        // Set GitHub Action outputs
+        core.setOutput('actions_found', result.actionsFound.join(','));
+        core.setOutput('validation_failed', (!result.isValid).toString());
+        if (!result.isValid) {
+            const errorMessages = result.errors.map(error => `- ${error.message}`).join('\n');
+            console.log('\n::error::Validation failed:');
+            console.log(errorMessages);
+            core.setOutput('error_messages', errorMessages);
+            core.setFailed(`Validation failed with ${result.errors.length} error(s)`);
+        }
+        else {
+            console.log('✅ All validations passed!');
+        }
+        // Store results for unified PR comment (if this is a PR)
+        if (commentOnPr && process.env.GITHUB_EVENT_NAME === 'pull_request') {
+            try {
+                const { UnifiedPRComment } = require('../scripts-dist/self-validate-bundle/index.js');
+                const selfValidateResult = {
+                    status: result.isValid ? 'success' : 'failure',
+                    actionsFound: result.actionsFound,
+                    errors: result.errors
+                };
+                // Store this job's results for later comment consolidation
+                await UnifiedPRComment.storeResults('selfValidate', selfValidateResult);
+                console.log('Stored validation results for unified comment');
+            }
+            catch (commentError) {
+                console.log('Failed to store validation results:', commentError);
+                // Don't fail the action if storing fails
+            }
+        }
+        return result;
+    }
+    catch (error) {
+        console.error('Validation failed with error:', error);
+        core.setFailed(`Validation failed: ${error}`);
+        throw error;
+    }
+}
+// Even simpler - direct execution function that can be called as a function
+async function default_1(workingDir = '.') {
+    const workflowPaths = process.env.INPUT_WORKFLOW_PATHS || '.github/workflows/*.yaml,.github/workflows/*.yml';
+    const commentOnPr = (process.env.INPUT_COMMENT_ON_PR || 'true') === 'true';
+    return await validateWorkflowsForAction(workingDir, workflowPaths, commentOnPr);
 }
 //# sourceMappingURL=workflow-validator.js.map

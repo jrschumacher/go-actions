@@ -30,3 +30,5 @@ export declare class WorkflowValidator {
     private generateConfigurationTemplates;
 }
 export declare function validateWorkflows(workingDir?: string): ValidationResult;
+export declare function validateWorkflowsForAction(workingDir?: string, workflowPaths?: string, commentOnPr?: boolean): Promise<ValidationResult>;
+export default function (workingDir?: string): Promise<ValidationResult>;
