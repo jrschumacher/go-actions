@@ -41,11 +41,10 @@ runs:
           script.validateReleaseConfiguration('${{ inputs.working-directory }}');
         
     - name: Run Release Please
-      uses: googleapis/release-please-action@v4
+      uses: googleapis/release-please-action@v4.2.0
       id: release
       with:
         token: ${{ inputs.release-token }}
-        release-type: go
         
     - name: Run GoReleaser
       if: steps.release.outputs.release_created
