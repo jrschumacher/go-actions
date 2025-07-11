@@ -142,3 +142,18 @@ npm run test:coverage # Run tests with coverage report
 4. Run `npm run build` to compile TypeScript
 5. Commit both source and compiled files
 6. Test changes in actual GitHub Actions workflows
+
+### Release and Tagging Workflow
+**IMPORTANT**: Follow this exact sequence when releasing fixes or features:
+
+1. **Commit**: Create commit with descriptive message including Claude attribution
+2. **Push**: Push changes to remote repository (`git push origin main`)
+3. **Tag new version**: Create specific version tag (e.g., `git tag v1.3.1`)
+4. **Retag v1**: Update the `v1` tag to point to latest stable version (`git tag -f v1`)
+5. **Push tags**: Push all tags to remote (`git push --tags --force`)
+
+**Rationale**: 
+- Consuming repositories use `@v1` as a moving tag for latest stable release
+- Specific version tags (v1.3.1, v1.3.2, etc.) provide fixed points for rollback
+- The `v1` tag should always point to the most recent stable version
+- Force push is needed when retagging `v1` to update remote
