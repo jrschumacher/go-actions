@@ -33,6 +33,11 @@ export declare class CIAction {
      */
     getGolangciLintVersion(): string;
     /**
+     * Normalizes golangci-lint version for compatibility with golangci-lint-action@v8
+     * Converts generic v2/latest to specific v2.1.0
+     */
+    normalizeGolangciLintVersion(version?: string): string;
+    /**
      * Gets the lint args for this job
      */
     getLintArgs(): string;

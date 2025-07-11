@@ -147,6 +147,20 @@ export class CIAction {
   }
 
   /**
+   * Normalizes golangci-lint version for compatibility with golangci-lint-action@v8
+   * Converts generic v2/latest to specific v2.1.0
+   */
+  normalizeGolangciLintVersion(version?: string): string {
+    const versionToNormalize = version || this.golangciLintVersion;
+    
+    if (versionToNormalize === 'v2' || versionToNormalize === 'latest') {
+      return 'v2.1.0';
+    }
+    
+    return versionToNormalize;
+  }
+
+  /**
    * Gets the lint args for this job
    */
   getLintArgs(): string {

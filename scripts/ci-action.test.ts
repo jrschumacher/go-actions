@@ -204,6 +204,33 @@ describe('CIAction', () => {
     });
   });
 
+  describe('normalizeGolangciLintVersion', () => {
+    it('should normalize v2 to v2.1.0', () => {
+      const action = new CIAction({ golangciLintVersion: 'v2' });
+      expect(action.normalizeGolangciLintVersion()).toBe('v2.1.0');
+    });
+
+    it('should normalize latest to v2.1.0', () => {
+      const action = new CIAction({ golangciLintVersion: 'latest' });
+      expect(action.normalizeGolangciLintVersion()).toBe('v2.1.0');
+    });
+
+    it('should pass through specific versions unchanged', () => {
+      const action = new CIAction({ golangciLintVersion: 'v2.1.0' });
+      expect(action.normalizeGolangciLintVersion()).toBe('v2.1.0');
+      
+      expect(action.normalizeGolangciLintVersion('v2.0.5')).toBe('v2.0.5');
+      expect(action.normalizeGolangciLintVersion('v1.54.2')).toBe('v1.54.2');
+    });
+
+    it('should normalize provided version parameter', () => {
+      const action = new CIAction();
+      expect(action.normalizeGolangciLintVersion('v2')).toBe('v2.1.0');
+      expect(action.normalizeGolangciLintVersion('latest')).toBe('v2.1.0');
+      expect(action.normalizeGolangciLintVersion('v2.0.5')).toBe('v2.0.5');
+    });
+  });
+
   describe('logConfiguration', () => {
     it('should log test job configuration', () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();

@@ -27,7 +27,7 @@ inputs:
   
   # Lint job specific inputs
   golangci-lint-version:
-    description: 'golangci-lint version (lint job only). Defaults to latest v2'
+    description: 'golangci-lint version (lint job only). Use v2.1.0+ or v2/latest (auto-converted to v2.1.0)'
     required: false
     default: 'v2.1.0'
   lint-args:
@@ -160,12 +160,25 @@ runs:
           console.log('Stored benchmark results for unified comment');
 
     # Lint job  
+    - name: Normalize golangci-lint version
+      if: inputs.job == 'lint'
+      shell: bash
+      id: normalize-version
+      run: |
+        version="${{ inputs.golangci-lint-version }}"
+        # Convert generic v2 to specific version for golangci-lint-action@v8 compatibility
+        if [ "$version" = "v2" ] || [ "$version" = "latest" ]; then
+          version="v2.1.0"
+        fi
+        echo "normalized-version=$version" >> $GITHUB_OUTPUT
+        echo "Using golangci-lint version: $version"
+
     - name: Run golangci-lint
       if: inputs.job == 'lint'
       id: golangci-lint
       uses: golangci/golangci-lint-action@v8
       with:
-        version: ${{ inputs.golangci-lint-version }}
+        version: ${{ steps.normalize-version.outputs.normalized-version }}
         working-directory: ${{ inputs.working-directory }}
         args: ${{ inputs.lint-args }}
 
