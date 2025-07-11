@@ -163,7 +163,7 @@ All configuration files present and valid
 <details open><summary>Lint Issues</summary>
 golangci-lint Version - Upgrade needed for compatibility
 - ❌ Current: v1.62.2
-- ✅ Required: v2.0.0 or higher
+- ✅ Required: v2.1.0 or higher
 - 🔧 Simple fix: Update version in your workflow
 </details>
 ```

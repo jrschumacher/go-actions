@@ -119,18 +119,18 @@ export class WorkflowValidator {
         
         // Check golangci-lint version
         const workflowConfig = this.extractWorkflowConfig(content, 'ci');
-        let expectedVersion = workflowConfig.golangciLintVersion || 'v2';
+        let expectedVersion = workflowConfig.golangciLintVersion || 'v2.1.0';
         
-        // Default 'latest' to v2
+        // Default 'latest' to v2.1.0
         if (expectedVersion === 'latest') {
-          expectedVersion = 'v2';
+          expectedVersion = 'v2.1.0';
         }
         
         // Check if the specified version is compatible with our CI action
         if (expectedVersion.startsWith('v1') || expectedVersion.startsWith('1.')) {
           errors.push({
             type: 'incompatible_versions',
-            message: `go-actions/ci uses golangci-lint-action@v8 internally, which doesn't support golangci-lint ${expectedVersion}. Use golangci-lint-version: v2 or later`,
+            message: `go-actions/ci uses golangci-lint-action@v8 internally, which doesn't support golangci-lint ${expectedVersion}. Use golangci-lint-version: v2.1.0 or later`,
             expected: 'v2.x.x',
             actual: expectedVersion
           });
@@ -615,7 +615,7 @@ export class WorkflowValidator {
           templates += '- uses: jrschumacher/go-actions/ci@v1\n';
           templates += '  with:\n';
           templates += '    job: lint\n';
-          templates += '    golangci-lint-version: v2  # Updated from ' + error.actual + '\n';
+          templates += '    golangci-lint-version: v2.1.0  # Updated from ' + error.actual + '\n';
           templates += '```\n\n';
           
           templates += '**Optional: Create `.golangci.yaml` for custom configuration:**\n';

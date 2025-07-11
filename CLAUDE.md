@@ -82,7 +82,7 @@ npm run test:coverage # Run tests with coverage report
 
 **Job-Specific Inputs:**
 - **Test**: `test-args` (defaults to `-v -race -coverprofile=coverage.out`)
-- **Lint**: `golangci-lint-version` (defaults to `v2`), `lint-args`
+- **Lint**: `golangci-lint-version` (defaults to `v2.1.0`), `lint-args`
 - **Benchmark**: `benchmark-args` (defaults to `-bench=. -benchmem`), `benchmark-count` (defaults to 5)
 
 ### Release Action Inputs:
@@ -130,7 +130,7 @@ npm run test:coverage # Run tests with coverage report
 - Self-validate runs without Go setup for lightweight validation
 
 ### golangci-lint Version Management
-- Default version is `v2` (can be overridden with `golangci-lint-version`)
+- Default version is `v2.1.0` (can be overridden with `golangci-lint-version`)
 - Self-validate checks version compatibility between workflow and config file
 - Supports both `.golangci.yml` and `.golangci.yaml` formats
 - Validates major version compatibility (v1 vs v2)

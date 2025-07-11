@@ -40,7 +40,7 @@ jobs:
       - uses: jrschumacher/go-actions/ci@v1
         with:
           job: lint
-          golangci-lint-version: v2  # Use v2 for best compatibility
+          golangci-lint-version: v2.1.0  # Use v2.1.0 for best compatibility
 
   benchmark:
     name: Benchmarks
@@ -64,7 +64,7 @@ jobs:
 # This workflow will:
 # 1. ✅ Validate your go-actions configuration
 # 2. ✅ Run tests with coverage reporting  
-# 3. ✅ Run linting with golangci-lint v2
+# 3. ✅ Run linting with golangci-lint v2.1.0
 # 4. ✅ Run benchmarks (on main branch only)
 # 5. ✅ Post unified comment with all results
 #
