@@ -51,12 +51,11 @@ runs:
           const commentOnPr = '${{ inputs.comment-on-pr }}' === 'true';
           if (commentOnPr) {
             try {
-              console.log('Debug: github object type:', typeof github);
-              console.log('Debug: github object keys:', Object.keys(github));
-              console.log('Debug: context available via require:', require('@actions/github').context?.eventName);
+              // Import context separately since github-script@v7 doesn't include it in the github object
+              const { context } = require('@actions/github');
               
-              if (!github || !github.context || github.context.eventName !== 'pull_request') {
-                console.log('Skipping PR comment - not a pull request event or github context unavailable');
+              if (!context || context.eventName !== 'pull_request') {
+                console.log('Skipping PR comment - not a pull request event');
                 return;
               }
               const { WorkflowValidator } = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js');
@@ -65,9 +64,9 @@ runs:
               
               // Post or update comment
               const { data: comments } = await github.rest.issues.listComments({
-                owner: github.context.repo.owner,
-                repo: github.context.repo.repo,
-                issue_number: github.context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
               });
               
               const existingComment = comments.find(comment => 
@@ -76,17 +75,17 @@ runs:
               
               if (existingComment) {
                 await github.rest.issues.updateComment({
-                  owner: github.context.repo.owner,
-                  repo: github.context.repo.repo,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
                   comment_id: existingComment.id,
                   body: comment
                 });
                 console.log('Updated existing validation comment');
               } else {
                 await github.rest.issues.createComment({
-                  owner: github.context.repo.owner,
-                  repo: github.context.repo.repo,
-                  issue_number: github.context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
                   body: comment
                 });
                 console.log('Created new validation comment');
