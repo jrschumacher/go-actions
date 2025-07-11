@@ -111,17 +111,7 @@ runs:
           };
           
           await UnifiedPRComment.storeResults('test', testResult);
-          
-          // Update unified comment if this is a PR
-          if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
-            try {
-              const allResults = UnifiedPRComment.loadStoredResults();
-              await updateUnifiedComment(allResults);
-              console.log('Updated unified go-actions comment with test results');
-            } catch (error) {
-              console.log('Failed to update unified comment:', error.message);
-            }
-          }
+          console.log('Stored test results for unified comment');
 
     # Benchmark job
     - name: Run benchmarks and store results
@@ -167,16 +157,7 @@ runs:
             throw error; // Re-throw to fail the job
           }
           
-          // Update unified comment if this is a PR
-          if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
-            try {
-              const allResults = UnifiedPRComment.loadStoredResults();
-              await updateUnifiedComment(allResults);
-              console.log('Updated unified go-actions comment with benchmark results');
-            } catch (error) {
-              console.log('Failed to update unified comment:', error.message);
-            }
-          }
+          console.log('Stored benchmark results for unified comment');
 
     # Lint job  
     - name: Run golangci-lint
@@ -203,17 +184,7 @@ runs:
           };
           
           await UnifiedPRComment.storeResults('lint', lintResult);
-          
-          // Update unified comment if this is a PR
-          if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
-            try {
-              const allResults = UnifiedPRComment.loadStoredResults();
-              await updateUnifiedComment(allResults);
-              console.log('Updated unified go-actions comment with lint results');
-            } catch (error) {
-              console.log('Failed to update unified comment:', error.message);
-            }
-          }
+          console.log('Stored lint results for unified comment');
 
     # Results are automatically stored and unified comment is updated by each job
     # All CI results (test, lint, benchmark) appear in a single "Go Actions Report" comment

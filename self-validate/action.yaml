@@ -62,19 +62,7 @@ runs:
               
               // Store this job's results
               await UnifiedPRComment.storeResults('selfValidate', selfValidateResult);
-              
-              // Check if this is a pull request event
-              const eventName = process.env.GITHUB_EVENT_NAME;
-              if (eventName !== 'pull_request') {
-                console.log('Skipping PR comment - not a pull request event');
-                return;
-              }
-              
-              // Load all stored results and update unified comment
-              const allResults = UnifiedPRComment.loadStoredResults();
-              await updateUnifiedComment(allResults);
-              
-              console.log('Updated unified go-actions comment');
+              console.log('Stored validation results for unified comment');
             } catch (commentError) {
               console.log('Failed to update unified comment:', commentError.message);
               // Don't fail the action if commenting fails
