@@ -51,7 +51,7 @@ class ReleaseAction {
             core.setFailed(message);
             // Log helpful setup instructions
             console.log('');
-            console.log('Create .release-please-config.json (Release Please v16+ format):');
+            console.log('Create release-please-config.json (Release Please v16+ format):');
             console.log(JSON.stringify({
                 'release-type': 'go',
                 'package-name': 'your-module-name',
