@@ -26,6 +26,11 @@ on:
       - '.golangci.yml'
       - '.golangci.yaml'
 
+# Required for self-validator to comment on PRs
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -33,7 +38,7 @@ jobs:
       - uses: jrschumacher/go-actions/self-validate@v1
 ```
 
-This workflow runs whenever you modify your project configuration and validates that everything is set up correctly for the other workflows.
+This workflow runs whenever you modify your project configuration and validates that everything is set up correctly for the other workflows. **Important:** The `pull-requests: write` permission is required for the self-validator to post helpful guidance comments on PRs.
 
 ### Step 2: CI Workflow 🧪
 
@@ -149,6 +154,11 @@ The self-validator will guide you, but here are the files you'll need:
 To get beautiful unified PR comments that consolidate all CI results, add this job to your CI workflow:
 
 ```yaml
+# Required for comment action to post PR comments
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
