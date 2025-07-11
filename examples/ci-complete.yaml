@@ -53,10 +53,9 @@ jobs:
           job: benchmark
           benchmark-count: 3  # Number of benchmark runs
 
-  # Step 3: Post unified results comment (runs after all jobs complete)
+  # Step 3: Post unified results comment
   comment:
     name: Post Results
-    needs: [validate, test, lint, benchmark]
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'pull_request'
     steps:

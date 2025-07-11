@@ -57,9 +57,8 @@ jobs:
         with:
           job: benchmark
 
-  # Step 3: Post unified results comment (runs after all jobs)
+  # Step 3: Post unified results comment
   comment:
-    needs: [validate, test, lint, benchmark]
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'pull_request'
     steps:

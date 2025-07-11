@@ -37,7 +37,6 @@ jobs:
           job: lint
 
   comment:
-    needs: [validate, test, lint]
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'pull_request'
     steps:
