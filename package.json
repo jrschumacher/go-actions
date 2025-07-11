@@ -4,7 +4,7 @@
   "description": "TypeScript scripts for Go Actions",
   "scripts": {
     "build": "tsc && npm run bundle",
-    "bundle": "ncc build scripts-dist/release-action.js -o scripts-dist/release-action-bundle && ncc build scripts-dist/ci-action.js -o scripts-dist/ci-action-bundle && ncc build scripts-dist/self-validate.js -o scripts-dist/self-validate-bundle",
+    "bundle": "ncc build scripts-dist/release-action-entry.js -o scripts-dist/release-action-bundle && ncc build scripts-dist/ci-action-entry.js -o scripts-dist/ci-action-bundle && ncc build scripts-dist/self-validate-entry.js -o scripts-dist/self-validate-bundle",
     "clean": "rm -rf scripts-dist",
     "test": "jest",
     "test:watch": "jest --watch",

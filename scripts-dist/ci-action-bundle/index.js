@@ -29962,6 +29962,37 @@ function runBenchmarks(workingDirectory = '.', benchmarkArgs = '-bench=. -benchm
 
 /***/ }),
 
+/***/ 1874:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.runBenchmarks = exports.extractCoverage = void 0;
+// Entry point for ci-action bundle
+var coverage_extractor_1 = __nccwpck_require__(7183);
+Object.defineProperty(exports, "extractCoverage", ({ enumerable: true, get: function () { return coverage_extractor_1.extractCoverage; } }));
+var benchmark_runner_1 = __nccwpck_require__(2856);
+Object.defineProperty(exports, "runBenchmarks", ({ enumerable: true, get: function () { return benchmark_runner_1.runBenchmarks; } }));
+__exportStar(__nccwpck_require__(279), exports);
+//# sourceMappingURL=ci-action-entry.js.map
+
+/***/ }),
+
 /***/ 279:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -32413,7 +32444,7 @@ module.exports = parseParams
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(279);
+/******/ 	var __webpack_exports__ = __nccwpck_require__(1874);
 /******/ 	module.exports = __webpack_exports__;
 /******/ 	
 /******/ })()

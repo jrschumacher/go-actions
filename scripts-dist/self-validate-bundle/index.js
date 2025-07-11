@@ -29915,6 +29915,36 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 4524:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.WorkflowValidator = exports.validateWorkflows = void 0;
+// Entry point for self-validate bundle
+var workflow_validator_1 = __nccwpck_require__(3738);
+Object.defineProperty(exports, "validateWorkflows", ({ enumerable: true, get: function () { return workflow_validator_1.validateWorkflows; } }));
+Object.defineProperty(exports, "WorkflowValidator", ({ enumerable: true, get: function () { return workflow_validator_1.WorkflowValidator; } }));
+__exportStar(__nccwpck_require__(3377), exports);
+//# sourceMappingURL=self-validate-entry.js.map
+
+/***/ }),
+
 /***/ 3377:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -32470,7 +32500,7 @@ module.exports = parseParams
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(3377);
+/******/ 	var __webpack_exports__ = __nccwpck_require__(4524);
 /******/ 	module.exports = __webpack_exports__;
 /******/ 	
 /******/ })()
