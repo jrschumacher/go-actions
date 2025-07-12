@@ -1,0 +1,7 @@
+{
+  "release-type": "go",
+  "package-name": "fixture-test",
+  "packages": {
+    ".": {}
+  }
+}

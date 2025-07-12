@@ -35,26 +35,26 @@ describe('ReleaseAction', () => {
     it('should fail validation when files are missing', () => {
       mockValidateRelease.mockReturnValue({
         isValid: false,
-        missingFiles: ['.release-please-config.json', '.release-please-manifest.json']
+        missingFiles: ['release-please-config.json', '.release-please-manifest.json']
       });
 
       expect(() => action.validateConfiguration()).toThrow(
-        'Missing required Release Please configuration files: .release-please-config.json, .release-please-manifest.json'
+        'Missing required Release Please configuration files: release-please-config.json, .release-please-manifest.json'
       );
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(
-        'Missing required Release Please configuration files: .release-please-config.json, .release-please-manifest.json'
+        'Missing required Release Please configuration files: release-please-config.json, .release-please-manifest.json'
       );
     });
 
     it('should fail validation for single missing file', () => {
       mockValidateRelease.mockReturnValue({
         isValid: false,
-        missingFiles: ['.release-please-config.json']
+        missingFiles: ['release-please-config.json']
       });
 
       expect(() => action.validateConfiguration()).toThrow(
-        'Missing required Release Please configuration files: .release-please-config.json'
+        'Missing required Release Please configuration files: release-please-config.json'
       );
     });
 
@@ -63,12 +63,12 @@ describe('ReleaseAction', () => {
       
       mockValidateRelease.mockReturnValue({
         isValid: false,
-        missingFiles: ['.release-please-config.json']
+        missingFiles: ['release-please-config.json']
       });
 
       expect(() => action.validateConfiguration()).toThrow();
 
-      expect(consoleSpy).toHaveBeenCalledWith('Create .release-please-config.json:');
+      expect(consoleSpy).toHaveBeenCalledWith('Create release-please-config.json (Release Please v16+ format):');
       expect(consoleSpy).toHaveBeenCalledWith('Create .release-please-manifest.json:');
       
       // Check that JSON examples were logged

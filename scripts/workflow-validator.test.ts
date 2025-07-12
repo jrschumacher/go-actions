@@ -104,13 +104,26 @@ jobs:
           return true;
         }
         const file = path.basename(filePath as string);
-        return file === '.release-please-config.json' ||
+        return file === 'release-please-config.json' ||
                file === '.release-please-manifest.json' ||
                file === '.goreleaser.yaml';
       });
 
+      mockFs.readFileSync.mockImplementation((filePath: any) => {
+        if (filePath.includes('.github/workflows')) {
+          return workflowContent;
+        }
+        const file = path.basename(filePath as string);
+        if (file === 'release-please-config.json') {
+          return JSON.stringify({ "release-type": "go", "package-name": "test-package", "packages": { ".": {} } });
+        }
+        if (file === '.goreleaser.yaml') {
+          return 'builds:\n  - env:\n      - CGO_ENABLED=0\n    goos:\n      - linux\n      - windows\n      - darwin';
+        }
+        return '{}';
+      });
+
       mockFs.readdirSync.mockReturnValue(['release.yaml'] as any);
-      mockFs.readFileSync.mockReturnValue(workflowContent);
 
       const result = validator.validate();
 
@@ -141,7 +154,7 @@ jobs:
 
       expect(result.isValid).toBe(false);
       expect(result.errors).toHaveLength(3);
-      expect(result.errors.map(e => e.file)).toContain('.release-please-config.json');
+      expect(result.errors.map(e => e.file)).toContain('release-please-config.json');
       expect(result.errors.map(e => e.file)).toContain('.release-please-manifest.json');
       expect(result.errors.map(e => e.file)).toContain('.goreleaser.yaml');
     });
@@ -160,13 +173,26 @@ jobs:
           return true;
         }
         const file = path.basename(filePath as string);
-        return file === '.release-please-config.json' ||
+        return file === 'release-please-config.json' ||
                file === '.release-please-manifest.json' ||
                file === '.goreleaser.yml'; // Note: .yml not .yaml
       });
 
+      mockFs.readFileSync.mockImplementation((filePath: any) => {
+        if (filePath.includes('.github/workflows')) {
+          return workflowContent;
+        }
+        const file = path.basename(filePath as string);
+        if (file === 'release-please-config.json') {
+          return JSON.stringify({ "release-type": "go", "package-name": "test-package", "packages": { ".": {} } });
+        }
+        if (file === '.goreleaser.yml') {
+          return 'builds:\n  - env:\n      - CGO_ENABLED=0\n    goos:\n      - linux\n      - windows\n      - darwin';
+        }
+        return '{}';
+      });
+
       mockFs.readdirSync.mockReturnValue(['release.yaml'] as any);
-      mockFs.readFileSync.mockReturnValue(workflowContent);
 
       const result = validator.validate();
 
@@ -359,7 +385,7 @@ jobs:
         }
         const file = path.basename(filePath as string);
         return file === 'go.mod' ||
-               file === '.release-please-config.json' ||
+               file === 'release-please-config.json' ||
                file === '.release-please-manifest.json' ||
                file === '.goreleaser.yaml';
       });
@@ -371,6 +397,13 @@ jobs:
         }
         if (filePath.includes('release.yml')) {
           return releaseContent;
+        }
+        const file = path.basename(filePath as string);
+        if (file === 'release-please-config.json') {
+          return JSON.stringify({ "release-type": "go", "package-name": "test-package", "packages": { ".": {} } });
+        }
+        if (file === '.goreleaser.yaml') {
+          return 'builds:\n  - env:\n      - CGO_ENABLED=0\n    goos:\n      - linux\n      - windows\n      - darwin';
         }
         return '';
       });
@@ -407,8 +440,8 @@ jobs:
 
       const comment = validator.formatPRComment(result);
 
-      expect(comment).toContain('## 🔍 Go Actions Validation');
-      expect(comment).toContain('✅ **All validations passed!**');
+      expect(comment).toContain('# Go Actions Report');
+      expect(comment).toContain('✅ **Validated**');
       expect(comment).toContain('ci, release');
     });
 
@@ -419,8 +452,8 @@ jobs:
         errors: [
           {
             type: 'missing_file' as const,
-            message: '.release-please-config.json (required for release action)',
-            file: '.release-please-config.json'
+            message: 'release-please-config.json (required for release action)',
+            file: 'release-please-config.json'
           },
           {
             type: 'missing_file' as const,
@@ -433,9 +466,9 @@ jobs:
       const comment = validator.formatPRComment(result);
 
       expect(comment).toContain('❌ **Validation Failed**');
-      expect(comment).toContain('.release-please-config.json');
+      expect(comment).toContain('release-please-config.json');
       expect(comment).toContain('.goreleaser.yaml');
-      expect(comment).toContain('### 📝 Required Configuration Examples');
+      expect(comment).toContain('### 📝 Configuration Templates');
       expect(comment).toContain('```json');
       expect(comment).toContain('goreleaser init');
     });
@@ -457,9 +490,9 @@ jobs:
 
       const comment = validator.formatPRComment(result);
 
-      expect(comment).toContain('### ⚠️ Version Mismatch');
-      expect(comment).toContain('golangci-lint configuration file version');
-      expect(comment).toContain('```yaml\nversion: v2\n```');
+      expect(comment).toContain('**Version Mismatch**');
+      expect(comment).toContain('Configuration file version mismatch');
+      expect(comment).toContain('Update version to v2');
     });
 
     it('should include all relevant file examples', () => {
@@ -469,8 +502,8 @@ jobs:
         errors: [
           {
             type: 'missing_file' as const,
-            message: '.release-please-config.json (required)',
-            file: '.release-please-config.json'
+            message: 'release-please-config.json (required)',
+            file: 'release-please-config.json'
           },
           {
             type: 'missing_file' as const,
@@ -487,7 +520,7 @@ jobs:
 
       const comment = validator.formatPRComment(result);
 
-      expect(comment).toContain('**`.release-please-config.json`:**');
+      expect(comment).toContain('**`release-please-config.json`:**');
       expect(comment).toContain('**`.release-please-manifest.json`:**');
       expect(comment).toContain('**`.goreleaser.yaml`:**');
       expect(comment).toContain('release-type');

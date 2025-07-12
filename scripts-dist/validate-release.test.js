@@ -50,15 +50,22 @@ describe('ReleaseValidator', () => {
         it('should pass when all required files exist', () => {
             mockFs.existsSync.mockImplementation((filePath) => {
                 const file = path.basename(filePath);
-                return file === '.release-please-config.json' ||
+                return file === 'release-please-config.json' ||
                     file === '.release-please-manifest.json';
+            });
+            mockFs.readFileSync.mockImplementation((filePath) => {
+                const file = path.basename(filePath);
+                if (file === 'release-please-config.json') {
+                    return JSON.stringify({ "release-type": "go", "package-name": "test-package", "packages": { ".": {} } });
+                }
+                return '{}';
             });
             const result = validator.validate();
             expect(result).toEqual({
                 isValid: true,
                 missingFiles: []
             });
-            expect(mockFs.existsSync).toHaveBeenCalledWith(path.join(testWorkingDir, '.release-please-config.json'));
+            expect(mockFs.existsSync).toHaveBeenCalledWith(path.join(testWorkingDir, 'release-please-config.json'));
             expect(mockFs.existsSync).toHaveBeenCalledWith(path.join(testWorkingDir, '.release-please-manifest.json'));
         });
         it('should fail when release-please-config.json is missing', () => {
@@ -69,13 +76,20 @@ describe('ReleaseValidator', () => {
             const result = validator.validate();
             expect(result).toEqual({
                 isValid: false,
-                missingFiles: ['.release-please-config.json']
+                missingFiles: ['release-please-config.json']
             });
         });
         it('should fail when release-please-manifest.json is missing', () => {
             mockFs.existsSync.mockImplementation((filePath) => {
                 const file = path.basename(filePath);
-                return file === '.release-please-config.json';
+                return file === 'release-please-config.json';
+            });
+            mockFs.readFileSync.mockImplementation((filePath) => {
+                const file = path.basename(filePath);
+                if (file === 'release-please-config.json') {
+                    return JSON.stringify({ "release-type": "go", "package-name": "test-package", "packages": { ".": {} } });
+                }
+                return '{}';
             });
             const result = validator.validate();
             expect(result).toEqual({
@@ -88,15 +102,22 @@ describe('ReleaseValidator', () => {
             const result = validator.validate();
             expect(result).toEqual({
                 isValid: false,
-                missingFiles: ['.release-please-config.json', '.release-please-manifest.json']
+                missingFiles: ['release-please-config.json', '.release-please-manifest.json']
             });
         });
         it('should use correct working directory', () => {
             const customDir = '/custom/project';
             const customValidator = new validate_release_1.ReleaseValidator({ workingDirectory: customDir });
             mockFs.existsSync.mockReturnValue(true);
+            mockFs.readFileSync.mockImplementation((filePath) => {
+                const file = path.basename(filePath);
+                if (file === 'release-please-config.json') {
+                    return JSON.stringify({ "release-type": "go", "package-name": "test-package", "packages": { ".": {} } });
+                }
+                return '{}';
+            });
             customValidator.validate();
-            expect(mockFs.existsSync).toHaveBeenCalledWith(path.join(customDir, '.release-please-config.json'));
+            expect(mockFs.existsSync).toHaveBeenCalledWith(path.join(customDir, 'release-please-config.json'));
             expect(mockFs.existsSync).toHaveBeenCalledWith(path.join(customDir, '.release-please-manifest.json'));
         });
         it('should log appropriate messages for missing files', () => {
@@ -105,7 +126,7 @@ describe('ReleaseValidator', () => {
             validator.validate();
             expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Missing required Release Please configuration files'));
             expect(consoleSpy).toHaveBeenCalledWith('');
-            expect(consoleSpy).toHaveBeenCalledWith('Create .release-please-config.json:');
+            expect(consoleSpy).toHaveBeenCalledWith('Create release-please-config.json (Release Please v16+ format):');
             expect(consoleSpy).toHaveBeenCalledWith('Create .release-please-manifest.json:');
             consoleSpy.mockRestore();
         });
@@ -126,16 +147,23 @@ describe('ReleaseValidator', () => {
         it('should work with default working directory', () => {
             const { validateRelease } = require('./validate-release');
             mockFs.existsSync.mockReturnValue(true);
+            mockFs.readFileSync.mockImplementation((filePath) => {
+                const file = path.basename(filePath);
+                if (file === 'release-please-config.json') {
+                    return JSON.stringify({ "release-type": "go", "package-name": "test-package", "packages": { ".": {} } });
+                }
+                return '{}';
+            });
             const result = validateRelease();
             expect(result.isValid).toBe(true);
-            expect(mockFs.existsSync).toHaveBeenCalledWith(path.join('.', '.release-please-config.json'));
+            expect(mockFs.existsSync).toHaveBeenCalledWith(path.join('.', 'release-please-config.json'));
         });
         it('should work with custom working directory', () => {
             const { validateRelease } = require('./validate-release');
             mockFs.existsSync.mockReturnValue(false);
             const result = validateRelease('/custom/dir');
             expect(result.isValid).toBe(false);
-            expect(mockFs.existsSync).toHaveBeenCalledWith(path.join('/custom/dir', '.release-please-config.json'));
+            expect(mockFs.existsSync).toHaveBeenCalledWith(path.join('/custom/dir', 'release-please-config.json'));
         });
     });
     describe('edge cases', () => {
@@ -149,13 +177,13 @@ describe('ReleaseValidator', () => {
             const relativeValidator = new validate_release_1.ReleaseValidator({ workingDirectory: '../project' });
             mockFs.existsSync.mockReturnValue(true);
             relativeValidator.validate();
-            expect(mockFs.existsSync).toHaveBeenCalledWith(path.join('../project', '.release-please-config.json'));
+            expect(mockFs.existsSync).toHaveBeenCalledWith(path.join('../project', 'release-please-config.json'));
         });
         it('should handle empty working directory', () => {
             const emptyValidator = new validate_release_1.ReleaseValidator({ workingDirectory: '' });
             mockFs.existsSync.mockReturnValue(true);
             emptyValidator.validate();
-            expect(mockFs.existsSync).toHaveBeenCalledWith(path.join('', '.release-please-config.json'));
+            expect(mockFs.existsSync).toHaveBeenCalledWith(path.join('', 'release-please-config.json'));
         });
     });
 });

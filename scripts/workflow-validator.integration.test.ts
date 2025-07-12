@@ -22,7 +22,7 @@ describe('WorkflowValidator Integration Tests', () => {
       
       const errorMessages = result.errors.map(e => e.message);
       expect(errorMessages).toContain('go.mod (required for CI actions)');
-      expect(errorMessages).toContain('.release-please-config.json (required for release action)');
+      expect(errorMessages).toContain('release-please-config.json (required for release action)');
       expect(errorMessages).toContain('.release-please-manifest.json (required for release action)');
       expect(errorMessages).toContain('.goreleaser.yaml or .goreleaser.yml (required for release action)');
     });
