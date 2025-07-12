@@ -37,6 +37,7 @@ exports.ReleaseValidator = void 0;
 exports.validateRelease = validateRelease;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const release_please_validator_1 = require("./release-please-validator");
 class ReleaseValidator {
     constructor(options) {
         this.workingDir = options.workingDirectory;
@@ -45,67 +46,40 @@ class ReleaseValidator {
         return fs.existsSync(path.join(this.workingDir, filePath));
     }
     validate() {
-        const missingFiles = [];
         console.log(`Checking for Release Please files in directory: ${this.workingDir}`);
         console.log(`Full path: ${path.resolve(this.workingDir)}`);
-        // Check for correct config filename (no dot prefix)
-        if (!this.fileExists('release-please-config.json')) {
-            console.log(`Missing: ${path.join(this.workingDir, 'release-please-config.json')}`);
-            missingFiles.push('release-please-config.json');
-            // Check for common mistake (with dot prefix)
-            if (this.fileExists('.release-please-config.json')) {
-                console.log(`::error::Found .release-please-config.json but Release Please expects release-please-config.json (no dot prefix)`);
-                console.log(`Please rename .release-please-config.json to release-please-config.json`);
-                missingFiles.push('release-please-config.json (incorrect filename)');
+        const validator = new release_please_validator_1.ReleasePleaseValidator(this.workingDir);
+        const result = validator.validate();
+        const missingFiles = [];
+        // Log validation results and convert to legacy format
+        for (const error of result.errors) {
+            const severity = error.severity === 'warning' ? '::warning::' : '::error::';
+            console.log(`${severity}${error.message}`);
+            if (error.type === 'filename_error') {
+                console.log(`Please rename the file as indicated above`);
+                missingFiles.push(`${error.file} (incorrect filename)`);
+            }
+            else if (error.type === 'format_error') {
+                missingFiles.push(`${error.file} (format update needed)`);
+            }
+            else if (error.type === 'invalid_json') {
+                missingFiles.push(`${error.file} (invalid JSON)`);
+            }
+            else {
+                missingFiles.push(error.file);
             }
         }
-        else {
-            console.log(`Found: release-please-config.json`);
-            // Validate configuration format for Release Please v16+
-            try {
-                const configPath = path.join(this.workingDir, 'release-please-config.json');
-                const configContent = fs.readFileSync(configPath, 'utf8');
-                const config = JSON.parse(configContent);
-                if (!config['release-type'] && config.packages && config.packages['.'] && config.packages['.']['release-type']) {
-                    console.log(`::warning::Release Please configuration uses legacy format. Update for v16+ compatibility.`);
-                    console.log(`Current format has release-type inside packages, but v16+ expects it at root level.`);
-                    missingFiles.push('release-please-config.json (format update needed)');
-                }
-            }
-            catch (error) {
-                console.log(`::error::Invalid JSON in release-please-config.json: ${error}`);
-                missingFiles.push('release-please-config.json (invalid JSON)');
-            }
-        }
-        if (!this.fileExists('.release-please-manifest.json')) {
-            console.log(`Missing: ${path.join(this.workingDir, '.release-please-manifest.json')}`);
-            missingFiles.push('.release-please-manifest.json');
-            // Check for common mistake (without dot prefix)
-            if (this.fileExists('release-please-manifest.json')) {
-                console.log(`::error::Found release-please-manifest.json but Release Please expects .release-please-manifest.json (with dot prefix)`);
-                console.log(`Please rename release-please-manifest.json to .release-please-manifest.json`);
-                missingFiles.push('.release-please-manifest.json (incorrect filename)');
-            }
-        }
-        else {
-            console.log(`Found: .release-please-manifest.json`);
-        }
-        if (missingFiles.length > 0) {
+        if (!result.isValid) {
             console.log(`::error::Missing required Release Please configuration files: ${missingFiles.join(', ')}`);
             console.log('');
             console.log('Create release-please-config.json (Release Please v16+ format):');
-            console.log(JSON.stringify({
-                'release-type': 'go',
-                'package-name': 'your-module-name',
-                packages: {
-                    '.': {}
-                }
-            }, null, 2));
+            console.log(validator.generateConfigTemplate());
             console.log('');
             console.log('Create .release-please-manifest.json:');
-            console.log(JSON.stringify({ '.': '0.1.0' }, null, 2));
+            console.log(validator.generateManifestTemplate());
             return { isValid: false, missingFiles };
         }
+        console.log('✅ Release Please configuration is valid');
         return { isValid: true, missingFiles: [] };
     }
 }

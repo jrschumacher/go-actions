@@ -161,18 +161,35 @@ class WorkflowValidator {
             // Check for release action
             if (content.includes('jrschumacher/go-actions/release@')) {
                 actionsFound.add('release');
-                // Validate required files
+                // Validate required files with correct naming
                 const requiredFiles = [
-                    { file: '.release-please-config.json', message: '.release-please-config.json (required for release action)' },
+                    { file: 'release-please-config.json', message: 'release-please-config.json (required for release action)' },
                     { file: '.release-please-manifest.json', message: '.release-please-manifest.json (required for release action)' }
                 ];
                 for (const { file, message } of requiredFiles) {
                     if (!this.fileExists(file)) {
-                        errors.push({
-                            type: 'missing_file',
-                            message,
-                            file
-                        });
+                        // Check for common filename mistakes
+                        if (file === 'release-please-config.json' && this.fileExists('.release-please-config.json')) {
+                            errors.push({
+                                type: 'missing_file',
+                                message: 'Found .release-please-config.json but Release Please expects release-please-config.json (no dot prefix)',
+                                file: 'release-please-config.json'
+                            });
+                        }
+                        else if (file === '.release-please-manifest.json' && this.fileExists('release-please-manifest.json')) {
+                            errors.push({
+                                type: 'missing_file',
+                                message: 'Found release-please-manifest.json but Release Please expects .release-please-manifest.json (with dot prefix)',
+                                file: '.release-please-manifest.json'
+                            });
+                        }
+                        else {
+                            errors.push({
+                                type: 'missing_file',
+                                message,
+                                file
+                            });
+                        }
                     }
                 }
                 // Check for goreleaser config
@@ -277,16 +294,16 @@ class WorkflowValidator {
         }
     }
     validateReleasePleaseConfig(errors) {
-        // Validate .release-please-config.json
-        if (this.fileExists('.release-please-config.json')) {
+        // Validate release-please-config.json (correct filename)
+        if (this.fileExists('release-please-config.json')) {
             try {
-                const configContent = fs.readFileSync(path.join(this.workingDir, '.release-please-config.json'), 'utf8');
+                const configContent = fs.readFileSync(path.join(this.workingDir, 'release-please-config.json'), 'utf8');
                 const config = JSON.parse(configContent);
                 if (!config.packages || !config.packages['.']) {
                     errors.push({
                         type: 'release_please_config',
                         message: 'Release Please config missing packages["."] configuration',
-                        file: '.release-please-config.json',
+                        file: 'release-please-config.json',
                         severity: 'error'
                     });
                 }
@@ -296,7 +313,7 @@ class WorkflowValidator {
                         errors.push({
                             type: 'release_please_config',
                             message: 'Release Please config should use "release-type": "go" for Go projects',
-                            file: '.release-please-config.json',
+                            file: 'release-please-config.json',
                             severity: 'warning'
                         });
                     }
@@ -304,7 +321,7 @@ class WorkflowValidator {
                         errors.push({
                             type: 'release_please_config',
                             message: 'Release Please config missing "package-name" field',
-                            file: '.release-please-config.json',
+                            file: 'release-please-config.json',
                             severity: 'error'
                         });
                     }
@@ -314,7 +331,7 @@ class WorkflowValidator {
                     errors.push({
                         type: 'release_please_config',
                         message: `Unusual target branch "${config['target-branch']}". Verify this is correct`,
-                        file: '.release-please-config.json',
+                        file: 'release-please-config.json',
                         severity: 'warning'
                     });
                 }
@@ -410,7 +427,7 @@ class WorkflowValidator {
             if (errorsByType.missing_file?.some(e => e.file?.includes('release-please')) || errorsByType.release_please_config) {
                 comment += `${issueNumber}. **Release Please Config** - Configuration issues detected\n`;
                 if (errorsByType.missing_file?.some(e => e.file?.includes('release-please'))) {
-                    comment += '   - 📁 Expected: `.release-please-config.json` and `.release-please-manifest.json`\n';
+                    comment += '   - 📁 Expected: `release-please-config.json` and `.release-please-manifest.json`\n';
                 }
                 if (errorsByType.release_please_config) {
                     for (const error of errorsByType.release_please_config) {
@@ -517,9 +534,11 @@ class WorkflowValidator {
         let templates = '';
         // Release Please templates
         if (errorsByType.missing_file?.some(e => e.file?.includes('release-please'))) {
-            templates += '**`.release-please-config.json`:**\n';
+            templates += '**`release-please-config.json`:**\n';
             templates += '```json\n';
             templates += '{\n';
+            templates += '  "release-type": "go",\n';
+            templates += '  "package-name": "your-package-name",\n';
             templates += '  "packages": {\n';
             templates += '    ".": {\n';
             templates += '      "release-type": "go",\n';
