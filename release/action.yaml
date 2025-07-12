@@ -39,8 +39,20 @@ runs:
       with:
         token: ${{ inputs.release-token }}
         
+    - name: Check Release Please outputs
+      shell: bash
+      run: |
+        echo "Release created: '${{ steps.release.outputs.release_created }}'"
+        echo "Tag name: '${{ steps.release.outputs.tag_name }}'"
+        echo "Version: '${{ steps.release.outputs.version }}'"
+        if [ "${{ steps.release.outputs.release_created }}" = "true" ]; then
+          echo "✅ Release was created, proceeding with GoReleaser"
+        else
+          echo "ℹ️  No release was created, skipping GoReleaser"
+        fi
+        
     - name: Run GoReleaser
-      if: steps.release.outputs.release_created
+      if: steps.release.outputs.release_created == 'true'
       uses: goreleaser/goreleaser-action@v6
       with:
         distribution: goreleaser
