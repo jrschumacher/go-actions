@@ -89,9 +89,27 @@ jobs:
       - uses: jrschumacher/go-actions/release@v1
         with:
           release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          # Optional: Create major/minor version aliases (defaults to false)
+          # create-version-aliases: true
 ```
 
 **Important:** You'll need to create a Personal Access Token (PAT) with `contents:write` and `pull_requests:write` permissions and add it as `RELEASE_PLEASE_TOKEN` in your repository secrets.
+
+### Version Tagging Strategy
+
+By default, the release action creates clean Go module tags (e.g., `v1.2.3`) for reproducible builds. For projects that want convenience aliases:
+
+```yaml
+# Enable version aliases for easier consumption
+- uses: jrschumacher/go-actions/release@v1
+  with:
+    release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+    create-version-aliases: true  # Creates v1→v1.2.3, v1.2→v1.2.3
+```
+
+**Tagging behavior:**
+- **Default (`false`)**: Creates only specific version tags like `v1.2.3`
+- **With aliases (`true`)**: Also creates `v1` → `v1.2.3` and `v1.2` → `v1.2.3` aliases
 
 ## 📋 Required Configuration Files
 
@@ -131,7 +149,13 @@ The self-validator will guide you, but here are the files you'll need:
 
 ### Release Actions (`jrschumacher/go-actions/release@v1`)
 - Automated releases using Release Please + GoReleaser
-- No job parameter needed - it's a dedicated release action
+- Creates proper Go module version tags (v1.2.3 format)
+- Optional version aliases for easier consumption
+
+**Inputs:**
+- `release-token` (required): Personal Access Token for creating PRs
+- `create-version-aliases` (optional): Create major/minor aliases like v1→v1.2.3, defaults to `false`
+- `go-version`, `go-version-file`, `working-directory`: Standard Go setup options
 
 ### Self-Validate Action (`jrschumacher/go-actions/self-validate@v1`)
 - Validates your project configuration for all go-actions workflows

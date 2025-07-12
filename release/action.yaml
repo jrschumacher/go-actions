@@ -18,6 +18,10 @@ inputs:
   release-token:
     description: 'Personal Access Token (PAT) for Release Please. Required for creating PRs. Must be passed as a secret (e.g., secrets.RELEASE_PAT)'
     required: true
+  create-version-aliases:
+    description: 'Create major/minor version aliases (e.g., v1 -> v1.2.3, v1.2 -> v1.2.3). Defaults to false for reproducible builds.'
+    required: false
+    default: 'false'
 
 runs:
   using: "composite"
@@ -38,6 +42,8 @@ runs:
       id: release
       with:
         token: ${{ inputs.release-token }}
+        release-type: go
+        package-name: ''
         
     - name: Check Release Please outputs
       shell: bash
@@ -60,3 +66,37 @@ runs:
         args: release --clean
       env:
         GITHUB_TOKEN: ${{ inputs.release-token || github.token }}
+        
+    - name: Create version aliases for Go modules
+      if: steps.release.outputs.release_created == 'true' && inputs.create-version-aliases == 'true'
+      shell: bash
+      run: |
+        VERSION="${{ steps.release.outputs.version }}"
+        TAG_NAME="${{ steps.release.outputs.tag_name }}"
+        
+        echo "Creating version aliases for version: $VERSION"
+        echo "Tag name: $TAG_NAME"
+        
+        # Extract major and minor versions
+        if [[ $VERSION =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+          MAJOR="${BASH_REMATCH[1]}"
+          MINOR="${BASH_REMATCH[2]}"
+          PATCH="${BASH_REMATCH[3]}"
+          
+          echo "Major: $MAJOR, Minor: $MINOR, Patch: $PATCH"
+          
+          # Create major version alias (v1 -> v1.2.3)
+          git tag -f "v$MAJOR" "$TAG_NAME"
+          echo "Created/updated tag: v$MAJOR -> $TAG_NAME"
+          
+          # Create minor version alias (v1.2 -> v1.2.3)
+          git tag -f "v$MAJOR.$MINOR" "$TAG_NAME"
+          echo "Created/updated tag: v$MAJOR.$MINOR -> $TAG_NAME"
+          
+          # Push the new tags
+          git push origin --tags --force
+          echo "Pushed version alias tags to remote"
+        else
+          echo "Version format not recognized: $VERSION"
+          exit 1
+        fi
