@@ -22,7 +22,6 @@ export declare class WorkflowValidator {
     validate(): ValidationResult;
     private validateGolangciLintAction;
     private validateGoReleaserConfig;
-    private validateReleasePleaseConfig;
     createUnifiedSection(result: ValidationResult): any;
     formatPRComment(result: ValidationResult): string;
     private groupErrorsByType;

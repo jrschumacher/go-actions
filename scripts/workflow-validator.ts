@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { ReleasePleaseValidator } from './release-please-validator';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -170,35 +171,18 @@ export class WorkflowValidator {
       if (content.includes('jrschumacher/go-actions/release@')) {
         actionsFound.add('release');
         
-        // Validate required files with correct naming
-        const requiredFiles = [
-          { file: 'release-please-config.json', message: 'release-please-config.json (required for release action)' },
-          { file: '.release-please-manifest.json', message: '.release-please-manifest.json (required for release action)' }
-        ];
+        // Use unified Release Please validator
+        const releasePleaseValidator = new ReleasePleaseValidator(this.workingDir);
+        const releasePleaseResult = releasePleaseValidator.validate();
         
-        for (const { file, message } of requiredFiles) {
-          if (!this.fileExists(file)) {
-            // Check for common filename mistakes
-            if (file === 'release-please-config.json' && this.fileExists('.release-please-config.json')) {
-              errors.push({
-                type: 'missing_file',
-                message: 'Found .release-please-config.json but Release Please expects release-please-config.json (no dot prefix)',
-                file: 'release-please-config.json'
-              });
-            } else if (file === '.release-please-manifest.json' && this.fileExists('release-please-manifest.json')) {
-              errors.push({
-                type: 'missing_file', 
-                message: 'Found release-please-manifest.json but Release Please expects .release-please-manifest.json (with dot prefix)',
-                file: '.release-please-manifest.json'
-              });
-            } else {
-              errors.push({
-                type: 'missing_file',
-                message,
-                file
-              });
-            }
-          }
+        // Convert ReleasePleaseValidationError to ValidationError format
+        for (const rpError of releasePleaseResult.errors) {
+          errors.push({
+            type: rpError.type as any, // These types are compatible
+            message: rpError.message,
+            file: rpError.file,
+            severity: rpError.severity
+          });
         }
         
         // Check for goreleaser config
@@ -212,9 +196,6 @@ export class WorkflowValidator {
           // Validate GoReleaser configuration content
           this.validateGoReleaserConfig(errors);
         }
-        
-        // Validate Release Please configuration content
-        this.validateReleasePleaseConfig(errors);
       }
       
       // Check for self-validate action
@@ -315,98 +296,6 @@ export class WorkflowValidator {
     }
   }
 
-  private validateReleasePleaseConfig(errors: ValidationError[]): void {
-    // Validate release-please-config.json (correct filename)
-    if (this.fileExists('release-please-config.json')) {
-      try {
-        const configContent = fs.readFileSync(path.join(this.workingDir, 'release-please-config.json'), 'utf8');
-        const config = JSON.parse(configContent);
-        
-        if (!config.packages || !config.packages['.']) {
-          errors.push({
-            type: 'release_please_config',
-            message: 'Release Please config missing packages["."] configuration',
-            file: 'release-please-config.json',
-            severity: 'error'
-          });
-        } else {
-          const packageConfig = config.packages['.'];
-          
-          if (packageConfig['release-type'] !== 'go') {
-            errors.push({
-              type: 'release_please_config',
-              message: 'Release Please config should use "release-type": "go" for Go projects',
-              file: 'release-please-config.json',
-              severity: 'warning'
-            });
-          }
-          
-          if (!packageConfig['package-name']) {
-            errors.push({
-              type: 'release_please_config',
-              message: 'Release Please config missing "package-name" field',
-              file: 'release-please-config.json',
-              severity: 'error'
-            });
-          }
-        }
-        
-        // Check for branch configuration
-        if (config['target-branch'] && config['target-branch'] !== 'main' && config['target-branch'] !== 'master') {
-          errors.push({
-            type: 'release_please_config',
-            message: `Unusual target branch "${config['target-branch']}". Verify this is correct`,
-            file: 'release-please-config.json',
-            severity: 'warning'
-          });
-        }
-        
-      } catch (error) {
-        errors.push({
-          type: 'release_please_config',
-          message: `Invalid Release Please config JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          file: '.release-please-config.json',
-          severity: 'error'
-        });
-      }
-    }
-    
-    // Validate .release-please-manifest.json
-    if (this.fileExists('.release-please-manifest.json')) {
-      try {
-        const manifestContent = fs.readFileSync(path.join(this.workingDir, '.release-please-manifest.json'), 'utf8');
-        const manifest = JSON.parse(manifestContent);
-        
-        if (!manifest['.']) {
-          errors.push({
-            type: 'release_please_config',
-            message: 'Release Please manifest missing "." entry for root package',
-            file: '.release-please-manifest.json',
-            severity: 'error'
-          });
-        } else {
-          const version = manifest['.'];
-          // Basic semantic version check
-          if (!/^\d+\.\d+\.\d+/.test(version)) {
-            errors.push({
-              type: 'release_please_config',
-              message: `Invalid version format "${version}". Use semantic versioning (e.g., "1.0.0")`,
-              file: '.release-please-manifest.json',
-              severity: 'error'
-            });
-          }
-        }
-        
-      } catch (error) {
-        errors.push({
-          type: 'release_please_config',
-          message: `Invalid Release Please manifest JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          file: '.release-please-manifest.json',
-          severity: 'error'
-        });
-      }
-    }
-  }
 
   public createUnifiedSection(result: ValidationResult) {
     // Create section for unified comment system

@@ -1,0 +1,1 @@
+{"status":"failure","actionsFound":["ci"],"errors":[{"message":"Error","type":"missing_file","file":"test"}]}
