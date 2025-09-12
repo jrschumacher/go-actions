@@ -60,6 +60,8 @@ describe('ProjectValidator', () => {
                     file === '.goreleaser.yaml' ||
                     file === '.golangci.yml';
             });
+            // Mock valid golangci-lint config
+            mockFs.readFileSync.mockReturnValue('version: 2\nlinters:\n  enable:\n    - gofmt\n');
             // Mock Go files found
             mockExecSync.mockImplementation((command) => {
                 if (command.includes('find') && command.includes('*.go')) {
@@ -182,6 +184,7 @@ describe('ProjectValidator', () => {
                 const file = path.basename(filePath);
                 return file === 'go.mod' || file === '.golangci.yaml';
             });
+            mockFs.readFileSync.mockReturnValue('version: 2\nlinters:\n  enable:\n    - gofmt\n');
             mockExecSync.mockImplementation((command) => {
                 if (command.includes('find') && command.includes('*.go')) {
                     return 'main.go\n';
@@ -219,6 +222,123 @@ describe('ProjectValidator', () => {
             mockExecSync.mockReturnValue('main.go\n');
             validator.validate();
             expect(mockExecSync).toHaveBeenCalledWith(expect.stringContaining('-not -path "./vendor/*"'), expect.any(Object));
+        });
+    });
+    describe('golangci-lint configuration validation', () => {
+        beforeEach(() => {
+            mockFs.existsSync.mockImplementation((filePath) => {
+                const file = path.basename(filePath);
+                return file === 'go.mod' || file === '.golangci.yml';
+            });
+            mockExecSync.mockImplementation((command) => {
+                if (command.includes('find') && command.includes('*.go')) {
+                    return 'main.go\n';
+                }
+                return '';
+            });
+        });
+        it('should pass with valid golangci-lint configuration', () => {
+            mockFs.readFileSync.mockReturnValue('version: 2\nlinters:\n  enable:\n    - gofmt\n    - golint\n');
+            const result = validator.validate();
+            expect(result.isValid).toBe(true);
+            expect(result.errors).toHaveLength(0);
+        });
+        it('should fail when version field is missing', () => {
+            mockFs.readFileSync.mockReturnValue('linters:\n  enable:\n    - gofmt\n');
+            const result = validator.validate();
+            expect(result.isValid).toBe(false);
+            expect(result.errors).toContain('❌ golangci-lint configuration missing required "version" field');
+            expect(result.errors).toContain('   Add "version: 2" to the top of your .golangci.yml file');
+            expect(result.errors).toContain('   See https://golangci-lint.run/product/migration-guide for migration instructions');
+        });
+        it('should fail when version is not 2', () => {
+            mockFs.readFileSync.mockReturnValue('version: 1\nlinters:\n  enable:\n    - gofmt\n');
+            const result = validator.validate();
+            expect(result.isValid).toBe(false);
+            expect(result.errors).toContain('❌ golangci-lint configuration has unsupported version: "1"');
+            expect(result.errors).toContain('   Current supported version is: 2');
+            expect(result.errors).toContain('   See https://golangci-lint.run/product/migration-guide for migration instructions');
+        });
+        it('should accept version as string "2"', () => {
+            mockFs.readFileSync.mockReturnValue('version: "2"\nlinters:\n  enable:\n    - gofmt\n');
+            const result = validator.validate();
+            expect(result.isValid).toBe(true);
+            expect(result.errors).toHaveLength(0);
+        });
+        it('should fail with invalid YAML syntax', () => {
+            mockFs.readFileSync.mockReturnValue('version: 2\nlinters:\n  enable: [\n    - gofmt'); // Invalid YAML syntax
+            const result = validator.validate();
+            expect(result.isValid).toBe(false);
+            expect(result.errors.length).toBeGreaterThan(0);
+            expect(result.errors[0]).toContain('❌ golangci-lint configuration has invalid YAML syntax');
+        });
+        it('should fail when configuration is not a valid YAML object', () => {
+            mockFs.readFileSync.mockReturnValue('just a string, not yaml object');
+            const result = validator.validate();
+            expect(result.isValid).toBe(false);
+            expect(result.errors).toContain('❌ golangci-lint configuration is not valid YAML object');
+        });
+        it('should warn about deprecated linters.enable_all', () => {
+            mockFs.readFileSync.mockReturnValue('version: 2\nlinters:\n  enable_all: true\n');
+            const result = validator.validate();
+            expect(result.isValid).toBe(true);
+            expect(result.warnings).toContain('⚠️  "linters.enable-all" is deprecated in v2, use "linters.preset: all" instead');
+            expect(result.warnings).toContain('💡  Run "golangci-lint migrate" to automatically update your configuration');
+        });
+        it('should warn about deprecated linters.disable_all', () => {
+            mockFs.readFileSync.mockReturnValue('version: 2\nlinters:\n  disable_all: true\n  enable:\n    - gofmt\n');
+            const result = validator.validate();
+            expect(result.isValid).toBe(true);
+            expect(result.warnings).toContain('⚠️  "linters.disable-all" is deprecated in v2, use "linters.preset: none" instead');
+            expect(result.warnings).toContain('💡  Run "golangci-lint migrate" to automatically update your configuration');
+        });
+        it('should warn about deprecated linters', () => {
+            mockFs.readFileSync.mockReturnValue('version: 2\nlinters:\n  enable:\n    - gofmt\n    - golint\n    - maligned\n');
+            const result = validator.validate();
+            expect(result.isValid).toBe(true);
+            expect(result.warnings).toContain('⚠️  Linter "golint" is deprecated and may not work properly');
+            expect(result.warnings).toContain('⚠️  Linter "maligned" is deprecated and may not work properly');
+            expect(result.warnings).toContain('💡  Run "golangci-lint migrate" to automatically update your configuration');
+        });
+        it('should handle file read errors gracefully', () => {
+            mockFs.readFileSync.mockImplementation(() => {
+                throw new Error('File read error');
+            });
+            const result = validator.validate();
+            expect(result.isValid).toBe(false);
+            expect(result.errors).toContain('❌ Failed to validate golangci-lint configuration: Error: File read error');
+        });
+        it('should prefer .golangci.yml over .golangci.yaml', () => {
+            mockFs.existsSync.mockImplementation((filePath) => {
+                const file = path.basename(filePath);
+                return file === 'go.mod' || file === '.golangci.yml' || file === '.golangci.yaml';
+            });
+            mockFs.readFileSync.mockReturnValue('version: 2\nlinters:\n  enable:\n    - gofmt\n');
+            validator.validate();
+            expect(mockFs.readFileSync).toHaveBeenCalledWith(path.join(testWorkingDir, '.golangci.yml'), 'utf8');
+        });
+        it('should use .golangci.yaml when .golangci.yml does not exist', () => {
+            mockFs.existsSync.mockImplementation((filePath) => {
+                const file = path.basename(filePath);
+                return file === 'go.mod' || file === '.golangci.yaml';
+            });
+            mockFs.readFileSync.mockReturnValue('version: 2\nlinters:\n  enable:\n    - gofmt\n');
+            validator.validate();
+            expect(mockFs.readFileSync).toHaveBeenCalledWith(path.join(testWorkingDir, '.golangci.yaml'), 'utf8');
+        });
+        it('should not suggest migration when no deprecated settings are used', () => {
+            mockFs.readFileSync.mockReturnValue('version: 2\nlinters:\n  enable:\n    - gofmt\n    - staticcheck\n');
+            const result = validator.validate();
+            expect(result.isValid).toBe(true);
+            expect(result.warnings).not.toContain(expect.stringContaining('golangci-lint migrate'));
+        });
+        it('should suggest migration when both deprecated settings and linters are used', () => {
+            mockFs.readFileSync.mockReturnValue('version: 2\nlinters:\n  enable_all: true\n  enable:\n    - golint\n    - gofmt\n');
+            const result = validator.validate();
+            expect(result.isValid).toBe(true);
+            expect(result.warnings).toContain('⚠️  "linters.enable-all" is deprecated in v2, use "linters.preset: all" instead');
+            expect(result.warnings).toContain('⚠️  Linter "golint" is deprecated and may not work properly');
+            expect(result.warnings).toContain('💡  Run "golangci-lint migrate" to automatically update your configuration');
         });
     });
     describe('validateProject function export', () => {

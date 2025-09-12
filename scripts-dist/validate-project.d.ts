@@ -12,6 +12,7 @@ export declare class ProjectValidator {
     private fileExists;
     private findFiles;
     private hasBenchmarkFunctions;
+    private validateGolangciConfig;
     validate(): ValidationResult;
 }
 export declare function validateProject(workingDirectory?: string): ValidationResult;

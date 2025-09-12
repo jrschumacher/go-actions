@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
+import * as yaml from 'js-yaml';
 
 interface ValidationResult {
   isValid: boolean;
@@ -38,6 +39,73 @@ export class ProjectValidator {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  private validateGolangciConfig(configPath: string): { isValid: boolean; errors: string[]; warnings: string[] } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    try {
+      const configContent = fs.readFileSync(configPath, 'utf8');
+      const config = yaml.load(configContent) as any;
+
+      // Check for version field
+      if (!config || typeof config !== 'object') {
+        errors.push('❌ golangci-lint configuration is not valid YAML object');
+        return { isValid: false, errors, warnings };
+      }
+
+      if (!config.version) {
+        errors.push('❌ golangci-lint configuration missing required "version" field');
+        errors.push('   Add "version: 2" to the top of your .golangci.yml file');
+        errors.push('   See https://golangci-lint.run/product/migration-guide for migration instructions');
+        return { isValid: false, errors, warnings };
+      }
+
+      // Validate version value
+      if (config.version !== 2 && config.version !== "2") {
+        errors.push(`❌ golangci-lint configuration has unsupported version: "${config.version}"`);
+        errors.push('   Current supported version is: 2');
+        errors.push('   See https://golangci-lint.run/product/migration-guide for migration instructions');
+        return { isValid: false, errors, warnings };
+      }
+
+      // Check for deprecated settings (v2 migration patterns)
+      if (config.linters && config.linters.enable_all) {
+        warnings.push('⚠️  "linters.enable-all" is deprecated in v2, use "linters.preset: all" instead');
+      }
+
+      if (config.linters && config.linters.disable_all) {
+        warnings.push('⚠️  "linters.disable-all" is deprecated in v2, use "linters.preset: none" instead');
+      }
+
+      // Check for common deprecated linters
+      const deprecatedLinters = ['golint', 'interfacer', 'maligned', 'scopelint'];
+      if (config.linters && config.linters.enable) {
+        const enabledDeprecated = config.linters.enable.filter((linter: string) => deprecatedLinters.includes(linter));
+        enabledDeprecated.forEach((linter: string) => {
+          warnings.push(`⚠️  Linter "${linter}" is deprecated and may not work properly`);
+        });
+      }
+
+      // Add migration helper if any warnings were generated
+      const hasDeprecatedSettings = (config.linters?.enable_all || config.linters?.disable_all);
+      const hasDeprecatedLinters = config.linters?.enable?.some((linter: string) => deprecatedLinters.includes(linter));
+      
+      if (hasDeprecatedSettings || hasDeprecatedLinters) {
+        warnings.push('💡  Run "golangci-lint migrate" to automatically update your configuration');
+      }
+
+      return { isValid: true, errors, warnings };
+
+    } catch (error) {
+      if (error instanceof yaml.YAMLException) {
+        errors.push(`❌ golangci-lint configuration has invalid YAML syntax: ${error.message}`);
+      } else {
+        errors.push(`❌ Failed to validate golangci-lint configuration: ${error}`);
+      }
+      return { isValid: false, errors, warnings };
     }
   }
 
@@ -110,11 +178,28 @@ export class ProjectValidator {
     console.log('');
     console.log('🔍 Validating golangci-lint configuration...');
     
+    const golangciYml = path.join(this.workingDir, '.golangci.yml');
+    const golangciYaml = path.join(this.workingDir, '.golangci.yaml');
+    
     if (!this.fileExists('.golangci.yml') && !this.fileExists('.golangci.yaml')) {
       warnings.push('⚠️  No .golangci.yml or .golangci.yaml found (optional but recommended for lint job)');
       warnings.push('   golangci-lint will use default configuration');
     } else {
+      const configPath = this.fileExists('.golangci.yml') ? golangciYml : golangciYaml;
       console.log('✅ golangci-lint configuration found');
+      
+      const configValidation = this.validateGolangciConfig(configPath);
+      if (!configValidation.isValid) {
+        errors.push(...configValidation.errors);
+        console.log('❌ golangci-lint configuration validation failed');
+        configValidation.errors.forEach(error => console.log(error));
+      } else {
+        console.log('✅ golangci-lint configuration is valid');
+      }
+      
+      if (configValidation.warnings.length > 0) {
+        warnings.push(...configValidation.warnings);
+      }
     }
 
     // Report results
