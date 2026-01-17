@@ -1,5 +1,5 @@
 import { BenchmarkRunner } from './benchmark-runner';
-import { spawnSync, SpawnSyncReturns } from 'child_process';
+import { spawnSync } from 'child_process';
 
 // Mock spawnSync
 jest.mock('child_process');
@@ -95,7 +95,7 @@ describe('BenchmarkRunner', () => {
         pid: 12345,
         output: [null, Buffer.from(''), Buffer.from('')],
         error: undefined
-      } as SpawnSyncReturns<Buffer>);
+      });
 
       const result = runner.runBenchmarks();
 
@@ -123,7 +123,7 @@ describe('BenchmarkRunner', () => {
         pid: 12345,
         output: [null, Buffer.from(''), Buffer.from('')],
         error: undefined
-      } as SpawnSyncReturns<Buffer>);
+      });
 
       const result = runner.runBenchmarks();
 
@@ -143,7 +143,7 @@ describe('BenchmarkRunner', () => {
         pid: 12345,
         output: [null, Buffer.from(''), Buffer.from('')],
         error: new Error('Spawn failed')
-      } as SpawnSyncReturns<Buffer>);
+      });
 
       const result = runner.runBenchmarks();
 
@@ -182,7 +182,7 @@ describe('BenchmarkRunner', () => {
         pid: 12345,
         output: [null, Buffer.from(''), Buffer.from('')],
         error: undefined
-      } as SpawnSyncReturns<Buffer>);
+      });
 
       singleRunRunner.runBenchmarks();
 
@@ -204,7 +204,7 @@ describe('BenchmarkRunner', () => {
         pid: 12345,
         output: [null, Buffer.from(''), Buffer.from('')],
         error: undefined
-      } as SpawnSyncReturns<Buffer>);
+      });
 
       const result = manyRunsRunner.runBenchmarks();
 
@@ -228,7 +228,7 @@ describe('BenchmarkRunner', () => {
         pid: 12345,
         output: [null, Buffer.from(''), Buffer.from('')],
         error: undefined
-      } as SpawnSyncReturns<Buffer>);
+      });
 
       customRunner.runBenchmarks();
 
@@ -251,7 +251,7 @@ describe('BenchmarkRunner', () => {
         pid: 12345,
         output: [null, Buffer.from(''), Buffer.from('')],
         error: undefined
-      } as SpawnSyncReturns<Buffer>);
+      });
 
       const result = runner.runBenchmarks();
 
@@ -272,7 +272,7 @@ describe('BenchmarkRunner', () => {
         pid: 12345,
         output: [null, Buffer.from(''), Buffer.from('')],
         error: undefined
-      } as SpawnSyncReturns<Buffer>);
+      });
 
       const result = runBenchmarks();
 
@@ -298,7 +298,7 @@ describe('BenchmarkRunner', () => {
         pid: 12345,
         output: [null, Buffer.from(''), Buffer.from('')],
         error: undefined
-      } as SpawnSyncReturns<Buffer>);
+      });
 
       const result = runBenchmarks('/custom/dir', '-bench=Custom', 2);
 
@@ -337,7 +337,7 @@ describe('BenchmarkRunner', () => {
         pid: 12345,
         output: [null, Buffer.from(''), Buffer.from('')],
         error: undefined
-      } as SpawnSyncReturns<Buffer>);
+      });
 
       quotedRunner.runBenchmarks();
 
@@ -366,7 +366,7 @@ describe('BenchmarkRunner', () => {
         pid: 12345,
         output: [null, Buffer.from(''), Buffer.from('')],
         error: undefined
-      } as SpawnSyncReturns<Buffer>);
+      });
 
       spacedRunner.runBenchmarks();
 
