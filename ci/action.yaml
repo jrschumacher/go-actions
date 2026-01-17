@@ -63,10 +63,8 @@ runs:
           exit 1
         fi
 
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+    # Note: Users should checkout their repository before calling this action
+    # This action expects the repository to already be checked out
 
     - name: Set up Go
       uses: actions/setup-go@v5
