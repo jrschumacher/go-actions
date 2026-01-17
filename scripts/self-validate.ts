@@ -1,5 +1,5 @@
 import { validateWorkflows, WorkflowValidator, ValidationResult } from './workflow-validator';
-import { storeJobResults } from './unified-pr-comment';
+import { storeJobResults, setProcessingState } from './unified-pr-comment';
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 
@@ -18,8 +18,11 @@ export class SelfValidator {
   }
 
   async validate(): Promise<ValidationResult> {
+    // Show processing state immediately so users know validation is running
+    await setProcessingState();
+
     const result = validateWorkflows(this.workingDirectory);
-    
+
     console.log('Found go-actions usage:', result.actionsFound);
     
     // Set outputs

@@ -2,16 +2,19 @@ import { SelfValidator, selfValidate } from './self-validate';
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 import { validateWorkflows, WorkflowValidator } from './workflow-validator';
+import { setProcessingState } from './unified-pr-comment';
 
 // Mock dependencies
 jest.mock('@actions/core');
 jest.mock('@actions/github');
 jest.mock('./workflow-validator');
+jest.mock('./unified-pr-comment');
 
 const mockCore = core as jest.Mocked<typeof core>;
 const mockGithub = github as jest.Mocked<typeof github>;
 const mockValidateWorkflows = validateWorkflows as jest.MockedFunction<typeof validateWorkflows>;
 const mockWorkflowValidator = WorkflowValidator as jest.MockedClass<typeof WorkflowValidator>;
+const mockSetProcessingState = setProcessingState as jest.MockedFunction<typeof setProcessingState>;
 
 describe('SelfValidator', () => {
   let validator: SelfValidator;
@@ -33,6 +36,19 @@ describe('SelfValidator', () => {
   });
 
   describe('validate', () => {
+    it('should call setProcessingState before validation', async () => {
+      const mockResult = {
+        isValid: true,
+        actionsFound: [],
+        errors: []
+      };
+      mockValidateWorkflows.mockReturnValue(mockResult);
+
+      await validator.validate();
+
+      expect(mockSetProcessingState).toHaveBeenCalled();
+    });
+
     it('should validate successfully when no errors', async () => {
       const mockResult = {
         isValid: true,
@@ -90,9 +106,9 @@ describe('SelfValidator', () => {
 
 
   describe('constructor options', () => {
-    it('should use default options', () => {
+    it('should use default options', async () => {
       const defaultValidator = new SelfValidator();
-      
+
       // Access private properties through validate method behavior
       mockValidateWorkflows.mockReturnValue({
         isValid: true,
@@ -100,12 +116,12 @@ describe('SelfValidator', () => {
         errors: []
       });
 
-      defaultValidator.validate();
+      await defaultValidator.validate();
 
       expect(mockValidateWorkflows).toHaveBeenCalledWith('.');
     });
 
-    it('should use custom options', () => {
+    it('should use custom options', async () => {
       const customValidator = new SelfValidator({
         workingDirectory: '/custom/dir',
         workflowPaths: 'custom/path/*.yaml',
@@ -117,7 +133,7 @@ describe('SelfValidator', () => {
         errors: []
       });
 
-      customValidator.validate();
+      await customValidator.validate();
 
       expect(mockValidateWorkflows).toHaveBeenCalledWith('/custom/dir');
     });

@@ -44,6 +44,8 @@ class SelfValidator {
         this.workflowPaths = options.workflowPaths || '.github/workflows/*.yaml,.github/workflows/*.yml';
     }
     async validate() {
+        // Show processing state immediately so users know validation is running
+        await (0, unified_pr_comment_1.setProcessingState)();
         const result = (0, workflow_validator_1.validateWorkflows)(this.workingDirectory);
         console.log('Found go-actions usage:', result.actionsFound);
         // Set outputs

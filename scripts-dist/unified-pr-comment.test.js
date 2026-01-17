@@ -134,6 +134,61 @@ describe('UnifiedPRComment', () => {
             });
         });
     });
+    describe('setProcessingState', () => {
+        it('should skip when not a pull request', async () => {
+            Object.defineProperty(github, 'context', {
+                value: { eventName: 'push' },
+                writable: true
+            });
+            await commenter.setProcessingState();
+            expect(mockOctokit.rest.issues.listComments).not.toHaveBeenCalled();
+        });
+        it('should skip when no GitHub token', async () => {
+            const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+            mockCore.getInput.mockReturnValue('');
+            process.env.GITHUB_TOKEN = '';
+            await commenter.setProcessingState();
+            expect(consoleSpy).toHaveBeenCalledWith('No GitHub token found, skipping processing state update');
+            consoleSpy.mockRestore();
+        });
+        it('should create new comment when none exists', async () => {
+            mockOctokit.rest.issues.listComments.mockResolvedValue({
+                data: []
+            });
+            await commenter.setProcessingState();
+            expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledWith({
+                owner: 'test-owner',
+                repo: 'test-repo',
+                issue_number: 123,
+                body: expect.stringContaining('🔄 **Running...**')
+            });
+        });
+        it('should update existing comment with processing state', async () => {
+            mockOctokit.rest.issues.listComments.mockResolvedValue({
+                data: [{
+                        id: 456,
+                        user: { type: 'Bot' },
+                        body: 'Old comment\n# Go Actions Report\n✅ Tests passed'
+                    }]
+            });
+            await commenter.setProcessingState();
+            expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith({
+                owner: 'test-owner',
+                repo: 'test-repo',
+                comment_id: 456,
+                body: expect.stringContaining('🔄 **Running...**')
+            });
+        });
+    });
+    describe('formatProcessingComment', () => {
+        it('should format processing state comment', () => {
+            const comment = commenter.formatProcessingComment();
+            expect(comment).toContain('# Go Actions Report');
+            expect(comment).toContain('🔄 **Running...**');
+            expect(comment).toContain('Validation is in progress');
+            expect(comment).toContain('This comment will update automatically');
+        });
+    });
     describe('formatUnifiedComment', () => {
         it('should format successful test results', () => {
             const results = {
@@ -282,6 +337,17 @@ describe('exported functions', () => {
             });
             const results = { test: { status: 'success' } };
             await (0, unified_pr_comment_1.updateUnifiedComment)(results);
+            // Should exit early due to non-PR event
+            expect(mockGithub.getOctokit).not.toHaveBeenCalled();
+        });
+    });
+    describe('setProcessingState', () => {
+        it('should work with options', async () => {
+            Object.defineProperty(github, 'context', {
+                value: { eventName: 'push' },
+                writable: true
+            });
+            await (0, unified_pr_comment_1.setProcessingState)();
             // Should exit early due to non-PR event
             expect(mockGithub.getOctokit).not.toHaveBeenCalled();
         });

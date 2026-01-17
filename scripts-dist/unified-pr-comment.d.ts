@@ -46,6 +46,8 @@ export declare class UnifiedPRComment {
     private workingDirectory;
     constructor(options?: PRCommentOptions);
     updateComment(results: CIResults): Promise<void>;
+    setProcessingState(): Promise<void>;
+    private upsertComment;
     private formatUnifiedComment;
     private getOverallStatus;
     private formatSummaryTable;
@@ -58,10 +60,12 @@ export declare class UnifiedPRComment {
     private formatLintDetails;
     private formatBenchmarkDetails;
     private formatEmptyComment;
+    private formatProcessingComment;
     static storeResults<T extends keyof CIResults>(jobType: T, jobResults: JobResultType<T>): Promise<void>;
     static loadStoredResults(): Promise<CIResults>;
 }
 export declare function updateUnifiedComment(results: CIResults, options?: PRCommentOptions): Promise<void>;
+export declare function setProcessingState(options?: PRCommentOptions): Promise<void>;
 export declare function storeJobResults<T extends keyof CIResults>(jobType: T, jobResults: JobResultType<T>): Promise<void>;
 export declare function loadAllResults(): Promise<CIResults>;
 export {};
