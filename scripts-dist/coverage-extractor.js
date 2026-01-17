@@ -38,10 +38,27 @@ exports.extractCoverage = extractCoverage;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const child_process_1 = require("child_process");
+/**
+ * Validates that a coverage file name is safe (no path traversal or shell injection)
+ */
+function validateCoverageFileName(fileName) {
+    // Only allow alphanumeric, dots, hyphens, and underscores
+    const safePattern = /^[\w.-]+$/;
+    // Prevent path traversal
+    if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+        return false;
+    }
+    return safePattern.test(fileName);
+}
 class CoverageExtractor {
     constructor(options) {
         this.workingDir = options.workingDirectory;
-        this.coverageFile = options.coverageFile || 'coverage.out';
+        const coverageFile = options.coverageFile || 'coverage.out';
+        // Validate coverage file name to prevent injection
+        if (!validateCoverageFileName(coverageFile)) {
+            throw new Error(`Invalid coverage file name: ${coverageFile}. Only alphanumeric characters, dots, hyphens, and underscores are allowed.`);
+        }
+        this.coverageFile = coverageFile;
     }
     extractCoverage() {
         const coveragePath = path.join(this.workingDir, this.coverageFile);
@@ -50,11 +67,21 @@ class CoverageExtractor {
             return { coverage: null, hasCoverage: false };
         }
         try {
-            const result = (0, child_process_1.execSync)(`go tool cover -func=${this.coverageFile} | grep total | awk '{print $3}'`, {
+            // Use spawnSync with array arguments to prevent command injection
+            const result = (0, child_process_1.spawnSync)('go', ['tool', 'cover', `-func=${this.coverageFile}`], {
                 cwd: this.workingDir,
                 encoding: 'utf8'
             });
-            const coverage = result.trim();
+            if (result.error) {
+                throw result.error;
+            }
+            if (result.status !== 0) {
+                throw new Error(result.stderr || 'go tool cover failed');
+            }
+            // Parse the output in JavaScript instead of using shell pipes
+            // Looking for the line containing "total:" and extracting the percentage
+            const output = result.stdout;
+            const coverage = this.extractCoverageFromOutput(output);
             console.log(`Test coverage: ${coverage}`);
             return { coverage, hasCoverage: true };
         }
@@ -63,6 +90,21 @@ class CoverageExtractor {
             console.log(`Error: ${error}`);
             return { coverage: null, hasCoverage: false };
         }
+    }
+    /**
+     * Extracts the coverage percentage from go tool cover output
+     * Replaces shell piping: grep total | awk '{print $3}'
+     */
+    extractCoverageFromOutput(output) {
+        const lines = output.split('\n');
+        const totalLine = lines.find(line => line.includes('total:'));
+        if (!totalLine) {
+            return output.trim(); // Return raw output if no total line found
+        }
+        // Extract the percentage (last field in the line)
+        const fields = totalLine.trim().split(/\s+/);
+        const percentage = fields[fields.length - 1];
+        return percentage || output.trim();
     }
 }
 exports.CoverageExtractor = CoverageExtractor;

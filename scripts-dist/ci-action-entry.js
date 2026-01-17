@@ -17,7 +17,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.actionCI = exports.runCIJob = exports.actionComment = exports.postUnifiedComment = exports.loadAllResults = exports.updateUnifiedComment = exports.UnifiedPRComment = exports.runBenchmarks = exports.extractCoverage = void 0;
+exports.actionComment = exports.postUnifiedComment = exports.loadAllResults = exports.updateUnifiedComment = exports.UnifiedPRComment = exports.runBenchmarks = exports.extractCoverage = void 0;
 // Entry point for ci-action bundle
 var coverage_extractor_1 = require("./coverage-extractor");
 Object.defineProperty(exports, "extractCoverage", { enumerable: true, get: function () { return coverage_extractor_1.extractCoverage; } });
@@ -32,8 +32,6 @@ var action_comment_1 = require("./action-comment");
 Object.defineProperty(exports, "postUnifiedComment", { enumerable: true, get: function () { return action_comment_1.postUnifiedComment; } });
 var action_comment_2 = require("./action-comment");
 Object.defineProperty(exports, "actionComment", { enumerable: true, get: function () { return __importDefault(action_comment_2).default; } });
-var action_ci_1 = require("./action-ci");
-Object.defineProperty(exports, "runCIJob", { enumerable: true, get: function () { return action_ci_1.runCIJob; } });
-var action_ci_2 = require("./action-ci");
-Object.defineProperty(exports, "actionCI", { enumerable: true, get: function () { return __importDefault(action_ci_2).default; } });
+// Note: action-ci.ts was removed as it duplicated ci-action.ts functionality
+// The CIAction class from ci-action.ts is the canonical implementation
 //# sourceMappingURL=ci-action-entry.js.map

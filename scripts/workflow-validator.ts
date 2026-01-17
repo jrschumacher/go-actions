@@ -2,6 +2,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ReleasePleaseValidator } from './release-please-validator';
 
+/**
+ * Number of lines to search after finding an action usage in a workflow file.
+ * Used to find configuration options like golangci-lint-version that are typically
+ * specified within a few lines of the action's "uses" directive.
+ */
+const WORKFLOW_CONFIG_SEARCH_LINES = 10;
+
 export interface ValidationResult {
   isValid: boolean;
   actionsFound: string[];
@@ -54,8 +61,8 @@ export class WorkflowValidator {
     
     if (actionIndex === -1) return config;
     
-    // Look for golangci-lint-version in the next 10 lines
-    const relevantContent = workflowContent.substring(actionIndex).split('\n').slice(0, 10).join('\n');
+    // Look for golangci-lint-version in the next several lines
+    const relevantContent = workflowContent.substring(actionIndex).split('\n').slice(0, WORKFLOW_CONFIG_SEARCH_LINES).join('\n');
     
     const versionMatch = relevantContent.match(/golangci-lint-version:\s*["']?([^"'\s]+)["']?/);
     if (versionMatch) {

@@ -106392,246 +106392,6 @@ ZipStream.prototype.finalize = function() {
 
 /***/ }),
 
-/***/ 57619:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.runCIJob = runCIJob;
-exports["default"] = default_1;
-const core = __importStar(__nccwpck_require__(37484));
-const exec = __importStar(__nccwpck_require__(95236));
-const coverage_extractor_1 = __nccwpck_require__(97183);
-const benchmark_runner_1 = __nccwpck_require__(62856);
-const unified_pr_comment_1 = __nccwpck_require__(25671);
-/**
- * Runs the specified CI job (test, lint, or benchmark)
- * Consolidates all CI logic in one place for better testing and maintenance
- */
-async function runCIJob(inputs) {
-    try {
-        // Validate job input
-        const validJobs = ['test', 'lint', 'benchmark'];
-        if (!validJobs.includes(inputs.job)) {
-            throw new Error(`Invalid job type: ${inputs.job}. Valid options are: ${validJobs.join(', ')}`);
-        }
-        console.log(`Running CI job: ${inputs.job}`);
-        switch (inputs.job) {
-            case 'test':
-                await runTestJob(inputs);
-                break;
-            case 'lint':
-                await runLintJob(inputs);
-                break;
-            case 'benchmark':
-                await runBenchmarkJob(inputs);
-                break;
-        }
-    }
-    catch (error) {
-        console.error(`CI job '${inputs.job}' failed:`, error);
-        core.setFailed(`CI job '${inputs.job}' failed: ${error}`);
-        throw error;
-    }
-}
-async function runTestJob(inputs) {
-    const workingDir = inputs.workingDirectory || '.';
-    const testArgs = inputs.testArgs || '-v -race -coverprofile=coverage.out';
-    console.log('Running Go tests...');
-    try {
-        // Run tests
-        await exec.exec('go', ['test', ...testArgs.split(' '), './...'], {
-            cwd: workingDir
-        });
-        // Extract coverage
-        const result = (0, coverage_extractor_1.extractCoverage)(workingDir);
-        if (result.hasCoverage && result.coverage !== null) {
-            console.log(`Coverage: ${result.coverage}%`);
-            core.setOutput('coverage', result.coverage.toString());
-        }
-        else {
-            console.log('No coverage data found');
-            core.setOutput('coverage', '0');
-        }
-        // Store test results for unified comment
-        const testResult = {
-            status: 'success',
-            coverage: result.hasCoverage && result.coverage !== null ? `${result.coverage}%` : undefined,
-        };
-        await unified_pr_comment_1.UnifiedPRComment.storeResults('test', testResult);
-        console.log('Stored test results for unified comment');
-    }
-    catch (error) {
-        // Store failure results
-        const testResult = {
-            status: 'failure',
-            error: 'Test execution failed'
-        };
-        await unified_pr_comment_1.UnifiedPRComment.storeResults('test', testResult);
-        throw error;
-    }
-}
-async function runBenchmarkJob(inputs) {
-    const workingDir = inputs.workingDirectory || '.';
-    const benchmarkArgs = inputs.benchmarkArgs || '-bench=. -benchmem';
-    const benchmarkCount = inputs.benchmarkCount || 5;
-    try {
-        const result = (0, benchmark_runner_1.runBenchmarks)(workingDir, benchmarkArgs, benchmarkCount);
-        console.log('Benchmark results:', result);
-        // Store benchmark results for unified comment
-        const benchmarkResult = {
-            status: 'success',
-            config: {
-                args: benchmarkArgs,
-                count: benchmarkCount
-            }
-        };
-        await unified_pr_comment_1.UnifiedPRComment.storeResults('benchmark', benchmarkResult);
-        console.log('Stored benchmark results for unified comment');
-    }
-    catch (error) {
-        // Store failure results
-        const benchmarkResult = {
-            status: 'failure',
-            error: error.message,
-            config: {
-                args: benchmarkArgs,
-                count: benchmarkCount
-            }
-        };
-        await unified_pr_comment_1.UnifiedPRComment.storeResults('benchmark', benchmarkResult);
-        throw error;
-    }
-}
-async function runLintJob(inputs) {
-    const workingDir = inputs.workingDirectory || '.';
-    let golangciLintVersion = inputs.golangciLintVersion || 'v2.1.0';
-    const lintArgs = inputs.lintArgs || '';
-    // Normalize golangci-lint version
-    if (golangciLintVersion === 'v2' || golangciLintVersion === 'latest') {
-        golangciLintVersion = 'v2.1.0';
-    }
-    console.log(`Using golangci-lint version: ${golangciLintVersion}`);
-    try {
-        // Since we can't easily replicate the golangci-lint-action@v8 behavior in TypeScript,
-        // we'll use the golangci-lint binary directly
-        console.log('Installing and running golangci-lint...');
-        // Install golangci-lint
-        await exec.exec('go', ['install', `github.com/golangci/golangci-lint/cmd/golangci-lint@${golangciLintVersion}`]);
-        // Run golangci-lint and capture output
-        const lintCommand = ['golangci-lint', 'run'];
-        if (lintArgs) {
-            lintCommand.push(...lintArgs.split(' '));
-        }
-        let lintOutput = '';
-        let lintErrors = '';
-        await exec.exec(lintCommand[0], lintCommand.slice(1), {
-            cwd: workingDir,
-            listeners: {
-                stdout: (data) => {
-                    lintOutput += data.toString();
-                },
-                stderr: (data) => {
-                    lintErrors += data.toString();
-                }
-            }
-        });
-        // Store successful lint results
-        const lintResult = {
-            status: 'success'
-        };
-        await unified_pr_comment_1.UnifiedPRComment.storeResults('lint', lintResult);
-        console.log('Stored lint results for unified comment');
-    }
-    catch (error) {
-        // Capture actual lint output for failed linting
-        let lintOutput = '';
-        let lintErrors = '';
-        try {
-            const lintCommand = ['golangci-lint', 'run'];
-            if (lintArgs) {
-                lintCommand.push(...lintArgs.split(' '));
-            }
-            await exec.exec(lintCommand[0], lintCommand.slice(1), {
-                cwd: workingDir,
-                ignoreReturnCode: true, // Don't throw on non-zero exit
-                listeners: {
-                    stdout: (data) => {
-                        lintOutput += data.toString();
-                    },
-                    stderr: (data) => {
-                        lintErrors += data.toString();
-                    }
-                }
-            });
-        }
-        catch (captureError) {
-            // If we can't capture output, use the original error
-        }
-        // Store failure results with actual lint issues
-        const issueOutput = lintOutput || lintErrors || 'No specific issues captured - check workflow logs';
-        const lintResult = {
-            status: 'failure',
-            error: 'Linting issues found',
-            issues: issueOutput.trim()
-        };
-        await unified_pr_comment_1.UnifiedPRComment.storeResults('lint', lintResult);
-        throw error;
-    }
-}
-// Default export for simple function call
-async function default_1() {
-    const inputs = {
-        job: process.env.INPUT_JOB || 'test',
-        goVersion: process.env.INPUT_GO_VERSION,
-        goVersionFile: process.env.INPUT_GO_VERSION_FILE,
-        workingDirectory: process.env.INPUT_WORKING_DIRECTORY,
-        testArgs: process.env.INPUT_TEST_ARGS,
-        golangciLintVersion: process.env.INPUT_GOLANGCI_LINT_VERSION,
-        lintArgs: process.env.INPUT_LINT_ARGS,
-        benchmarkArgs: process.env.INPUT_BENCHMARK_ARGS,
-        benchmarkCount: process.env.INPUT_BENCHMARK_COUNT ? parseInt(process.env.INPUT_BENCHMARK_COUNT) : undefined,
-    };
-    await runCIJob(inputs);
-}
-//# sourceMappingURL=action-ci.js.map
-
-/***/ }),
-
 /***/ 32698:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -106729,10 +106489,64 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BenchmarkRunner = void 0;
 exports.runBenchmarks = runBenchmarks;
 const child_process_1 = __nccwpck_require__(35317);
+/**
+ * Dangerous shell metacharacters that should not appear in benchmark arguments
+ */
+const DANGEROUS_PATTERNS = [
+    /[;&|`$(){}[\]<>!]/, // Shell metacharacters
+    /\.\./, // Path traversal
+    /\n|\r/, // Newlines (command injection)
+];
+/**
+ * Validates that benchmark arguments don't contain shell injection patterns
+ */
+function validateBenchmarkArgs(args) {
+    for (const pattern of DANGEROUS_PATTERNS) {
+        if (pattern.test(args)) {
+            throw new Error(`Invalid benchmark arguments: contains potentially dangerous characters. Arguments: ${args}`);
+        }
+    }
+}
+/**
+ * Safely parses benchmark arguments string into an array
+ * Handles quoted strings and respects whitespace boundaries
+ */
+function parseBenchmarkArgs(argsString) {
+    const args = [];
+    let current = '';
+    let inQuote = false;
+    let quoteChar = '';
+    for (const char of argsString) {
+        if ((char === '"' || char === "'") && !inQuote) {
+            inQuote = true;
+            quoteChar = char;
+        }
+        else if (char === quoteChar && inQuote) {
+            inQuote = false;
+            quoteChar = '';
+        }
+        else if (char === ' ' && !inQuote) {
+            if (current) {
+                args.push(current);
+                current = '';
+            }
+        }
+        else {
+            current += char;
+        }
+    }
+    if (current) {
+        args.push(current);
+    }
+    return args;
+}
 class BenchmarkRunner {
     constructor(options) {
         this.workingDir = options.workingDirectory;
-        this.benchmarkArgs = options.benchmarkArgs;
+        // Validate benchmark args before parsing
+        validateBenchmarkArgs(options.benchmarkArgs);
+        // Parse the benchmark args string into an array for safe execution
+        this.benchmarkArgs = parseBenchmarkArgs(options.benchmarkArgs);
         this.benchmarkCount = options.benchmarkCount;
     }
     runBenchmarks() {
@@ -106740,10 +106554,17 @@ class BenchmarkRunner {
         try {
             for (let i = 1; i <= this.benchmarkCount; i++) {
                 console.log(`Benchmark run ${i}/${this.benchmarkCount}`);
-                (0, child_process_1.execSync)(`go test ${this.benchmarkArgs} ./...`, {
+                // Use spawnSync with array arguments to prevent command injection
+                const result = (0, child_process_1.spawnSync)('go', ['test', ...this.benchmarkArgs, './...'], {
                     cwd: this.workingDir,
                     stdio: 'inherit'
                 });
+                if (result.error) {
+                    throw result.error;
+                }
+                if (result.status !== 0) {
+                    throw new Error(`go test exited with status ${result.status}`);
+                }
             }
             console.log('✅ All benchmark runs completed successfully');
             return { success: true };
@@ -106790,7 +106611,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.actionCI = exports.runCIJob = exports.actionComment = exports.postUnifiedComment = exports.loadAllResults = exports.updateUnifiedComment = exports.UnifiedPRComment = exports.runBenchmarks = exports.extractCoverage = void 0;
+exports.actionComment = exports.postUnifiedComment = exports.loadAllResults = exports.updateUnifiedComment = exports.UnifiedPRComment = exports.runBenchmarks = exports.extractCoverage = void 0;
 // Entry point for ci-action bundle
 var coverage_extractor_1 = __nccwpck_require__(97183);
 Object.defineProperty(exports, "extractCoverage", ({ enumerable: true, get: function () { return coverage_extractor_1.extractCoverage; } }));
@@ -106805,10 +106626,8 @@ var action_comment_1 = __nccwpck_require__(32698);
 Object.defineProperty(exports, "postUnifiedComment", ({ enumerable: true, get: function () { return action_comment_1.postUnifiedComment; } }));
 var action_comment_2 = __nccwpck_require__(32698);
 Object.defineProperty(exports, "actionComment", ({ enumerable: true, get: function () { return __importDefault(action_comment_2).default; } }));
-var action_ci_1 = __nccwpck_require__(57619);
-Object.defineProperty(exports, "runCIJob", ({ enumerable: true, get: function () { return action_ci_1.runCIJob; } }));
-var action_ci_2 = __nccwpck_require__(57619);
-Object.defineProperty(exports, "actionCI", ({ enumerable: true, get: function () { return __importDefault(action_ci_2).default; } }));
+// Note: action-ci.ts was removed as it duplicated ci-action.ts functionality
+// The CIAction class from ci-action.ts is the canonical implementation
 //# sourceMappingURL=ci-action-entry.js.map
 
 /***/ }),
@@ -107092,10 +106911,27 @@ exports.extractCoverage = extractCoverage;
 const fs = __importStar(__nccwpck_require__(79896));
 const path = __importStar(__nccwpck_require__(16928));
 const child_process_1 = __nccwpck_require__(35317);
+/**
+ * Validates that a coverage file name is safe (no path traversal or shell injection)
+ */
+function validateCoverageFileName(fileName) {
+    // Only allow alphanumeric, dots, hyphens, and underscores
+    const safePattern = /^[\w.-]+$/;
+    // Prevent path traversal
+    if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+        return false;
+    }
+    return safePattern.test(fileName);
+}
 class CoverageExtractor {
     constructor(options) {
         this.workingDir = options.workingDirectory;
-        this.coverageFile = options.coverageFile || 'coverage.out';
+        const coverageFile = options.coverageFile || 'coverage.out';
+        // Validate coverage file name to prevent injection
+        if (!validateCoverageFileName(coverageFile)) {
+            throw new Error(`Invalid coverage file name: ${coverageFile}. Only alphanumeric characters, dots, hyphens, and underscores are allowed.`);
+        }
+        this.coverageFile = coverageFile;
     }
     extractCoverage() {
         const coveragePath = path.join(this.workingDir, this.coverageFile);
@@ -107104,11 +106940,21 @@ class CoverageExtractor {
             return { coverage: null, hasCoverage: false };
         }
         try {
-            const result = (0, child_process_1.execSync)(`go tool cover -func=${this.coverageFile} | grep total | awk '{print $3}'`, {
+            // Use spawnSync with array arguments to prevent command injection
+            const result = (0, child_process_1.spawnSync)('go', ['tool', 'cover', `-func=${this.coverageFile}`], {
                 cwd: this.workingDir,
                 encoding: 'utf8'
             });
-            const coverage = result.trim();
+            if (result.error) {
+                throw result.error;
+            }
+            if (result.status !== 0) {
+                throw new Error(result.stderr || 'go tool cover failed');
+            }
+            // Parse the output in JavaScript instead of using shell pipes
+            // Looking for the line containing "total:" and extracting the percentage
+            const output = result.stdout;
+            const coverage = this.extractCoverageFromOutput(output);
             console.log(`Test coverage: ${coverage}`);
             return { coverage, hasCoverage: true };
         }
@@ -107117,6 +106963,21 @@ class CoverageExtractor {
             console.log(`Error: ${error}`);
             return { coverage: null, hasCoverage: false };
         }
+    }
+    /**
+     * Extracts the coverage percentage from go tool cover output
+     * Replaces shell piping: grep total | awk '{print $3}'
+     */
+    extractCoverageFromOutput(output) {
+        const lines = output.split('\n');
+        const totalLine = lines.find(line => line.includes('total:'));
+        if (!totalLine) {
+            return output.trim(); // Return raw output if no total line found
+        }
+        // Extract the percentage (last field in the line)
+        const fields = totalLine.trim().split(/\s+/);
+        const percentage = fields[fields.length - 1];
+        return percentage || output.trim();
     }
 }
 exports.CoverageExtractor = CoverageExtractor;
@@ -107176,6 +107037,15 @@ const core = __importStar(__nccwpck_require__(37484));
 const github = __importStar(__nccwpck_require__(93228));
 const artifact_1 = __nccwpck_require__(76846);
 const fs = __importStar(__nccwpck_require__(91943));
+/**
+ * Coverage threshold constants for test result formatting
+ */
+/** Coverage percentage at or above which tests are considered to have excellent coverage */
+const EXCELLENT_COVERAGE_THRESHOLD = 80;
+/** Coverage percentage at or above which tests are considered to have good coverage */
+const GOOD_COVERAGE_THRESHOLD = 60;
+/** Maximum character length for lint output before truncation (GitHub comment limit consideration) */
+const MAX_LINT_OUTPUT_LENGTH = 3000;
 class UnifiedPRComment {
     constructor(options = {}) {
         this.workingDirectory = options.workingDirectory || '.';
@@ -107322,14 +107192,14 @@ class UnifiedPRComment {
     formatTestSection(test) {
         if (test.status === 'success' && test.coverage) {
             const coveragePercent = parseFloat(test.coverage.replace('%', ''));
-            const emoji = coveragePercent >= 80 ? '🎉' : coveragePercent >= 60 ? '⚠️' : '🚨';
-            return `### 🧪 Tests ${coveragePercent >= 80 ? '✅' : '⚠️'}
+            const emoji = coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ? '🎉' : coveragePercent >= GOOD_COVERAGE_THRESHOLD ? '⚠️' : '🚨';
+            return `### 🧪 Tests ${coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ? '✅' : '⚠️'}
 
 **Coverage: ${test.coverage}**
 
-${emoji} ${coveragePercent >= 80 ?
+${emoji} ${coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ?
                 'Excellent test coverage!' :
-                coveragePercent >= 60 ?
+                coveragePercent >= GOOD_COVERAGE_THRESHOLD ?
                     'Good coverage, consider adding more tests.' :
                     'Low test coverage detected. Please add more tests.'}
 
@@ -107431,10 +107301,10 @@ ${selfValidate.actionsFound.length > 0 ?
         if (test.status === 'success') {
             if (test.coverage) {
                 const coveragePercent = parseFloat(test.coverage.replace('%', ''));
-                const emoji = coveragePercent >= 80 ? '🎉' : coveragePercent >= 60 ? '⚠️' : '🚨';
-                return `<details><summary>Test Details</summary>\n\n**Coverage: ${test.coverage}**\n\n${emoji} ${coveragePercent >= 80 ?
+                const emoji = coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ? '🎉' : coveragePercent >= GOOD_COVERAGE_THRESHOLD ? '⚠️' : '🚨';
+                return `<details><summary>Test Details</summary>\n\n**Coverage: ${test.coverage}**\n\n${emoji} ${coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ?
                     'Excellent test coverage!' :
-                    coveragePercent >= 60 ?
+                    coveragePercent >= GOOD_COVERAGE_THRESHOLD ?
                         'Good coverage, consider adding more tests.' :
                         'Low test coverage detected. Please add more tests.'}\n\n</details>\n\n`;
             }
@@ -107456,7 +107326,7 @@ ${selfValidate.actionsFound.length > 0 ?
                 // Format the lint issues for better readability
                 const issues = lint.issues.trim();
                 // Truncate if too long (GitHub comment limit considerations)
-                const maxLength = 3000;
+                const maxLength = MAX_LINT_OUTPUT_LENGTH;
                 const truncatedIssues = issues.length > maxLength
                     ? issues.substring(0, maxLength) + '\n\n... (truncated, see workflow logs for full output)'
                     : issues;

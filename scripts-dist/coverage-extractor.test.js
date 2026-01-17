@@ -37,17 +37,57 @@ const coverage_extractor_1 = require("./coverage-extractor");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const child_process_1 = require("child_process");
-// Mock fs and execSync
+// Mock fs and spawnSync
 jest.mock('fs');
 jest.mock('child_process');
 const mockFs = fs;
-const mockExecSync = child_process_1.execSync;
+const mockSpawnSync = child_process_1.spawnSync;
 describe('CoverageExtractor', () => {
     let extractor;
     const testWorkingDir = '/test/project';
     beforeEach(() => {
         jest.clearAllMocks();
         extractor = new coverage_extractor_1.CoverageExtractor({ workingDirectory: testWorkingDir });
+    });
+    describe('constructor validation', () => {
+        it('should accept valid coverage file names', () => {
+            expect(() => new coverage_extractor_1.CoverageExtractor({
+                workingDirectory: testWorkingDir,
+                coverageFile: 'coverage.out'
+            })).not.toThrow();
+            expect(() => new coverage_extractor_1.CoverageExtractor({
+                workingDirectory: testWorkingDir,
+                coverageFile: 'my-coverage_file.out'
+            })).not.toThrow();
+        });
+        it('should reject coverage file names with path traversal', () => {
+            expect(() => new coverage_extractor_1.CoverageExtractor({
+                workingDirectory: testWorkingDir,
+                coverageFile: '../../../etc/passwd'
+            })).toThrow('Invalid coverage file name');
+            expect(() => new coverage_extractor_1.CoverageExtractor({
+                workingDirectory: testWorkingDir,
+                coverageFile: 'path/to/coverage.out'
+            })).toThrow('Invalid coverage file name');
+        });
+        it('should reject coverage file names with shell injection characters', () => {
+            expect(() => new coverage_extractor_1.CoverageExtractor({
+                workingDirectory: testWorkingDir,
+                coverageFile: 'coverage.out; rm -rf /'
+            })).toThrow('Invalid coverage file name');
+            expect(() => new coverage_extractor_1.CoverageExtractor({
+                workingDirectory: testWorkingDir,
+                coverageFile: 'coverage.out && malicious'
+            })).toThrow('Invalid coverage file name');
+            expect(() => new coverage_extractor_1.CoverageExtractor({
+                workingDirectory: testWorkingDir,
+                coverageFile: '$(whoami).out'
+            })).toThrow('Invalid coverage file name');
+            expect(() => new coverage_extractor_1.CoverageExtractor({
+                workingDirectory: testWorkingDir,
+                coverageFile: '`whoami`.out'
+            })).toThrow('Invalid coverage file name');
+        });
     });
     describe('extractCoverage', () => {
         it('should return no coverage when coverage file does not exist', () => {
@@ -61,21 +101,52 @@ describe('CoverageExtractor', () => {
         });
         it('should extract coverage when coverage file exists', () => {
             mockFs.existsSync.mockReturnValue(true);
-            mockExecSync.mockReturnValue('85.7%\n');
+            mockSpawnSync.mockReturnValue({
+                stdout: 'github.com/user/repo/main.go:10:\tfunction1\t\t80.0%\ngithub.com/user/repo/main.go:20:\tfunction2\t\t90.0%\ntotal:\t\t\t(statements)\t85.7%\n',
+                stderr: '',
+                status: 0,
+                signal: null,
+                pid: 12345,
+                output: ['', '', ''],
+                error: undefined
+            });
             const result = extractor.extractCoverage();
             expect(result).toEqual({
                 coverage: '85.7%',
                 hasCoverage: true
             });
-            expect(mockExecSync).toHaveBeenCalledWith('go tool cover -func=coverage.out | grep total | awk \'{print $3}\'', {
+            expect(mockSpawnSync).toHaveBeenCalledWith('go', ['tool', 'cover', '-func=coverage.out'], {
                 cwd: testWorkingDir,
                 encoding: 'utf8'
             });
         });
-        it('should handle execSync errors gracefully', () => {
+        it('should handle spawnSync errors gracefully', () => {
             mockFs.existsSync.mockReturnValue(true);
-            mockExecSync.mockImplementation(() => {
-                throw new Error('Command failed');
+            mockSpawnSync.mockReturnValue({
+                stdout: '',
+                stderr: '',
+                status: 0,
+                signal: null,
+                pid: 12345,
+                output: ['', '', ''],
+                error: new Error('Command failed')
+            });
+            const result = extractor.extractCoverage();
+            expect(result).toEqual({
+                coverage: null,
+                hasCoverage: false
+            });
+        });
+        it('should handle non-zero exit status', () => {
+            mockFs.existsSync.mockReturnValue(true);
+            mockSpawnSync.mockReturnValue({
+                stdout: '',
+                stderr: 'go tool cover: cannot find main module',
+                status: 1,
+                signal: null,
+                pid: 12345,
+                output: ['', '', ''],
+                error: undefined
             });
             const result = extractor.extractCoverage();
             expect(result).toEqual({
@@ -94,19 +165,73 @@ describe('CoverageExtractor', () => {
         });
         it('should handle empty output from go tool cover', () => {
             mockFs.existsSync.mockReturnValue(true);
-            mockExecSync.mockReturnValue('   \n');
+            mockSpawnSync.mockReturnValue({
+                stdout: '   \n',
+                stderr: '',
+                status: 0,
+                signal: null,
+                pid: 12345,
+                output: ['', '', ''],
+                error: undefined
+            });
             const result = extractor.extractCoverage();
             expect(result).toEqual({
                 coverage: '',
                 hasCoverage: true
             });
         });
-        it('should handle different coverage formats', () => {
+        it('should handle output without total line', () => {
             mockFs.existsSync.mockReturnValue(true);
-            mockExecSync.mockReturnValue('total:\t\t\t(statements)\t92.3%\n');
+            mockSpawnSync.mockReturnValue({
+                stdout: 'some random output\nwithout total',
+                stderr: '',
+                status: 0,
+                signal: null,
+                pid: 12345,
+                output: ['', '', ''],
+                error: undefined
+            });
             const result = extractor.extractCoverage();
             expect(result).toEqual({
-                coverage: 'total:\t\t\t(statements)\t92.3%',
+                coverage: 'some random output\nwithout total',
+                hasCoverage: true
+            });
+        });
+        it('should handle different coverage formats', () => {
+            mockFs.existsSync.mockReturnValue(true);
+            mockSpawnSync.mockReturnValue({
+                stdout: 'total:\t\t\t(statements)\t92.3%\n',
+                stderr: '',
+                status: 0,
+                signal: null,
+                pid: 12345,
+                output: ['', '', ''],
+                error: undefined
+            });
+            const result = extractor.extractCoverage();
+            expect(result).toEqual({
+                coverage: '92.3%',
+                hasCoverage: true
+            });
+        });
+        it('should extract percentage from complex output', () => {
+            mockFs.existsSync.mockReturnValue(true);
+            mockSpawnSync.mockReturnValue({
+                stdout: `github.com/user/repo/pkg/util.go:15:	Helper		100.0%
+github.com/user/repo/pkg/util.go:25:	Process		75.0%
+github.com/user/repo/main.go:10:	main		50.0%
+total:					(statements)	75.0%
+`,
+                stderr: '',
+                status: 0,
+                signal: null,
+                pid: 12345,
+                output: ['', '', ''],
+                error: undefined
+            });
+            const result = extractor.extractCoverage();
+            expect(result).toEqual({
+                coverage: '75.0%',
                 hasCoverage: true
             });
         });
@@ -122,12 +247,24 @@ describe('CoverageExtractor', () => {
         it('should work with custom parameters', () => {
             const { extractCoverage } = require('./coverage-extractor');
             mockFs.existsSync.mockReturnValue(true);
-            mockExecSync.mockReturnValue('75.0%\n');
+            mockSpawnSync.mockReturnValue({
+                stdout: 'total:\t\t\t(statements)\t75.0%\n',
+                stderr: '',
+                status: 0,
+                signal: null,
+                pid: 12345,
+                output: ['', '', ''],
+                error: undefined
+            });
             const result = extractCoverage('/custom/dir', 'custom.out');
             expect(result).toEqual({
                 coverage: '75.0%',
                 hasCoverage: true
             });
+        });
+        it('should throw on invalid coverage file name in function export', () => {
+            const { extractCoverage } = require('./coverage-extractor');
+            expect(() => extractCoverage('.', '../malicious.out')).toThrow('Invalid coverage file name');
         });
     });
 });

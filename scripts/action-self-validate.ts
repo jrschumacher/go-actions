@@ -42,8 +42,9 @@ export async function runSelfValidation(inputs: SelfValidateInputs): Promise<Val
     // Store results for unified PR comment (if this is a PR)
     if (commentOnPr && process.env.GITHUB_EVENT_NAME === 'pull_request') {
       try {
+        const status: 'success' | 'failure' = result.isValid ? 'success' : 'failure';
         const selfValidateResult = {
-          status: result.isValid ? 'success' : 'failure',
+          status,
           actionsFound: result.actionsFound,
           errors: result.errors
         };

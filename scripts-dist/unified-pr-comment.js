@@ -41,6 +41,15 @@ const core = __importStar(require("@actions/core"));
 const github = __importStar(require("@actions/github"));
 const artifact_1 = require("@actions/artifact");
 const fs = __importStar(require("fs/promises"));
+/**
+ * Coverage threshold constants for test result formatting
+ */
+/** Coverage percentage at or above which tests are considered to have excellent coverage */
+const EXCELLENT_COVERAGE_THRESHOLD = 80;
+/** Coverage percentage at or above which tests are considered to have good coverage */
+const GOOD_COVERAGE_THRESHOLD = 60;
+/** Maximum character length for lint output before truncation (GitHub comment limit consideration) */
+const MAX_LINT_OUTPUT_LENGTH = 3000;
 class UnifiedPRComment {
     constructor(options = {}) {
         this.workingDirectory = options.workingDirectory || '.';
@@ -187,14 +196,14 @@ class UnifiedPRComment {
     formatTestSection(test) {
         if (test.status === 'success' && test.coverage) {
             const coveragePercent = parseFloat(test.coverage.replace('%', ''));
-            const emoji = coveragePercent >= 80 ? '🎉' : coveragePercent >= 60 ? '⚠️' : '🚨';
-            return `### 🧪 Tests ${coveragePercent >= 80 ? '✅' : '⚠️'}
+            const emoji = coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ? '🎉' : coveragePercent >= GOOD_COVERAGE_THRESHOLD ? '⚠️' : '🚨';
+            return `### 🧪 Tests ${coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ? '✅' : '⚠️'}
 
 **Coverage: ${test.coverage}**
 
-${emoji} ${coveragePercent >= 80 ?
+${emoji} ${coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ?
                 'Excellent test coverage!' :
-                coveragePercent >= 60 ?
+                coveragePercent >= GOOD_COVERAGE_THRESHOLD ?
                     'Good coverage, consider adding more tests.' :
                     'Low test coverage detected. Please add more tests.'}
 
@@ -296,10 +305,10 @@ ${selfValidate.actionsFound.length > 0 ?
         if (test.status === 'success') {
             if (test.coverage) {
                 const coveragePercent = parseFloat(test.coverage.replace('%', ''));
-                const emoji = coveragePercent >= 80 ? '🎉' : coveragePercent >= 60 ? '⚠️' : '🚨';
-                return `<details><summary>Test Details</summary>\n\n**Coverage: ${test.coverage}**\n\n${emoji} ${coveragePercent >= 80 ?
+                const emoji = coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ? '🎉' : coveragePercent >= GOOD_COVERAGE_THRESHOLD ? '⚠️' : '🚨';
+                return `<details><summary>Test Details</summary>\n\n**Coverage: ${test.coverage}**\n\n${emoji} ${coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ?
                     'Excellent test coverage!' :
-                    coveragePercent >= 60 ?
+                    coveragePercent >= GOOD_COVERAGE_THRESHOLD ?
                         'Good coverage, consider adding more tests.' :
                         'Low test coverage detected. Please add more tests.'}\n\n</details>\n\n`;
             }
@@ -321,7 +330,7 @@ ${selfValidate.actionsFound.length > 0 ?
                 // Format the lint issues for better readability
                 const issues = lint.issues.trim();
                 // Truncate if too long (GitHub comment limit considerations)
-                const maxLength = 3000;
+                const maxLength = MAX_LINT_OUTPUT_LENGTH;
                 const truncatedIssues = issues.length > maxLength
                     ? issues.substring(0, maxLength) + '\n\n... (truncated, see workflow logs for full output)'
                     : issues;
