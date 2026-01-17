@@ -13,6 +13,37 @@ interface ValidationOptions {
   workingDirectory: string;
 }
 
+/**
+ * golangci-lint v2 configuration structure
+ * See: https://golangci-lint.run/usage/configuration/
+ */
+interface GolangciLintConfig {
+  version?: number | string;
+  linters?: {
+    enable_all?: boolean;
+    disable_all?: boolean;
+    enable?: string[];
+    disable?: string[];
+    preset?: 'all' | 'none' | string;
+  };
+  run?: {
+    timeout?: string;
+    concurrency?: number;
+    modules_download_mode?: string;
+  };
+  output?: {
+    formats?: Array<{ format: string; path?: string }>;
+    print_issued_lines?: boolean;
+    print_linter_name?: boolean;
+  };
+  linters_settings?: Record<string, unknown>;
+  issues?: {
+    exclude_rules?: Array<{ path?: string; linters?: string[]; text?: string }>;
+    max_issues_per_linter?: number;
+    max_same_issues?: number;
+  };
+}
+
 export class ProjectValidator {
   private workingDir: string;
 
@@ -48,7 +79,7 @@ export class ProjectValidator {
 
     try {
       const configContent = fs.readFileSync(configPath, 'utf8');
-      const config = yaml.load(configContent) as any;
+      const config = yaml.load(configContent) as GolangciLintConfig | null;
 
       // Check for version field
       if (!config || typeof config !== 'object') {

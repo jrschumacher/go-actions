@@ -221,8 +221,8 @@ describe('static methods', () => {
 
   describe('storeResults', () => {
     it('should store results in environment', async () => {
-      const testResults = { status: 'success', coverage: '80%' };
-      
+      const testResults = { status: 'success' as const, coverage: '80%' };
+
       await UnifiedPRComment.storeResults('test', testResults);
 
       // Should skip when not in GitHub Actions environment
@@ -324,8 +324,8 @@ describe('exported functions', () => {
 
   describe('storeJobResults', () => {
     it('should store job results', async () => {
-      const results = { status: 'success', coverage: '90%' };
-      
+      const results = { status: 'success' as const, coverage: '90%' };
+
       await storeJobResults('test', results);
 
       // Should skip when not in GitHub Actions environment  

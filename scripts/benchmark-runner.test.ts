@@ -1,10 +1,10 @@
 import { BenchmarkRunner } from './benchmark-runner';
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 
-// Mock execSync
+// Mock spawnSync
 jest.mock('child_process');
 
-const mockExecSync = execSync as jest.MockedFunction<typeof execSync>;
+const mockSpawnSync = spawnSync as jest.MockedFunction<typeof spawnSync>;
 
 describe('BenchmarkRunner', () => {
   let runner: BenchmarkRunner;
@@ -21,18 +21,91 @@ describe('BenchmarkRunner', () => {
     });
   });
 
+  describe('constructor validation', () => {
+    it('should accept valid benchmark arguments', () => {
+      expect(() => new BenchmarkRunner({
+        workingDirectory: testWorkingDir,
+        benchmarkArgs: '-bench=. -benchmem',
+        benchmarkCount: 1
+      })).not.toThrow();
+
+      expect(() => new BenchmarkRunner({
+        workingDirectory: testWorkingDir,
+        benchmarkArgs: '-bench=BenchmarkSpecific -count=5 -cpu=1,2,4',
+        benchmarkCount: 1
+      })).not.toThrow();
+    });
+
+    it('should reject benchmark arguments with shell injection', () => {
+      expect(() => new BenchmarkRunner({
+        workingDirectory: testWorkingDir,
+        benchmarkArgs: '-bench=.; rm -rf /',
+        benchmarkCount: 1
+      })).toThrow('Invalid benchmark arguments');
+
+      expect(() => new BenchmarkRunner({
+        workingDirectory: testWorkingDir,
+        benchmarkArgs: '-bench=. && malicious',
+        benchmarkCount: 1
+      })).toThrow('Invalid benchmark arguments');
+
+      expect(() => new BenchmarkRunner({
+        workingDirectory: testWorkingDir,
+        benchmarkArgs: '-bench=. | cat /etc/passwd',
+        benchmarkCount: 1
+      })).toThrow('Invalid benchmark arguments');
+
+      expect(() => new BenchmarkRunner({
+        workingDirectory: testWorkingDir,
+        benchmarkArgs: '-bench=$(whoami)',
+        benchmarkCount: 1
+      })).toThrow('Invalid benchmark arguments');
+
+      expect(() => new BenchmarkRunner({
+        workingDirectory: testWorkingDir,
+        benchmarkArgs: '-bench=`whoami`',
+        benchmarkCount: 1
+      })).toThrow('Invalid benchmark arguments');
+    });
+
+    it('should reject benchmark arguments with path traversal', () => {
+      expect(() => new BenchmarkRunner({
+        workingDirectory: testWorkingDir,
+        benchmarkArgs: '-bench=../../../etc/passwd',
+        benchmarkCount: 1
+      })).toThrow('Invalid benchmark arguments');
+    });
+
+    it('should reject benchmark arguments with newlines', () => {
+      expect(() => new BenchmarkRunner({
+        workingDirectory: testWorkingDir,
+        benchmarkArgs: '-bench=.\nrm -rf /',
+        benchmarkCount: 1
+      })).toThrow('Invalid benchmark arguments');
+    });
+  });
+
   describe('runBenchmarks', () => {
     it('should run benchmarks successfully', () => {
-      mockExecSync.mockReturnValue(Buffer.from('benchmark output'));
+      mockSpawnSync.mockReturnValue({
+        stdout: Buffer.from('benchmark output'),
+        stderr: Buffer.from(''),
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: [null, Buffer.from(''), Buffer.from('')],
+        error: undefined
+      });
 
       const result = runner.runBenchmarks();
 
       expect(result).toEqual({ success: true });
-      expect(mockExecSync).toHaveBeenCalledTimes(testBenchmarkCount);
-      
+      expect(mockSpawnSync).toHaveBeenCalledTimes(testBenchmarkCount);
+
       for (let i = 0; i < testBenchmarkCount; i++) {
-        expect(mockExecSync).toHaveBeenNthCalledWith(i + 1, 
-          `go test ${testBenchmarkArgs} ./...`,
+        expect(mockSpawnSync).toHaveBeenNthCalledWith(i + 1,
+          'go',
+          ['test', '-bench=.', '-benchmem', './...'],
           {
             cwd: testWorkingDir,
             stdio: 'inherit'
@@ -41,23 +114,48 @@ describe('BenchmarkRunner', () => {
       }
     });
 
-    it('should handle benchmark failures', () => {
-      const error = new Error('Benchmark failed');
-      mockExecSync.mockImplementation(() => {
-        throw error;
+    it('should handle benchmark failures with non-zero exit status', () => {
+      mockSpawnSync.mockReturnValue({
+        stdout: Buffer.from(''),
+        stderr: Buffer.from('test failed'),
+        status: 1,
+        signal: null,
+        pid: 12345,
+        output: [null, Buffer.from(''), Buffer.from('')],
+        error: undefined
       });
 
       const result = runner.runBenchmarks();
 
       expect(result).toEqual({
         success: false,
-        error: 'Benchmark failed'
+        error: 'go test exited with status 1'
       });
-      expect(mockExecSync).toHaveBeenCalledTimes(1);
+      expect(mockSpawnSync).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle spawnSync errors', () => {
+      mockSpawnSync.mockReturnValue({
+        stdout: Buffer.from(''),
+        stderr: Buffer.from(''),
+        status: null,
+        signal: null,
+        pid: 12345,
+        output: [null, Buffer.from(''), Buffer.from('')],
+        error: new Error('Spawn failed')
+      });
+
+      const result = runner.runBenchmarks();
+
+      expect(result).toEqual({
+        success: false,
+        error: 'Spawn failed'
+      });
+      expect(mockSpawnSync).toHaveBeenCalledTimes(1);
     });
 
     it('should handle unknown errors', () => {
-      mockExecSync.mockImplementation(() => {
+      mockSpawnSync.mockImplementation(() => {
         throw 'Unknown error type';
       });
 
@@ -76,11 +174,19 @@ describe('BenchmarkRunner', () => {
         benchmarkCount: 1
       });
 
-      mockExecSync.mockReturnValue(Buffer.from(''));
+      mockSpawnSync.mockReturnValue({
+        stdout: Buffer.from(''),
+        stderr: Buffer.from(''),
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: [null, Buffer.from(''), Buffer.from('')],
+        error: undefined
+      });
 
       singleRunRunner.runBenchmarks();
 
-      expect(mockExecSync).toHaveBeenCalledTimes(1);
+      expect(mockSpawnSync).toHaveBeenCalledTimes(1);
     });
 
     it('should handle large number of benchmark runs', () => {
@@ -90,12 +196,20 @@ describe('BenchmarkRunner', () => {
         benchmarkCount: 10
       });
 
-      mockExecSync.mockReturnValue(Buffer.from(''));
+      mockSpawnSync.mockReturnValue({
+        stdout: Buffer.from(''),
+        stderr: Buffer.from(''),
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: [null, Buffer.from(''), Buffer.from('')],
+        error: undefined
+      });
 
       const result = manyRunsRunner.runBenchmarks();
 
       expect(result.success).toBe(true);
-      expect(mockExecSync).toHaveBeenCalledTimes(10);
+      expect(mockSpawnSync).toHaveBeenCalledTimes(10);
     });
 
     it('should use correct benchmark arguments', () => {
@@ -106,12 +220,21 @@ describe('BenchmarkRunner', () => {
         benchmarkCount: 1
       });
 
-      mockExecSync.mockReturnValue(Buffer.from(''));
+      mockSpawnSync.mockReturnValue({
+        stdout: Buffer.from(''),
+        stderr: Buffer.from(''),
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: [null, Buffer.from(''), Buffer.from('')],
+        error: undefined
+      });
 
       customRunner.runBenchmarks();
 
-      expect(mockExecSync).toHaveBeenCalledWith(
-        `go test ${customArgs} ./...`,
+      expect(mockSpawnSync).toHaveBeenCalledWith(
+        'go',
+        ['test', '-bench=BenchmarkSpecific', '-count=5', './...'],
         {
           cwd: testWorkingDir,
           stdio: 'inherit'
@@ -120,28 +243,43 @@ describe('BenchmarkRunner', () => {
     });
 
     it('should fail on first error and not continue', () => {
-      mockExecSync.mockImplementationOnce(() => {
-        throw new Error('First run failed');
+      mockSpawnSync.mockReturnValue({
+        stdout: Buffer.from(''),
+        stderr: Buffer.from(''),
+        status: 1,
+        signal: null,
+        pid: 12345,
+        output: [null, Buffer.from(''), Buffer.from('')],
+        error: undefined
       });
 
       const result = runner.runBenchmarks();
 
       expect(result.success).toBe(false);
-      expect(mockExecSync).toHaveBeenCalledTimes(1);
+      expect(mockSpawnSync).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('runBenchmarks function export', () => {
     it('should work with default parameters', () => {
       const { runBenchmarks } = require('./benchmark-runner');
-      
-      mockExecSync.mockReturnValue(Buffer.from(''));
-      
+
+      mockSpawnSync.mockReturnValue({
+        stdout: Buffer.from(''),
+        stderr: Buffer.from(''),
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: [null, Buffer.from(''), Buffer.from('')],
+        error: undefined
+      });
+
       const result = runBenchmarks();
-      
+
       expect(result.success).toBe(true);
-      expect(mockExecSync).toHaveBeenCalledWith(
-        'go test -bench=. -benchmem ./...',
+      expect(mockSpawnSync).toHaveBeenCalledWith(
+        'go',
+        ['test', '-bench=.', '-benchmem', './...'],
         {
           cwd: '.',
           stdio: 'inherit'
@@ -151,17 +289,92 @@ describe('BenchmarkRunner', () => {
 
     it('should work with custom parameters', () => {
       const { runBenchmarks } = require('./benchmark-runner');
-      
-      mockExecSync.mockReturnValue(Buffer.from(''));
-      
+
+      mockSpawnSync.mockReturnValue({
+        stdout: Buffer.from(''),
+        stderr: Buffer.from(''),
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: [null, Buffer.from(''), Buffer.from('')],
+        error: undefined
+      });
+
       const result = runBenchmarks('/custom/dir', '-bench=Custom', 2);
-      
+
       expect(result.success).toBe(true);
-      expect(mockExecSync).toHaveBeenCalledTimes(2);
-      expect(mockExecSync).toHaveBeenCalledWith(
-        'go test -bench=Custom ./...',
+      expect(mockSpawnSync).toHaveBeenCalledTimes(2);
+      expect(mockSpawnSync).toHaveBeenCalledWith(
+        'go',
+        ['test', '-bench=Custom', './...'],
         {
           cwd: '/custom/dir',
+          stdio: 'inherit'
+        }
+      );
+    });
+
+    it('should throw on invalid benchmark arguments in function export', () => {
+      const { runBenchmarks } = require('./benchmark-runner');
+
+      expect(() => runBenchmarks('.', '-bench=.; malicious')).toThrow('Invalid benchmark arguments');
+    });
+  });
+
+  describe('argument parsing', () => {
+    it('should correctly parse arguments with quotes', () => {
+      const quotedRunner = new BenchmarkRunner({
+        workingDirectory: testWorkingDir,
+        benchmarkArgs: '-bench="Benchmark Test" -benchmem',
+        benchmarkCount: 1
+      });
+
+      mockSpawnSync.mockReturnValue({
+        stdout: Buffer.from(''),
+        stderr: Buffer.from(''),
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: [null, Buffer.from(''), Buffer.from('')],
+        error: undefined
+      });
+
+      quotedRunner.runBenchmarks();
+
+      expect(mockSpawnSync).toHaveBeenCalledWith(
+        'go',
+        ['test', '-bench=Benchmark Test', '-benchmem', './...'],
+        {
+          cwd: testWorkingDir,
+          stdio: 'inherit'
+        }
+      );
+    });
+
+    it('should handle multiple spaces between arguments', () => {
+      const spacedRunner = new BenchmarkRunner({
+        workingDirectory: testWorkingDir,
+        benchmarkArgs: '-bench=.    -benchmem',
+        benchmarkCount: 1
+      });
+
+      mockSpawnSync.mockReturnValue({
+        stdout: Buffer.from(''),
+        stderr: Buffer.from(''),
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: [null, Buffer.from(''), Buffer.from('')],
+        error: undefined
+      });
+
+      spacedRunner.runBenchmarks();
+
+      expect(mockSpawnSync).toHaveBeenCalledWith(
+        'go',
+        ['test', '-bench=.', '-benchmem', './...'],
+        {
+          cwd: testWorkingDir,
           stdio: 'inherit'
         }
       );

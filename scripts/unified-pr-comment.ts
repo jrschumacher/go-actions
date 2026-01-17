@@ -3,34 +3,67 @@ import * as github from '@actions/github';
 import { DefaultArtifactClient } from '@actions/artifact';
 import * as fs from 'fs/promises';
 
-export interface CIResults {
-  test?: {
-    status: 'success' | 'failure' | 'skipped';
-    coverage?: string;
-    error?: string;
-  };
-  lint?: {
-    status: 'success' | 'failure' | 'skipped';
-    error?: string;
-    issues?: string;
-  };
-  benchmark?: {
-    status: 'success' | 'failure' | 'skipped';
-    config?: {
-      args: string;
-      count: number;
-    };
-    error?: string;
-  };
-  selfValidate?: {
-    status: 'success' | 'failure' | 'skipped';
-    actionsFound: string[];
-    errors: Array<{
-      type: string;
-      message: string;
-    }>;
+/**
+ * Coverage threshold constants for test result formatting
+ */
+/** Coverage percentage at or above which tests are considered to have excellent coverage */
+const EXCELLENT_COVERAGE_THRESHOLD = 80;
+/** Coverage percentage at or above which tests are considered to have good coverage */
+const GOOD_COVERAGE_THRESHOLD = 60;
+/** Maximum character length for lint output before truncation (GitHub comment limit consideration) */
+const MAX_LINT_OUTPUT_LENGTH = 3000;
+
+/** Base interface for all job result types */
+interface BaseJobResult {
+  status: 'success' | 'failure' | 'skipped';
+  error?: string;
+}
+
+/** Test job result type */
+export interface TestJobResult extends BaseJobResult {
+  coverage?: string;
+}
+
+/** Lint job result type */
+export interface LintJobResult extends BaseJobResult {
+  issues?: string;
+}
+
+/** Benchmark job result type */
+export interface BenchmarkJobResult extends BaseJobResult {
+  config?: {
+    args: string;
+    count: number;
   };
 }
+
+/** Self-validate job result type */
+export interface SelfValidateJobResult extends BaseJobResult {
+  actionsFound: string[];
+  errors: Array<{
+    type: string;
+    message: string;
+  }>;
+}
+
+/** Combined CI results interface */
+export interface CIResults {
+  test?: TestJobResult;
+  lint?: LintJobResult;
+  benchmark?: BenchmarkJobResult;
+  selfValidate?: SelfValidateJobResult;
+}
+
+/**
+ * Type-safe mapping from job type to its result type
+ * Used for storeResults and storeJobResults functions
+ */
+export type JobResultType<T extends keyof CIResults> =
+  T extends 'test' ? TestJobResult :
+  T extends 'lint' ? LintJobResult :
+  T extends 'benchmark' ? BenchmarkJobResult :
+  T extends 'selfValidate' ? SelfValidateJobResult :
+  never;
 
 export interface PRCommentOptions {
   workingDirectory?: string;
@@ -214,15 +247,15 @@ export class UnifiedPRComment {
   private formatTestSection(test: NonNullable<CIResults['test']>): string {
     if (test.status === 'success' && test.coverage) {
       const coveragePercent = parseFloat(test.coverage.replace('%', ''));
-      const emoji = coveragePercent >= 80 ? '🎉' : coveragePercent >= 60 ? '⚠️' : '🚨';
+      const emoji = coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ? '🎉' : coveragePercent >= GOOD_COVERAGE_THRESHOLD ? '⚠️' : '🚨';
       
-      return `### 🧪 Tests ${coveragePercent >= 80 ? '✅' : '⚠️'}
+      return `### 🧪 Tests ${coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ? '✅' : '⚠️'}
 
 **Coverage: ${test.coverage}**
 
-${emoji} ${coveragePercent >= 80 ? 
+${emoji} ${coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ? 
   'Excellent test coverage!' :
-  coveragePercent >= 60 ?
+  coveragePercent >= GOOD_COVERAGE_THRESHOLD ?
   'Good coverage, consider adding more tests.' :
   'Low test coverage detected. Please add more tests.'
 }
@@ -328,11 +361,11 @@ ${selfValidate.actionsFound.length > 0 ?
     if (test.status === 'success') {
       if (test.coverage) {
         const coveragePercent = parseFloat(test.coverage.replace('%', ''));
-        const emoji = coveragePercent >= 80 ? '🎉' : coveragePercent >= 60 ? '⚠️' : '🚨';
+        const emoji = coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ? '🎉' : coveragePercent >= GOOD_COVERAGE_THRESHOLD ? '⚠️' : '🚨';
         
-        return `<details><summary>Test Details</summary>\n\n**Coverage: ${test.coverage}**\n\n${emoji} ${coveragePercent >= 80 ? 
+        return `<details><summary>Test Details</summary>\n\n**Coverage: ${test.coverage}**\n\n${emoji} ${coveragePercent >= EXCELLENT_COVERAGE_THRESHOLD ? 
           'Excellent test coverage!' :
-          coveragePercent >= 60 ?
+          coveragePercent >= GOOD_COVERAGE_THRESHOLD ?
           'Good coverage, consider adding more tests.' :
           'Low test coverage detected. Please add more tests.'
         }\n\n</details>\n\n`;
@@ -355,7 +388,7 @@ ${selfValidate.actionsFound.length > 0 ?
         const issues = lint.issues.trim();
         
         // Truncate if too long (GitHub comment limit considerations)
-        const maxLength = 3000;
+        const maxLength = MAX_LINT_OUTPUT_LENGTH;
         const truncatedIssues = issues.length > maxLength 
           ? issues.substring(0, maxLength) + '\n\n... (truncated, see workflow logs for full output)'
           : issues;
@@ -395,7 +428,10 @@ No CI jobs have run yet. Results will appear here as jobs complete.
   }
 
   // Static method to store results in GitHub Actions artifacts
-  static async storeResults(jobType: keyof CIResults, jobResults: any) {
+  static async storeResults<T extends keyof CIResults>(
+    jobType: T,
+    jobResults: JobResultType<T>
+  ): Promise<void> {
     // Skip artifact upload if not in GitHub Actions environment
     if (!process.env.ACTIONS_RUNTIME_TOKEN) {
       console.log(`Skipping artifact upload for ${jobType} - not in GitHub Actions environment`);
@@ -475,7 +511,10 @@ export async function updateUnifiedComment(results: CIResults, options: PRCommen
   await commenter.updateComment(results);
 }
 
-export async function storeJobResults(jobType: keyof CIResults, jobResults: any) {
+export async function storeJobResults<T extends keyof CIResults>(
+  jobType: T,
+  jobResults: JobResultType<T>
+): Promise<void> {
   await UnifiedPRComment.storeResults(jobType, jobResults);
 }
 
