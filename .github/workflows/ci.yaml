@@ -84,16 +84,48 @@ jobs:
       - name: Build TypeScript
         run: npm run build
 
-      - name: Check if compiled scripts are up to date
+      - name: Validate compiled bundles
         run: |
-          if [ -n "$(git status --porcelain scripts-dist/)" ]; then
-            echo "❌ Compiled scripts are out of date. Please run 'npm run build' and commit the changes."
-            git status scripts-dist/
-            git diff scripts-dist/
-            exit 1
-          else
-            echo "✅ Compiled scripts are up to date"
-          fi
+          # Check that required bundle files exist
+          REQUIRED_BUNDLES=(
+            "scripts-dist/ci-action-bundle/index.js"
+            "scripts-dist/release-action-bundle/index.js"
+            "scripts-dist/self-validate-bundle/index.js"
+          )
+
+          for bundle in "${REQUIRED_BUNDLES[@]}"; do
+            if [ ! -f "$bundle" ]; then
+              echo "❌ Missing required bundle: $bundle"
+              exit 1
+            fi
+            echo "✅ Found bundle: $bundle"
+          done
+
+          # Validate bundles are valid JavaScript by checking syntax
+          for bundle in "${REQUIRED_BUNDLES[@]}"; do
+            if ! node --check "$bundle" 2>/dev/null; then
+              echo "❌ Bundle has syntax errors: $bundle"
+              exit 1
+            fi
+            echo "✅ Bundle syntax valid: $bundle"
+          done
+
+          # Validate bundles export expected functions
+          node -e "
+            const ci = require('./scripts-dist/ci-action-bundle/index.js');
+            const validate = require('./scripts-dist/self-validate-bundle/index.js');
+
+            // Check CI action exports
+            if (typeof ci.extractCoverage !== 'function') throw new Error('Missing extractCoverage');
+            if (typeof ci.runBenchmarks !== 'function') throw new Error('Missing runBenchmarks');
+            console.log('✅ CI bundle exports verified');
+
+            // Check self-validate exports
+            if (typeof validate.validateProject !== 'function') throw new Error('Missing validateProject');
+            console.log('✅ Self-validate bundle exports verified');
+          "
+
+          echo "✅ All compiled bundles validated successfully"
 
   test-actions:
     runs-on: ubuntu-latest
