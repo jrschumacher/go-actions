@@ -121,7 +121,8 @@ jobs:
             console.log('✅ CI bundle exports verified');
 
             // Check self-validate exports
-            if (typeof validate.validateProject !== 'function') throw new Error('Missing validateProject');
+            if (typeof validate.validateWorkflows !== 'function') throw new Error('Missing validateWorkflows');
+            if (typeof validate.WorkflowValidator !== 'function') throw new Error('Missing WorkflowValidator');
             console.log('✅ Self-validate bundle exports verified');
           "
 
