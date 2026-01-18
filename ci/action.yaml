@@ -186,8 +186,11 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       continue-on-error: true
       run: |
+        exit_code=0
+        json_exit_code=0
+
         # Run with JSON output to capture issues for PR comment
-        golangci-lint run ${{ inputs.lint-args }} --out-format=json > golangci-lint-report.json 2>&1 || true
+        golangci-lint run ${{ inputs.lint-args }} --out-format=json > golangci-lint-report.json 2>&1 || json_exit_code=$?
 
         # Also run with colored output for GitHub Actions logs
         golangci-lint run ${{ inputs.lint-args }} --out-format=colored-line-number || exit_code=$?
@@ -199,6 +202,11 @@ runs:
             echo "exit-code=1" >> $GITHUB_OUTPUT
             exit 1
           fi
+        fi
+
+        if [ "$json_exit_code" -ne 0 ] || [ "$exit_code" -ne 0 ]; then
+          echo "exit-code=1" >> $GITHUB_OUTPUT
+          exit 1
         fi
         echo "exit-code=0" >> $GITHUB_OUTPUT
 
@@ -240,6 +248,11 @@ runs:
 
           await UnifiedPRComment.storeResults('lint', lintResult);
           console.log('Stored lint results for unified comment');
+
+    - name: Fail lint job on issues
+      if: inputs.job == 'lint' && steps.golangci-lint.outputs.exit-code == '1'
+      shell: bash
+      run: exit 1
 
     # Results are automatically stored and unified comment is updated by each job
     # All CI results (test, lint, benchmark) appear in a single "Go Actions Report" comment

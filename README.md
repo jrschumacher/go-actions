@@ -346,10 +346,13 @@ linters:
 ```
 
 **Why these skip paths are essential in CI/CD:**
-- 🚨 **Prevents Errors**: Without skip-dirs, golangci-lint may scan `/opt/hostedcache/` causing "Cannot open: file exists" errors in GitHub Actions
+- 🚨 **Prevents CI noise**: Skipping vendor/node_modules/.git avoids linting external or generated content and keeps reports focused
 - 📦 **Excludes Dependencies**: vendor/ and node_modules/ are external code you shouldn't lint
 - 🤖 **Skips Generated Files**: *.pb.go and *_generated.go are auto-generated, not manually written code
 - 📁 **.git Exclusion**: Version control metadata contains no Go code
+
+**If you see `gtar: ... Cannot open: File exists` in GitHub Actions**:
+That error comes from **golangci-lint-action cache restore collisions** (older go-actions versions or direct use of that action), not from golangci-lint scanning. Upgrade to the latest go-actions or disable the lint action cache (`skip-cache`/`skip-save-cache`) to resolve it.
 
 **Why minimal configuration is better:**
 - ✅ golangci-lint v2 enables sensible default linters automatically
@@ -444,7 +447,7 @@ linters:
 - ❌ Missing the field entirely
 - ❌ Listing all linters manually - let golangci-lint use its defaults
 - ❌ Using v1 schema fields (`linters-settings`, `issues.exclude-rules`) with v2
-- ❌ Missing skip-dirs in CI/CD - Will scan cached dependencies causing errors
+- ❌ Missing skip-dirs in CI/CD - Will lint external/generated files and slow down runs
 - ✅ `version: 2` - Correct
 - ✅ `version: "2"` - Also correct
 - ✅ Minimal config relying on defaults - Best practice

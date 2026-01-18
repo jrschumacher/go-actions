@@ -30,6 +30,7 @@ runs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        token: ${{ inputs.release-token }}
 
     - name: Set up Go
       uses: actions/setup-go@v5
