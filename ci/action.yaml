@@ -203,10 +203,10 @@ runs:
         issues_found=0
 
         # Run with JSON output to capture issues for PR comment
-        golangci-lint run ${{ inputs.lint-args }} --out-format=json > golangci-lint-report.json 2>&1 || json_exit_code=$?
+        golangci-lint run ${{ inputs.lint-args }} --format=json > golangci-lint-report.json 2>&1 || json_exit_code=$?
 
         # Also run with colored output for GitHub Actions logs
-        golangci-lint run ${{ inputs.lint-args }} --out-format=colored-line-number || exit_code=$?
+        golangci-lint run ${{ inputs.lint-args }} --format=colored-line-number || exit_code=$?
 
         # Determine status based on JSON issues or exit codes
         if [ -s golangci-lint-report.json ]; then
