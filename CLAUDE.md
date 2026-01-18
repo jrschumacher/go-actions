@@ -151,13 +151,56 @@ npm run test:coverage # Run tests with coverage report
 - **Philosophy**: golangci-lint v2 has excellent defaults - use them!
 - **Minimal config is best**: Only add configuration when you need to override defaults
 - **Don't over-configure**: Avoid specifying every linter - let golangci-lint choose sensible defaults
-- **Example ultra-minimal config** (RECOMMENDED for most projects):
+
+**Example ultra-minimal config** (RECOMMENDED for new projects):
   ```yaml
   version: 2  # That's it! golangci-lint will use sensible defaults
 
   run:
     timeout: 5m  # Optional: increase if needed
   ```
+
+**Real-world example** (from [workctl](https://github.com/jrschumacher/workctl)) - balanced approach:
+  ```yaml
+  version: "2"
+
+  run:
+    timeout: 5m
+    modules-download-mode: readonly
+
+  linters:
+    enable:
+      - errcheck
+      - govet
+      - ineffassign
+      - staticcheck
+      - unused
+      - misspell
+      - unconvert
+      - unparam
+    settings:
+      misspell:
+        locale: US
+
+  formatters:
+    enable:
+      - gofmt
+      - goimports
+    settings:
+      goimports:
+        local-prefixes:
+          - github.com/your-org/your-repo
+
+  issues:
+    max-issues-per-linter: 0
+    max-same-issues: 0
+  ```
+
+**When to grow from minimal to customized:**
+- Start ultra-minimal when setting up a new project
+- Add specific linters when you need stricter checks
+- Configure settings when defaults don't fit your needs
+- The workctl example shows a balanced, production-ready approach
 
 - **If you need to customize** - only add what you actually need:
   ```yaml

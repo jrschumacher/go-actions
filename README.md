@@ -341,6 +341,44 @@ linters:
     - errcheck
 ```
 
+**Real-world example** (balanced approach from [workctl](https://github.com/jrschumacher/workctl)):
+```yaml
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+    - unparam
+  settings:
+    misspell:
+      locale: US
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/your-org/your-repo  # Replace with your module path
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+```
+
+*💡 This shows a production-tested configuration that enables essential linters without over-configuration. It's a good starting point if you need more than the defaults.*
+
 **Advanced configuration** (only if you need custom settings):
 ```yaml
 version: 2
