@@ -13,7 +13,11 @@ The repository contains three separate composite actions:
 ### CI Action (`ci/action.yaml`)
 Handles development and quality assurance workflows:
 - **test**: Runs Go tests with coverage reporting
-- **lint**: Runs golangci-lint for code quality checks  
+- **lint**: Runs golangci-lint for code quality checks with detailed issue formatting in PR comments
+  - Issues are grouped by linter type (errcheck, staticcheck, etc.)
+  - Collapsible sections for easy navigation
+  - Intelligent truncation for large outputs
+  - Direct links to workflow logs
 - **benchmark**: Runs Go benchmarks with configurable iterations
 
 ### Release Action (`release/action.yaml`)
@@ -37,6 +41,13 @@ The actions use TypeScript for complex logic, providing type safety and testabil
 - **`workflow-validator.ts`**: Validates workflow files and project configuration
 - **`coverage-extractor.ts`**: Extracts test coverage from Go coverage files
 - **`benchmark-runner.ts`**: Runs Go benchmarks with multiple iterations
+- **`lint-formatter.ts`**: Parses and formats golangci-lint output for PR comments
+  - Parses golangci-lint JSON output format
+  - Groups issues by linter type for better organization
+  - Sorts linters by issue count (most issues first)
+  - Truncates large outputs intelligently (configurable limits)
+  - Generates markdown with collapsible sections
+  - Includes workflow logs links
 - **`validate-project.ts`**: Comprehensive Go project structure validation
 - **`validate-release.ts`**: Release Please configuration validation
 
@@ -58,8 +69,8 @@ npm run test:coverage # Run tests with coverage report
 
 ### Testing Infrastructure
 - **Jest**: Testing framework with TypeScript support
-- **98.7% test coverage** across all modules
-- **68 test cases** covering various environmental scenarios
+- **High test coverage** across all modules
+- **211+ test cases** covering various environmental scenarios
 - **Mocked dependencies**: fs, child_process for isolated testing
 
 ### GitHub Actions Testing

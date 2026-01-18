@@ -157,7 +157,7 @@ runs:
           
           console.log('Stored benchmark results for unified comment');
 
-    # Lint job  
+    # Lint job
     - name: Normalize golangci-lint version
       if: inputs.job == 'lint'
       shell: bash
@@ -171,29 +171,73 @@ runs:
         echo "normalized-version=$version" >> $GITHUB_OUTPUT
         echo "Using golangci-lint version: $version"
 
+    - name: Install golangci-lint
+      if: inputs.job == 'lint'
+      shell: bash
+      run: |
+        version="${{ steps.normalize-version.outputs.normalized-version }}"
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin $version
+        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
     - name: Run golangci-lint
       if: inputs.job == 'lint'
       id: golangci-lint
-      uses: golangci/golangci-lint-action@v8
-      with:
-        version: ${{ steps.normalize-version.outputs.normalized-version }}
-        working-directory: ${{ inputs.working-directory }}
-        args: ${{ inputs.lint-args }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      continue-on-error: true
+      run: |
+        # Run with JSON output to capture issues for PR comment
+        golangci-lint run ${{ inputs.lint-args }} --out-format=json > golangci-lint-report.json 2>&1 || true
+
+        # Also run with colored output for GitHub Actions logs
+        golangci-lint run ${{ inputs.lint-args }} --out-format=colored-line-number || exit_code=$?
+
+        # Set output based on first run (JSON)
+        if [ -s golangci-lint-report.json ]; then
+          # Check if there are actual issues in the JSON
+          if grep -q '"Issues":\[' golangci-lint-report.json; then
+            echo "exit-code=1" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+        fi
+        echo "exit-code=0" >> $GITHUB_OUTPUT
 
     - name: Store lint results
       if: inputs.job == 'lint' && always()
       uses: actions/github-script@v7
       with:
         script: |
-          const { UnifiedPRComment, updateUnifiedComment } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
-          
-          // Capture golangci-lint results
+          const { UnifiedPRComment, formatLintOutputForPR, getWorkflowLogsUrl } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
+          const path = require('path');
+          const workingDir = '${{ inputs.working-directory }}' || '.';
+
+          // Check lint outcome
+          const lintExitCode = '${{ steps.golangci-lint.outputs.exit-code }}';
           const lintOutcome = '${{ steps.golangci-lint.outcome }}';
-          const lintResult = {
-            status: lintOutcome === 'success' ? 'success' : 'failure',
-            error: lintOutcome !== 'success' ? 'Linting issues found - check logs for details' : undefined
+          const hasIssues = lintExitCode === '1' || lintOutcome === 'failure';
+
+          let lintResult = {
+            status: hasIssues ? 'failure' : 'success'
           };
-          
+
+          if (hasIssues) {
+            // Parse and format lint output for PR comment
+            const jsonFilePath = path.join(workingDir, 'golangci-lint-report.json');
+            const workflowLogsUrl = getWorkflowLogsUrl();
+
+            const formattedIssues = formatLintOutputForPR(jsonFilePath, {
+              maxIssuesPerLinter: 10,
+              maxTotalIssues: 50,
+              workflowLogsUrl
+            });
+
+            if (formattedIssues) {
+              lintResult.issues = formattedIssues;
+            } else {
+              lintResult.error = 'Linting issues found - check logs for details';
+            }
+          }
+
           await UnifiedPRComment.storeResults('lint', lintResult);
           console.log('Stored lint results for unified comment');
 

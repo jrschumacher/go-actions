@@ -4,3 +4,4 @@ export * from './ci-action';
 export { UnifiedPRComment, updateUnifiedComment, loadAllResults } from './unified-pr-comment';
 export { postUnifiedComment } from './action-comment';
 export { default as actionComment } from './action-comment';
+export { formatLintOutputForPR, getWorkflowLogsUrl } from './lint-formatter';
