@@ -81,7 +81,7 @@ jobs:
 
 **Usage**: `jrschumacher/go-actions/ci@v1`
 
-Runs test, lint, or benchmark jobs for Go projects.
+Runs test, lint, or benchmark jobs for Go projects. Lint results include detailed issue reports grouped by linter type, posted directly to PR comments for faster iteration.
 
 #### Inputs
 
