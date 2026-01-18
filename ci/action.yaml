@@ -179,6 +179,17 @@ runs:
         curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin $version
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
+    - name: Validate golangci-lint installation
+      if: inputs.job == 'lint'
+      shell: bash
+      run: |
+        if ! command -v golangci-lint &> /dev/null; then
+          echo "::error::golangci-lint installation failed - binary not found in PATH"
+          exit 1
+        fi
+        echo "✅ golangci-lint installation verified"
+        golangci-lint version
+
     - name: Run golangci-lint
       if: inputs.job == 'lint'
       id: golangci-lint
