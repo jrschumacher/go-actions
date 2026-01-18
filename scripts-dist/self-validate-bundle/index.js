@@ -87653,25 +87653,29 @@ class WorkflowValidator {
         let templates = '';
         // golangci-lint configuration missing version field
         if (errorsByType.missing_file?.some(e => e.file === '.golangci.yml' && e.message.includes('version'))) {
-            templates += '**`.golangci.yml` - Add required version field:**\n';
+            templates += '**`.golangci.yml` - RECOMMENDED: Start minimal, use defaults:**\n';
             templates += '```yaml\n';
-            templates += '# REQUIRED: golangci-lint v2 requires explicit version field\n';
+            templates += '# golangci-lint v2 has excellent defaults - trust them!\n';
+            templates += 'version: 2  # REQUIRED\n';
+            templates += '\n';
+            templates += 'run:\n';
+            templates += '  timeout: 5m  # Optional: only if you need more time\n';
+            templates += '```\n\n';
+            templates += '**If you need to customize** (only add what you actually need):\n';
+            templates += '```yaml\n';
             templates += 'version: 2\n';
             templates += '\n';
             templates += 'run:\n';
             templates += '  timeout: 5m\n';
-            templates += '  go: \'1.24\'\n';
             templates += '\n';
+            templates += '# Optional: only enable additional linters if defaults aren\'t enough\n';
             templates += 'linters:\n';
             templates += '  enable:\n';
             templates += '    - gofmt\n';
             templates += '    - govet\n';
             templates += '    - errcheck\n';
-            templates += '    - staticcheck\n';
-            templates += '    - ineffassign\n';
-            templates += '    - misspell\n';
             templates += '```\n';
-            templates += '*💡 The `version: 2` field is mandatory for golangci-lint v2.x*\n';
+            templates += '*💡 Tip: golangci-lint v2 enables sensible default linters - you usually don\'t need to list them all*\n';
             templates += '*⚠️  v2 schema changes: use `linters.settings` not `linters-settings`, and `linters.exclusions` not `issues.exclude-rules`*\n\n';
         }
         // Release Please templates

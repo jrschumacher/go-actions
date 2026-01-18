@@ -146,24 +146,37 @@ npm run test:coverage # Run tests with coverage report
   - Using v1 schema fields: `issues.exclude-rules` → use `linters.exclusions.rules` in v2
 - **Correct values**: `version: 2` or `version: "2"` (both work)
 - **Self-validate will detect** missing or incorrect version field and provide the exact fix in PR comments
-- **Example minimal config**:
+
+**RECOMMENDED: Start with defaults, customize only when needed**
+- **Philosophy**: golangci-lint v2 has excellent defaults - use them!
+- **Minimal config is best**: Only add configuration when you need to override defaults
+- **Don't over-configure**: Avoid specifying every linter - let golangci-lint choose sensible defaults
+- **Example ultra-minimal config** (RECOMMENDED for most projects):
   ```yaml
-  version: 2  # REQUIRED - numeric 2, NOT "v2" or "2.0"
+  version: 2  # That's it! golangci-lint will use sensible defaults
+
+  run:
+    timeout: 5m  # Optional: increase if needed
+  ```
+
+- **If you need to customize** - only add what you actually need:
+  ```yaml
+  version: 2
 
   run:
     timeout: 5m
-    go: '1.24'
+    go: '1.24'  # Only if you need specific Go version
 
+  # Optional: Only enable specific linters if defaults aren't enough
   linters:
     enable:
       - gofmt
       - govet
       - errcheck
       - staticcheck
-      - ineffassign
-      - misspell
   ```
-- **Example with settings and exclusions** (v2 schema):
+
+- **Advanced: with settings and exclusions** (only if you need them):
   ```yaml
   version: 2
 
