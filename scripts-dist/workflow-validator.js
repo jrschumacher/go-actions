@@ -358,6 +358,15 @@ class WorkflowValidator {
                     issueNumber++;
                 }
             }
+            // golangci-lint missing version field
+            if (errorsByType.missing_file?.some(e => e.file === '.golangci.yml' && e.message.includes('version'))) {
+                comment += `${issueNumber}. **golangci-lint Configuration** - Missing required version field\n`;
+                comment += '   - ❌ Error: `can\'t load config: unsupported version of the configuration: ""`\n';
+                comment += '   - ✅ Required: Add `version: 2` to your .golangci.yml file\n';
+                comment += '   - 🚨 **This is the #1 cause of lint failures** - the version field is mandatory for v2\n';
+                comment += '   - 🔧 See the complete template below with all required fields\n\n';
+                issueNumber++;
+            }
         }
         // Passing Checks section
         const passingChecks = this.getPassingChecks(result, errorsByType);
@@ -430,6 +439,31 @@ class WorkflowValidator {
     }
     generateConfigurationTemplates(errorsByType) {
         let templates = '';
+        // golangci-lint configuration missing version field
+        if (errorsByType.missing_file?.some(e => e.file === '.golangci.yml' && e.message.includes('version'))) {
+            templates += '**`.golangci.yml` - Add required version field:**\n';
+            templates += '```yaml\n';
+            templates += '# REQUIRED: golangci-lint v2 requires explicit version field\n';
+            templates += 'version: 2\n';
+            templates += '\n';
+            templates += 'run:\n';
+            templates += '  timeout: 5m\n';
+            templates += '  go: \'1.24\'\n';
+            templates += '\n';
+            templates += 'linters:\n';
+            templates += '  enable:\n';
+            templates += '    - gofmt\n';
+            templates += '    - govet\n';
+            templates += '    - errcheck\n';
+            templates += '    - staticcheck\n';
+            templates += '    - ineffassign\n';
+            templates += '    - misspell\n';
+            templates += '\n';
+            templates += 'issues:\n';
+            templates += '  exclude-use-default: false\n';
+            templates += '```\n';
+            templates += '*💡 The `version: 2` field is mandatory for golangci-lint v2.x*\n\n';
+        }
         // Release Please templates
         if (errorsByType.missing_file?.some(e => e.file?.includes('release-please'))) {
             templates += '**`release-please-config.json`:**\n';

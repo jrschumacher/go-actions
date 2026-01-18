@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SelfValidator = void 0;
 exports.selfValidate = selfValidate;
 const workflow_validator_1 = require("./workflow-validator");
+const validate_project_1 = require("./validate-project");
 const unified_pr_comment_1 = require("./unified-pr-comment");
 const core = __importStar(require("@actions/core"));
 class SelfValidator {
@@ -46,8 +47,63 @@ class SelfValidator {
     async validate() {
         // Show processing state immediately so users know validation is running
         await (0, unified_pr_comment_1.setProcessingState)();
-        const result = (0, workflow_validator_1.validateWorkflows)(this.workingDirectory);
-        console.log('Found go-actions usage:', result.actionsFound);
+        // Validate workflows first
+        const workflowResult = (0, workflow_validator_1.validateWorkflows)(this.workingDirectory);
+        console.log('Found go-actions usage:', workflowResult.actionsFound);
+        // If go-actions are being used, validate project structure too
+        const allErrors = [...workflowResult.errors];
+        if (workflowResult.actionsFound.length > 0) {
+            console.log('\n🔍 Validating project structure and configuration...');
+            const projectResult = (0, validate_project_1.validateProject)(this.workingDirectory);
+            // Convert project validation errors to workflow validation error format
+            if (!projectResult.isValid) {
+                projectResult.errors.forEach(errorMsg => {
+                    // Parse golangci-lint specific errors
+                    if (errorMsg.includes('golangci-lint configuration missing required "version" field')) {
+                        allErrors.push({
+                            type: 'missing_file',
+                            message: 'golangci-lint configuration missing required "version: 2" field',
+                            file: '.golangci.yml',
+                            severity: 'error'
+                        });
+                    }
+                    else if (errorMsg.includes('golangci-lint configuration has unsupported version')) {
+                        const versionMatch = errorMsg.match(/version: "(.+?)"/);
+                        const version = versionMatch ? versionMatch[1] : 'unknown';
+                        allErrors.push({
+                            type: 'version_mismatch',
+                            message: 'golangci-lint configuration has unsupported version',
+                            file: '.golangci.yml',
+                            expected: '2',
+                            actual: version,
+                            severity: 'error'
+                        });
+                    }
+                    else if (errorMsg.includes('golangci-lint configuration has invalid YAML syntax')) {
+                        allErrors.push({
+                            type: 'missing_file',
+                            message: errorMsg.replace('❌ ', ''),
+                            file: '.golangci.yml',
+                            severity: 'error'
+                        });
+                    }
+                });
+            }
+            // Add project warnings as informational errors
+            if (projectResult.warnings.length > 0) {
+                projectResult.warnings.forEach(warningMsg => {
+                    // Only add golangci-lint related warnings
+                    if (warningMsg.includes('golangci') || warningMsg.includes('linter')) {
+                        console.log(`⚠️  ${warningMsg}`);
+                    }
+                });
+            }
+        }
+        const result = {
+            isValid: allErrors.length === 0,
+            actionsFound: workflowResult.actionsFound,
+            errors: allErrors
+        };
         // Set outputs
         core.setOutput('actions_found', result.actionsFound.join(','));
         core.setOutput('validation_failed', (!result.isValid).toString());

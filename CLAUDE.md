@@ -135,6 +135,32 @@ npm run test:coverage # Run tests with coverage report
 - Supports both `.golangci.yml` and `.golangci.yaml` formats
 - Validates major version compatibility (v1 vs v2)
 
+**CRITICAL: golangci-lint v2 Configuration Requirement**
+- **The `version: 2` field is MANDATORY** in `.golangci.yml` for golangci-lint v2.x
+- **This is the #1 cause of lint failures** - error: "can't load config: unsupported version of the configuration: ''"
+- **Always include** `version: 2` at the top of any `.golangci.yml` file you create
+- **Self-validate will detect** missing version field and provide the exact fix in PR comments
+- **Example minimal config**:
+  ```yaml
+  version: 2  # REQUIRED
+
+  run:
+    timeout: 5m
+    go: '1.24'
+
+  linters:
+    enable:
+      - gofmt
+      - govet
+      - errcheck
+      - staticcheck
+      - ineffassign
+      - misspell
+
+  issues:
+    exclude-use-default: false
+  ```
+
 ### Development Workflow
 1. Make changes to TypeScript files in `scripts/`
 2. Add/update tests in corresponding `.test.ts` files

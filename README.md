@@ -301,6 +301,41 @@ jobs:
 
 ---
 
+## Common Issues & Solutions
+
+### ❌ Lint Failure: "can't load config: unsupported version of the configuration"
+
+**Problem**: golangci-lint v2 requires an explicit `version` field in `.golangci.yml`
+
+**Solution**: Add `version: 2` to the top of your configuration file:
+
+```yaml
+# .golangci.yml
+version: 2  # REQUIRED for golangci-lint v2
+
+run:
+  timeout: 5m
+  go: '1.24'
+
+linters:
+  enable:
+    - gofmt
+    - govet
+    - errcheck
+    - staticcheck
+    - ineffassign
+    - misspell
+
+issues:
+  exclude-use-default: false
+```
+
+**Why**: This is the #1 cause of lint failures. golangci-lint v2.x made the version field mandatory to help with migration and compatibility.
+
+**Auto-Detection**: The `self-validate` action automatically detects this issue and provides the fix in PR comments.
+
+---
+
 ## Version Policy
 
 - **`@v1`**: Latest stable v1.x.x release (recommended)
