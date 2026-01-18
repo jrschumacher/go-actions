@@ -164,7 +164,7 @@ runs:
       id: normalize-version
       run: |
         version="${{ inputs.golangci-lint-version }}"
-        # Convert generic v2 to specific version for golangci-lint-action@v8 compatibility
+        # Convert generic v2/latest to a pinned version for reproducible installs
         if [ "$version" = "v2" ] || [ "$version" = "latest" ]; then
           version="v2.1.0"
         fi
@@ -188,6 +188,8 @@ runs:
       run: |
         exit_code=0
         json_exit_code=0
+        status_code=0
+        issues_found=0
 
         # Run with JSON output to capture issues for PR comment
         golangci-lint run ${{ inputs.lint-args }} --out-format=json > golangci-lint-report.json 2>&1 || json_exit_code=$?
@@ -195,19 +197,26 @@ runs:
         # Also run with colored output for GitHub Actions logs
         golangci-lint run ${{ inputs.lint-args }} --out-format=colored-line-number || exit_code=$?
 
-        # Set output based on first run (JSON)
+        # Determine status based on JSON issues or exit codes
         if [ -s golangci-lint-report.json ]; then
-          # Check if there are actual issues in the JSON
-          if grep -q '"Issues":\[' golangci-lint-report.json; then
-            echo "exit-code=1" >> $GITHUB_OUTPUT
-            exit 1
+          if grep -Eq '"Issues"[[:space:]]*:[[:space:]]*\[' golangci-lint-report.json; then
+            issues_found=1
           fi
         fi
 
-        if [ "$json_exit_code" -ne 0 ] || [ "$exit_code" -ne 0 ]; then
+        if [ "$issues_found" -eq 1 ]; then
+          status_code=1
+        elif [ "$json_exit_code" -ne 0 ]; then
+          status_code=$json_exit_code
+        elif [ "$exit_code" -ne 0 ]; then
+          status_code=$exit_code
+        fi
+
+        if [ "$status_code" -ne 0 ]; then
           echo "exit-code=1" >> $GITHUB_OUTPUT
           exit 1
         fi
+
         echo "exit-code=0" >> $GITHUB_OUTPUT
 
     - name: Store lint results
