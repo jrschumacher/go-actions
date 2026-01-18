@@ -163,13 +163,49 @@ npm run test:coverage # Run tests with coverage report
 - **Minimal config is best**: Only add configuration when you need to override defaults
 - **Don't over-configure**: Avoid specifying every linter - let golangci-lint choose sensible defaults
 
-**Example ultra-minimal config** (RECOMMENDED for new projects):
+**Example ultra-minimal config** (RECOMMENDED for local development):
   ```yaml
   version: 2  # That's it! golangci-lint will use sensible defaults
 
   run:
     timeout: 5m  # Optional: increase if needed
   ```
+
+**Example CI/CD-ready config** (RECOMMENDED for GitHub Actions):
+  ```yaml
+  version: 2
+
+  run:
+    timeout: 5m
+    # Critical for CI environments: prevent scanning cached dependencies
+    skip-dirs:
+      - vendor
+      - node_modules
+      - .git
+    skip-files:
+      - '*.pb.go'
+      - '*_generated.go'
+
+  linters:
+    enable:
+      - errcheck      # Catch unchecked errors
+      - staticcheck   # Detect bugs and style issues
+      - unused        # Find unused code
+      - gosimple      # Suggest simpler code
+      - govet         # Standard Go static analysis
+  ```
+
+  **Why these skip paths are essential in CI/CD**:
+  - **GitHub Actions Issue**: Without skip-dirs, golangci-lint may attempt to scan `/opt/hostedcache/` leading to "Cannot open: file exists" errors
+  - **Generated Files**: Proto files (*.pb.go) and generated code shouldn't be linted
+  - **Dependencies**: vendor/ and node_modules/ are external code, not your responsibility to lint
+  - **Version Control**: .git/ directory contains no Go code to lint
+
+  **When to use**:
+  - ✅ Running in GitHub Actions or similar CI/CD
+  - ✅ Project uses code generation (protobuf, mockery, wire)
+  - ✅ Vendoring dependencies
+  - ❌ Local development only (ultra-minimal works fine)
 
 **Real-world example** (from [workctl](https://github.com/jrschumacher/workctl)) - balanced approach:
   ```yaml
