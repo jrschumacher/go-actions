@@ -312,12 +312,44 @@ jobs:
 **Solution**: Add `version: 2` and **trust the defaults** - golangci-lint v2 has excellent built-in linters:
 
 ```yaml
-# .golangci.yml - RECOMMENDED: Start with defaults
+# .golangci.yml - RECOMMENDED for local development
 version: 2  # REQUIRED - must be numeric 2, NOT "v2" or "2.0"
 
 run:
   timeout: 5m  # Optional: only if you need more time
 ```
+
+**For CI/CD environments (GitHub Actions)**, add skip paths to prevent cache scanning errors:
+
+```yaml
+# .golangci.yml - RECOMMENDED for GitHub Actions
+version: 2
+
+run:
+  timeout: 5m
+  # Critical: prevent scanning cached dependencies in CI
+  skip-dirs:
+    - vendor
+    - node_modules
+    - .git
+  skip-files:
+    - '*.pb.go'
+    - '*_generated.go'
+
+linters:
+  enable:
+    - errcheck      # Catch unchecked errors
+    - staticcheck   # Detect bugs and style issues
+    - unused        # Find unused code
+    - gosimple      # Suggest simpler code
+    - govet         # Standard Go static analysis
+```
+
+**Why these skip paths are essential in CI/CD:**
+- 🚨 **Prevents Errors**: Without skip-dirs, golangci-lint may scan `/opt/hostedcache/` causing "Cannot open: file exists" errors in GitHub Actions
+- 📦 **Excludes Dependencies**: vendor/ and node_modules/ are external code you shouldn't lint
+- 🤖 **Skips Generated Files**: *.pb.go and *_generated.go are auto-generated, not manually written code
+- 📁 **.git Exclusion**: Version control metadata contains no Go code
 
 **Why minimal configuration is better:**
 - ✅ golangci-lint v2 enables sensible default linters automatically
@@ -412,9 +444,11 @@ linters:
 - ❌ Missing the field entirely
 - ❌ Listing all linters manually - let golangci-lint use its defaults
 - ❌ Using v1 schema fields (`linters-settings`, `issues.exclude-rules`) with v2
+- ❌ Missing skip-dirs in CI/CD - Will scan cached dependencies causing errors
 - ✅ `version: 2` - Correct
 - ✅ `version: "2"` - Also correct
 - ✅ Minimal config relying on defaults - Best practice
+- ✅ Include skip-dirs for vendor, node_modules, .git in CI configs - Essential for GitHub Actions
 - ✅ `linters.settings` - Correct v2 schema for linter settings (if needed)
 - ✅ `linters.exclusions` - Correct v2 schema for exclusion rules (if needed)
 

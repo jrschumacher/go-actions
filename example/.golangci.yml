@@ -1,97 +1,57 @@
+version: 2
+
 run:
   timeout: 5m
   tests: true
+  # CI/CD: Prevent scanning cached dependencies and generated files
+  skip-dirs:
+    - vendor
+    - node_modules
+    - .git
+  skip-files:
+    - '*.pb.go'
+    - '*_generated.go'
 
-linters:
+linters:  # ← Single linters block with all config nested inside
   enable:
-    - asciicheck
-    - bodyclose
-    - dogsled
-    - dupl
     - errcheck
-    - errorlint
-    - exportloopref
-    - gci
-    - gochecknoinits
-    - gocognit
-    - goconst
-    - gocritic
-    - gocyclo
-    - godot
-    - gofmt
-    - gofumpt
-    - goheader
-    - goimports
-    - gomodguard
-    - goprintffuncname
-    - gosec
+    - staticcheck
+    - unused
     - gosimple
     - govet
+    - gofmt
+    - goimports
     - ineffassign
-    - lll
-    - makezero
     - misspell
-    - nakedret
-    - nilerr
-    - nlreturn
-    - noctx
-    - prealloc
-    - predeclared
+    - gocritic
     - revive
-    - staticcheck
     - stylecheck
-    - tagliatelle
-    - thelper
-    - typecheck
-    - unconvert
-    - unparam
-    - unused
-    - whitespace
-    - wsl
 
-linters-settings:
-  govet:
-    check-shadowing: true
-  gocyclo:
-    min-complexity: 15
-  goconst:
-    min-len: 3
-    min-occurrences: 3
-  misspell:
-    locale: US
-  lll:
-    line-length: 120
-  gofumpt:
-    extra-rules: true
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
+  # v2 schema: linter-specific settings (nested under linters:)
+  settings:
+    govet:
+      check-shadowing: true
+    misspell:
+      locale: US
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
 
-issues:
-  exclude-use-default: false
-  exclude-rules:
-    # Exclude some linters from running on tests files.
-    - path: _test\.go
-      linters:
-        - gocyclo
-        - errcheck
-        - dupl
-        - gosec
-        - lll
-    # Ignore complexity in main function for example purposes
-    - path: main\.go
-      text: "cognitive complexity"
-      linters:
-        - gocognit
-    # Allow long functions in main for demonstration
-    - path: main\.go
-      text: "Function 'main' is too long"
-      linters:
-        - revive
+  # v2 schema: exclusion rules (nested under linters:, replaces issues.exclude-rules)
+  exclusions:
+    rules:
+      # Exclude some linters from running on tests files
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+      # Allow complexity in main function for example purposes
+      - path: main\.go
+        text: "cognitive complexity"
+        linters:
+          - gocognit
 
 output:
   format: colored-line-number
