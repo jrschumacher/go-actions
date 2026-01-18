@@ -113,6 +113,19 @@ export class ProjectValidator {
         return { isValid: false, errors, warnings };
       }
 
+      // Check for v1 schema fields being used with v2
+      if (config.linters_settings) {
+        errors.push('❌ v2 schema error: "linters_settings" is not valid in v2');
+        errors.push('   Use "linters.settings" instead (note: nested under linters)');
+        return { isValid: false, errors, warnings };
+      }
+
+      if (config.issues && config.issues.exclude_rules) {
+        errors.push('❌ v2 schema error: "issues.exclude_rules" is not valid in v2');
+        errors.push('   Use "linters.exclusions.rules" instead');
+        return { isValid: false, errors, warnings };
+      }
+
       // Check for deprecated settings (v2 migration patterns)
       if (config.linters && config.linters.enable_all) {
         warnings.push('⚠️  "linters.enable-all" is deprecated in v2, use "linters.preset: all" instead');

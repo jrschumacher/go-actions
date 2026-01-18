@@ -458,11 +458,9 @@ class WorkflowValidator {
             templates += '    - staticcheck\n';
             templates += '    - ineffassign\n';
             templates += '    - misspell\n';
-            templates += '\n';
-            templates += 'issues:\n';
-            templates += '  exclude-use-default: false\n';
             templates += '```\n';
-            templates += '*💡 The `version: 2` field is mandatory for golangci-lint v2.x*\n\n';
+            templates += '*💡 The `version: 2` field is mandatory for golangci-lint v2.x*\n';
+            templates += '*⚠️  v2 schema changes: use `linters.settings` not `linters-settings`, and `linters.exclusions` not `issues.exclude-rules`*\n\n';
         }
         // Release Please templates
         if (errorsByType.missing_file?.some(e => e.file?.includes('release-please'))) {

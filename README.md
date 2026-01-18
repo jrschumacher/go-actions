@@ -312,7 +312,7 @@ jobs:
 **Solution**: Add `version: 2` (or `version: "2"`) to the top of your configuration file:
 
 ```yaml
-# .golangci.yml
+# .golangci.yml - Minimal v2 configuration
 version: 2  # REQUIRED - must be numeric 2, NOT "v2" or "2.0"
 
 run:
@@ -327,17 +327,44 @@ linters:
     - staticcheck
     - ineffassign
     - misspell
+```
 
-issues:
-  exclude-use-default: false
+**Advanced configuration** (v2 schema - note the different structure):
+```yaml
+version: 2
+
+run:
+  timeout: 5m
+  go: '1.24'
+
+linters:
+  enable:
+    - gofmt
+    - govet
+    - errcheck
+
+  # v2 schema: Use 'settings' not 'linters-settings'
+  settings:
+    govet:
+      check-shadowing: true
+
+  # v2 schema: Use 'exclusions' not 'issues.exclude-rules'
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
 ```
 
 **Common Mistakes**:
 - ❌ `version: v2` - Don't use "v" prefix
 - ❌ `version: 2.0` - Use `2`, not `2.0`
 - ❌ Missing the field entirely
+- ❌ Using v1 schema fields (`linters-settings`, `issues.exclude-rules`) with v2
 - ✅ `version: 2` - Correct
 - ✅ `version: "2"` - Also correct
+- ✅ `linters.settings` - Correct v2 schema for linter settings
+- ✅ `linters.exclusions` - Correct v2 schema for exclusion rules
 
 **Why**: This is the #1 cause of lint failures. golangci-lint v2.x made the version field mandatory to help with migration and compatibility.
 

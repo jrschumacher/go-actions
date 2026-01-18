@@ -139,7 +139,11 @@ npm run test:coverage # Run tests with coverage report
 - **The `version: 2` field is MANDATORY** in `.golangci.yml` for golangci-lint v2.x
 - **This is the #1 cause of lint failures** - error: "can't load config: unsupported version of the configuration: ''"
 - **Always include** `version: 2` (numeric 2, NOT "v2" or "2.0") at the top of any `.golangci.yml` file
-- **Common mistakes**: `version: v2` (wrong - no "v" prefix), `version: 2.0` (wrong - use `2`)
+- **Common mistakes**:
+  - `version: v2` (wrong - no "v" prefix)
+  - `version: 2.0` (wrong - use `2`)
+  - Using v1 schema fields: `linters-settings` → use `linters.settings` in v2
+  - Using v1 schema fields: `issues.exclude-rules` → use `linters.exclusions.rules` in v2
 - **Correct values**: `version: 2` or `version: "2"` (both work)
 - **Self-validate will detect** missing or incorrect version field and provide the exact fix in PR comments
 - **Example minimal config**:
@@ -158,9 +162,32 @@ npm run test:coverage # Run tests with coverage report
       - staticcheck
       - ineffassign
       - misspell
+  ```
+- **Example with settings and exclusions** (v2 schema):
+  ```yaml
+  version: 2
 
-  issues:
-    exclude-use-default: false
+  run:
+    timeout: 5m
+    go: '1.24'
+
+  linters:
+    enable:
+      - gofmt
+      - govet
+      - errcheck
+
+    # v2 schema: linter-specific settings
+    settings:
+      govet:
+        check-shadowing: true
+
+    # v2 schema: exclusion rules
+    exclusions:
+      rules:
+        - path: _test\.go
+          linters:
+            - errcheck
   ```
 
 ### Development Workflow

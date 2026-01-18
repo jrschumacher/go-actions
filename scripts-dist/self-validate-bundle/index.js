@@ -87046,6 +87046,17 @@ class ProjectValidator {
                 errors.push('   See https://golangci-lint.run/product/migration-guide for migration instructions');
                 return { isValid: false, errors, warnings };
             }
+            // Check for v1 schema fields being used with v2
+            if (config.linters_settings) {
+                errors.push('❌ v2 schema error: "linters_settings" is not valid in v2');
+                errors.push('   Use "linters.settings" instead (note: nested under linters)');
+                return { isValid: false, errors, warnings };
+            }
+            if (config.issues && config.issues.exclude_rules) {
+                errors.push('❌ v2 schema error: "issues.exclude_rules" is not valid in v2');
+                errors.push('   Use "linters.exclusions.rules" instead');
+                return { isValid: false, errors, warnings };
+            }
             // Check for deprecated settings (v2 migration patterns)
             if (config.linters && config.linters.enable_all) {
                 warnings.push('⚠️  "linters.enable-all" is deprecated in v2, use "linters.preset: all" instead');
@@ -87659,11 +87670,9 @@ class WorkflowValidator {
             templates += '    - staticcheck\n';
             templates += '    - ineffassign\n';
             templates += '    - misspell\n';
-            templates += '\n';
-            templates += 'issues:\n';
-            templates += '  exclude-use-default: false\n';
             templates += '```\n';
-            templates += '*💡 The `version: 2` field is mandatory for golangci-lint v2.x*\n\n';
+            templates += '*💡 The `version: 2` field is mandatory for golangci-lint v2.x*\n';
+            templates += '*⚠️  v2 schema changes: use `linters.settings` not `linters-settings`, and `linters.exclusions` not `issues.exclude-rules`*\n\n';
         }
         // Release Please templates
         if (errorsByType.missing_file?.some(e => e.file?.includes('release-please'))) {

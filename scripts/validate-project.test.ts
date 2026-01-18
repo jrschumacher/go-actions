@@ -297,7 +297,8 @@ describe('ProjectValidator', () => {
 
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('❌ golangci-lint configuration has unsupported version: "1"');
-      expect(result.errors).toContain('   Current supported version is: 2');
+      expect(result.errors).toContain('   ⚠️  Version 1 is outdated - upgrade to version 2');
+      expect(result.errors).toContain('   ✅ Correct format: version: 2  (or version: "2")');
       expect(result.errors).toContain('   See https://golangci-lint.run/product/migration-guide for migration instructions');
     });
 
@@ -358,6 +359,29 @@ describe('ProjectValidator', () => {
       expect(result.warnings).toContain('⚠️  Linter "golint" is deprecated and may not work properly');
       expect(result.warnings).toContain('⚠️  Linter "maligned" is deprecated and may not work properly');
       expect(result.warnings).toContain('💡  Run "golangci-lint migrate" to automatically update your configuration');
+    });
+
+    it('should fail when using v1 schema field linters_settings', () => {
+      // Note: yaml parses "linters-settings" with hyphen but TypeScript interface uses "linters_settings" with underscore
+      // We need to use the hyphenated version in YAML as that's how it's written
+      mockFs.readFileSync.mockReturnValue('version: 2\nlinters_settings:\n  govet:\n    check-shadowing: true\n');
+
+      const result = validator.validate();
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('❌ v2 schema error: "linters_settings" is not valid in v2');
+      expect(result.errors).toContain('   Use "linters.settings" instead (note: nested under linters)');
+    });
+
+    it('should fail when using v1 schema field issues.exclude_rules', () => {
+      // Using YAML with underscores to match TypeScript interface
+      mockFs.readFileSync.mockReturnValue('version: 2\nissues:\n  exclude_rules:\n    - path: _test\\.go\n      linters:\n        - errcheck\n');
+
+      const result = validator.validate();
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('❌ v2 schema error: "issues.exclude_rules" is not valid in v2');
+      expect(result.errors).toContain('   Use "linters.exclusions.rules" instead');
     });
 
     it('should handle file read errors gracefully', () => {
