@@ -2,6 +2,8 @@
 
 Composite GitHub Actions for Go projects. Provides CI (test, lint, benchmark), release automation, and configuration validation.
 
+> **📖 For AI Agents & Claude Code**: See [CLAUDE.md](./CLAUDE.md) for detailed guidance on using this repository, including critical configuration requirements and common pitfalls to avoid.
+
 ## Quick Start
 
 ### Minimal CI Workflow
@@ -307,11 +309,11 @@ jobs:
 
 **Problem**: golangci-lint v2 requires an explicit `version` field in `.golangci.yml`
 
-**Solution**: Add `version: 2` to the top of your configuration file:
+**Solution**: Add `version: 2` (or `version: "2"`) to the top of your configuration file:
 
 ```yaml
 # .golangci.yml
-version: 2  # REQUIRED for golangci-lint v2
+version: 2  # REQUIRED - must be numeric 2, NOT "v2" or "2.0"
 
 run:
   timeout: 5m
@@ -329,6 +331,13 @@ linters:
 issues:
   exclude-use-default: false
 ```
+
+**Common Mistakes**:
+- ❌ `version: v2` - Don't use "v" prefix
+- ❌ `version: 2.0` - Use `2`, not `2.0`
+- ❌ Missing the field entirely
+- ✅ `version: 2` - Correct
+- ✅ `version: "2"` - Also correct
 
 **Why**: This is the #1 cause of lint failures. golangci-lint v2.x made the version field mandatory to help with migration and compatibility.
 

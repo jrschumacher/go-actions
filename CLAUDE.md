@@ -138,11 +138,13 @@ npm run test:coverage # Run tests with coverage report
 **CRITICAL: golangci-lint v2 Configuration Requirement**
 - **The `version: 2` field is MANDATORY** in `.golangci.yml` for golangci-lint v2.x
 - **This is the #1 cause of lint failures** - error: "can't load config: unsupported version of the configuration: ''"
-- **Always include** `version: 2` at the top of any `.golangci.yml` file you create
-- **Self-validate will detect** missing version field and provide the exact fix in PR comments
+- **Always include** `version: 2` (numeric 2, NOT "v2" or "2.0") at the top of any `.golangci.yml` file
+- **Common mistakes**: `version: v2` (wrong - no "v" prefix), `version: 2.0` (wrong - use `2`)
+- **Correct values**: `version: 2` or `version: "2"` (both work)
+- **Self-validate will detect** missing or incorrect version field and provide the exact fix in PR comments
 - **Example minimal config**:
   ```yaml
-  version: 2  # REQUIRED
+  version: 2  # REQUIRED - numeric 2, NOT "v2" or "2.0"
 
   run:
     timeout: 5m

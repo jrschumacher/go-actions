@@ -87029,9 +87029,20 @@ class ProjectValidator {
                 return { isValid: false, errors, warnings };
             }
             // Validate version value
+            const versionStr = String(config.version);
             if (config.version !== 2 && config.version !== "2") {
                 errors.push(`❌ golangci-lint configuration has unsupported version: "${config.version}"`);
-                errors.push('   Current supported version is: 2');
+                // Provide specific guidance for common mistakes
+                if (versionStr === 'v2' || versionStr === 'V2') {
+                    errors.push('   ⚠️  Common mistake: Remove the "v" prefix - use "2" not "v2"');
+                }
+                else if (versionStr === '2.0' || versionStr === '2.1') {
+                    errors.push('   ⚠️  Common mistake: Use integer "2" not "2.0" or "2.1"');
+                }
+                else if (versionStr === '1' || versionStr === 'v1') {
+                    errors.push('   ⚠️  Version 1 is outdated - upgrade to version 2');
+                }
+                errors.push('   ✅ Correct format: version: 2  (or version: "2")');
                 errors.push('   See https://golangci-lint.run/product/migration-guide for migration instructions');
                 return { isValid: false, errors, warnings };
             }
