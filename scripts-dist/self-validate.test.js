@@ -37,15 +37,18 @@ const self_validate_1 = require("./self-validate");
 const core = __importStar(require("@actions/core"));
 const github = __importStar(require("@actions/github"));
 const workflow_validator_1 = require("./workflow-validator");
+const validate_project_1 = require("./validate-project");
 const unified_pr_comment_1 = require("./unified-pr-comment");
 // Mock dependencies
 jest.mock('@actions/core');
 jest.mock('@actions/github');
 jest.mock('./workflow-validator');
+jest.mock('./validate-project');
 jest.mock('./unified-pr-comment');
 const mockCore = core;
 const mockGithub = github;
 const mockValidateWorkflows = workflow_validator_1.validateWorkflows;
+const mockValidateProject = validate_project_1.validateProject;
 const mockWorkflowValidator = workflow_validator_1.WorkflowValidator;
 const mockSetProcessingState = unified_pr_comment_1.setProcessingState;
 describe('SelfValidator', () => {
@@ -62,6 +65,12 @@ describe('SelfValidator', () => {
                 issue: { number: 123 }
             },
             writable: true
+        });
+        // Mock validateProject to return successful validation by default
+        mockValidateProject.mockReturnValue({
+            isValid: true,
+            errors: [],
+            warnings: []
         });
     });
     describe('validate', () => {
@@ -84,9 +93,10 @@ describe('SelfValidator', () => {
             mockValidateWorkflows.mockReturnValue(mockResult);
             const result = await validator.validate();
             expect(mockValidateWorkflows).toHaveBeenCalledWith(testWorkingDir);
+            expect(mockValidateProject).toHaveBeenCalledWith(testWorkingDir);
             expect(mockCore.setOutput).toHaveBeenCalledWith('actions_found', 'ci,release');
             expect(mockCore.setOutput).toHaveBeenCalledWith('validation_failed', 'false');
-            expect(result).toBe(mockResult);
+            expect(result).toStrictEqual(mockResult);
         });
         it('should handle validation failures', async () => {
             const mockResult = {
@@ -101,7 +111,7 @@ describe('SelfValidator', () => {
             expect(mockCore.setOutput).toHaveBeenCalledWith('validation_failed', 'true');
             expect(mockCore.setOutput).toHaveBeenCalledWith('error_messages', '- Missing go.mod file');
             expect(mockCore.setFailed).toHaveBeenCalledWith('Validation failed with 1 error(s)');
-            expect(result).toBe(mockResult);
+            expect(result).toStrictEqual(mockResult);
         });
         it('should handle multiple validation errors', async () => {
             const mockResult = {

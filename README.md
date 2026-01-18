@@ -2,6 +2,8 @@
 
 Composite GitHub Actions for Go projects. Provides CI (test, lint, benchmark), release automation, and configuration validation.
 
+> **📖 For AI Agents & Claude Code**: See [CLAUDE.md](./CLAUDE.md) for detailed guidance on using this repository, including critical configuration requirements and common pitfalls to avoid.
+
 ## Quick Start
 
 ### Minimal CI Workflow
@@ -298,6 +300,127 @@ jobs:
 | `.release-please-config.json` | release | Release Please configuration |
 | `.release-please-manifest.json` | release | Version tracking |
 | `.goreleaser.yaml` | release | GoReleaser configuration |
+
+---
+
+## Common Issues & Solutions
+
+### ❌ Lint Failure: "can't load config: unsupported version of the configuration"
+
+**Problem**: golangci-lint v2 requires an explicit `version` field in `.golangci.yml`
+
+**Solution**: Add `version: 2` and **trust the defaults** - golangci-lint v2 has excellent built-in linters:
+
+```yaml
+# .golangci.yml - RECOMMENDED: Start with defaults
+version: 2  # REQUIRED - must be numeric 2, NOT "v2" or "2.0"
+
+run:
+  timeout: 5m  # Optional: only if you need more time
+```
+
+**Why minimal configuration is better:**
+- ✅ golangci-lint v2 enables sensible default linters automatically
+- ✅ You get new linter improvements in future releases without config changes
+- ✅ Less to maintain, easier to understand
+- ✅ Team members don't need to learn your custom linter selection
+
+**Only customize when you have specific needs:**
+```yaml
+version: 2
+
+run:
+  timeout: 5m
+  go: '1.24'  # Only specify if you need a specific Go version
+
+# Optional: only enable additional linters if defaults aren't sufficient
+linters:
+  enable:
+    - gofmt
+    - govet
+    - errcheck
+```
+
+**Real-world example** (balanced approach from [workctl](https://github.com/jrschumacher/workctl)):
+```yaml
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+    - unparam
+  settings:
+    misspell:
+      locale: US
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/your-org/your-repo  # Replace with your module path
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+```
+
+*💡 This shows a production-tested configuration that enables essential linters without over-configuration. It's a good starting point if you need more than the defaults.*
+
+**Advanced configuration** (only if you need custom settings):
+```yaml
+version: 2
+
+run:
+  timeout: 5m
+  go: '1.24'
+
+linters:
+  enable:
+    - gofmt
+    - govet
+    - errcheck
+
+  # v2 schema: Use 'settings' not 'linters-settings'
+  settings:
+    govet:
+      check-shadowing: true
+
+  # v2 schema: Use 'exclusions' not 'issues.exclude-rules'
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+```
+
+**Common Mistakes**:
+- ❌ `version: v2` - Don't use "v" prefix
+- ❌ `version: 2.0` - Use `2`, not `2.0`
+- ❌ Missing the field entirely
+- ❌ Listing all linters manually - let golangci-lint use its defaults
+- ❌ Using v1 schema fields (`linters-settings`, `issues.exclude-rules`) with v2
+- ✅ `version: 2` - Correct
+- ✅ `version: "2"` - Also correct
+- ✅ Minimal config relying on defaults - Best practice
+- ✅ `linters.settings` - Correct v2 schema for linter settings (if needed)
+- ✅ `linters.exclusions` - Correct v2 schema for exclusion rules (if needed)
+
+**Why**: This is the #1 cause of lint failures. golangci-lint v2.x made the version field mandatory to help with migration and compatibility.
+
+**Auto-Detection**: The `self-validate` action automatically detects this issue and provides the fix in PR comments.
 
 ---
 

@@ -135,6 +135,117 @@ npm run test:coverage # Run tests with coverage report
 - Supports both `.golangci.yml` and `.golangci.yaml` formats
 - Validates major version compatibility (v1 vs v2)
 
+**CRITICAL: golangci-lint v2 Configuration Requirement**
+- **The `version: 2` field is MANDATORY** in `.golangci.yml` for golangci-lint v2.x
+- **This is the #1 cause of lint failures** - error: "can't load config: unsupported version of the configuration: ''"
+- **Always include** `version: 2` (numeric 2, NOT "v2" or "2.0") at the top of any `.golangci.yml` file
+- **Common mistakes**:
+  - `version: v2` (wrong - no "v" prefix)
+  - `version: 2.0` (wrong - use `2`)
+  - Using v1 schema fields: `linters-settings` → use `linters.settings` in v2
+  - Using v1 schema fields: `issues.exclude-rules` → use `linters.exclusions.rules` in v2
+- **Correct values**: `version: 2` or `version: "2"` (both work)
+- **Self-validate will detect** missing or incorrect version field and provide the exact fix in PR comments
+
+**RECOMMENDED: Start with defaults, customize only when needed**
+- **Philosophy**: golangci-lint v2 has excellent defaults - use them!
+- **Minimal config is best**: Only add configuration when you need to override defaults
+- **Don't over-configure**: Avoid specifying every linter - let golangci-lint choose sensible defaults
+
+**Example ultra-minimal config** (RECOMMENDED for new projects):
+  ```yaml
+  version: 2  # That's it! golangci-lint will use sensible defaults
+
+  run:
+    timeout: 5m  # Optional: increase if needed
+  ```
+
+**Real-world example** (from [workctl](https://github.com/jrschumacher/workctl)) - balanced approach:
+  ```yaml
+  version: "2"
+
+  run:
+    timeout: 5m
+    modules-download-mode: readonly
+
+  linters:
+    enable:
+      - errcheck
+      - govet
+      - ineffassign
+      - staticcheck
+      - unused
+      - misspell
+      - unconvert
+      - unparam
+    settings:
+      misspell:
+        locale: US
+
+  formatters:
+    enable:
+      - gofmt
+      - goimports
+    settings:
+      goimports:
+        local-prefixes:
+          - github.com/your-org/your-repo
+
+  issues:
+    max-issues-per-linter: 0
+    max-same-issues: 0
+  ```
+
+**When to grow from minimal to customized:**
+- Start ultra-minimal when setting up a new project
+- Add specific linters when you need stricter checks
+- Configure settings when defaults don't fit your needs
+- The workctl example shows a balanced, production-ready approach
+
+- **If you need to customize** - only add what you actually need:
+  ```yaml
+  version: 2
+
+  run:
+    timeout: 5m
+    go: '1.24'  # Only if you need specific Go version
+
+  # Optional: Only enable specific linters if defaults aren't enough
+  linters:
+    enable:
+      - gofmt
+      - govet
+      - errcheck
+      - staticcheck
+  ```
+
+- **Advanced: with settings and exclusions** (only if you need them):
+  ```yaml
+  version: 2
+
+  run:
+    timeout: 5m
+    go: '1.24'
+
+  linters:
+    enable:
+      - gofmt
+      - govet
+      - errcheck
+
+    # v2 schema: linter-specific settings
+    settings:
+      govet:
+        check-shadowing: true
+
+    # v2 schema: exclusion rules
+    exclusions:
+      rules:
+        - path: _test\.go
+          linters:
+            - errcheck
+  ```
+
 ### Development Workflow
 1. Make changes to TypeScript files in `scripts/`
 2. Add/update tests in corresponding `.test.ts` files

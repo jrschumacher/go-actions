@@ -398,6 +398,16 @@ export class WorkflowValidator {
           issueNumber++;
         }
       }
+
+      // golangci-lint missing version field
+      if (errorsByType.missing_file?.some(e => e.file === '.golangci.yml' && e.message.includes('version'))) {
+        comment += `${issueNumber}. **golangci-lint Configuration** - Missing required version field\n`;
+        comment += '   - ❌ Error: `can\'t load config: unsupported version of the configuration: ""`\n';
+        comment += '   - ✅ Required: Add `version: 2` to your .golangci.yml file\n';
+        comment += '   - 🚨 **This is the #1 cause of lint failures** - the version field is mandatory for v2\n';
+        comment += '   - 🔧 See the complete template below with all required fields\n\n';
+        issueNumber++;
+      }
     }
     
     // Passing Checks section
@@ -484,7 +494,35 @@ export class WorkflowValidator {
   
   private generateConfigurationTemplates(errorsByType: Record<string, ValidationError[]>): string {
     let templates = '';
-    
+
+    // golangci-lint configuration missing version field
+    if (errorsByType.missing_file?.some(e => e.file === '.golangci.yml' && e.message.includes('version'))) {
+      templates += '**`.golangci.yml` - RECOMMENDED: Start minimal, use defaults:**\n';
+      templates += '```yaml\n';
+      templates += '# golangci-lint v2 has excellent defaults - trust them!\n';
+      templates += 'version: 2  # REQUIRED\n';
+      templates += '\n';
+      templates += 'run:\n';
+      templates += '  timeout: 5m  # Optional: only if you need more time\n';
+      templates += '```\n\n';
+      templates += '**If you need to customize** (only add what you actually need):\n';
+      templates += '```yaml\n';
+      templates += 'version: 2\n';
+      templates += '\n';
+      templates += 'run:\n';
+      templates += '  timeout: 5m\n';
+      templates += '\n';
+      templates += '# Optional: only enable additional linters if defaults aren\'t enough\n';
+      templates += 'linters:\n';
+      templates += '  enable:\n';
+      templates += '    - gofmt\n';
+      templates += '    - govet\n';
+      templates += '    - errcheck\n';
+      templates += '```\n';
+      templates += '*💡 Tip: golangci-lint v2 enables sensible default linters - you usually don\'t need to list them all*\n';
+      templates += '*⚠️  v2 schema changes: use `linters.settings` not `linters-settings`, and `linters.exclusions` not `issues.exclude-rules`*\n\n';
+    }
+
     // Release Please templates
     if (errorsByType.missing_file?.some(e => e.file?.includes('release-please'))) {
       templates += '**`release-please-config.json`:**\n';
@@ -500,7 +538,7 @@ export class WorkflowValidator {
       templates += '  }\n';
       templates += '}\n';
       templates += '```\n\n';
-      
+
       templates += '**`.release-please-manifest.json`:**\n';
       templates += '```json\n';
       templates += '{\n';
