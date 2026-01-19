@@ -197,38 +197,46 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       continue-on-error: true
       run: |
-        exit_code=0
-        json_exit_code=0
-        status_code=0
+        set +e  # Don't exit on error, we want to handle it ourselves
+
+        # Run golangci-lint with both JSON and text output (v2 config approach)
+        # Create a temporary config to enable multiple outputs
+        cat > /tmp/golangci-lint-output.yml << 'EOF'
+        version: "2"
+        output:
+          formats:
+            json:
+              path: golangci-lint-report.json
+            text:
+              path: stdout
+              colors: true
+        EOF
+
+        # Run golangci-lint with the output config
+        golangci-lint run ${{ inputs.lint-args }} --config=/tmp/golangci-lint-output.yml
+        lint_exit_code=$?
+
+        # Determine if there are actual linting issues vs other errors
         issues_found=0
-
-        # Run with JSON output to capture issues for PR comment (v2 syntax)
-        golangci-lint run ${{ inputs.lint-args }} --output.json.path=golangci-lint-report.json 2>&1 || json_exit_code=$?
-
-        # Also run with colored output for GitHub Actions logs (v2 syntax)
-        golangci-lint run ${{ inputs.lint-args }} --output.text.path=stdout --output.text.colors=true || exit_code=$?
-
-        # Determine status based on JSON issues or exit codes
-        if [ -s golangci-lint-report.json ]; then
+        if [ -f golangci-lint-report.json ] && [ -s golangci-lint-report.json ]; then
+          # Check if JSON has actual issues
           if grep -Eq '"Issues"[[:space:]]*:[[:space:]]*\[' golangci-lint-report.json; then
             issues_found=1
           fi
         fi
 
+        # Set output based on whether we found issues
         if [ "$issues_found" -eq 1 ]; then
-          status_code=1
-        elif [ "$json_exit_code" -ne 0 ]; then
-          status_code=$json_exit_code
-        elif [ "$exit_code" -ne 0 ]; then
-          status_code=$exit_code
-        fi
-
-        if [ "$status_code" -ne 0 ]; then
           echo "exit-code=1" >> $GITHUB_OUTPUT
           exit 1
+        elif [ "$lint_exit_code" -ne 0 ]; then
+          # golangci-lint failed for some other reason (config error, etc)
+          echo "exit-code=1" >> $GITHUB_OUTPUT
+          exit 1
+        else
+          echo "exit-code=0" >> $GITHUB_OUTPUT
+          exit 0
         fi
-
-        echo "exit-code=0" >> $GITHUB_OUTPUT
 
     - name: Store lint results
       if: inputs.job == 'lint' && always()
