@@ -141,10 +141,38 @@ npm run test:coverage # Run tests with coverage report
 - Self-validate runs without Go setup for lightweight validation
 
 ### golangci-lint Version Management
-- Default version is `v2.1.0` (can be overridden with `golangci-lint-version`, auto-converts `v2`/`latest`)
+- Default version is `v2.0.2` (latest stable v2, can be overridden with `golangci-lint-version`, auto-converts `v2`/`latest`)
 - Self-validate checks version compatibility between workflow and config file
 - Supports both `.golangci.yml` and `.golangci.yaml` formats
 - Validates major version compatibility (v1 vs v2)
+
+**Version Update Process**:
+
+The CI action uses manual installation of golangci-lint (not golangci-lint-action) to avoid cache collision issues. The version is pinned to `v2.0.2` for reproducibility.
+
+**To update to a newer v2.x version**:
+1. Check [golangci-lint releases](https://github.com/golangci/golangci-lint/releases) for new v2.x versions
+2. Update `ci/action.yaml` line ~169: Change `version="v2.0.2"` to `version="v2.X.Y"`
+3. Test the change:
+   - Run `npm test` to ensure TypeScript tests pass
+   - Test in a real workflow with actual Go projects
+   - Verify the new version doesn't introduce breaking changes
+4. Update the default in `ci/action.yaml` input description (line ~30)
+5. Document any breaking changes or new features in commit message
+6. Consider updating README.md examples if version behavior changes
+
+**Maintenance Schedule**: Check for new v2.x releases quarterly to catch:
+- Security patches
+- Performance improvements
+- New linter support
+- Bug fixes
+
+**Why Manual Installation**:
+- Eliminates cache collision errors (`gtar: Cannot open: File exists`)
+- Provides direct control over installation process
+- Better error visibility and troubleshooting
+- No dependency on third-party action maintenance
+- Faster execution without cache restoration overhead
 
 **CRITICAL: golangci-lint v2 Configuration Requirement**
 - **The `version: 2` field is MANDATORY** in `.golangci.yml` for golangci-lint v2.x

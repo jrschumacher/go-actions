@@ -27,9 +27,9 @@ inputs:
   
   # Lint job specific inputs
   golangci-lint-version:
-    description: 'golangci-lint version (lint job only). Use v2.1.0+ or v2/latest (auto-converted to v2.1.0)'
+    description: 'golangci-lint version (lint job only). Use v2.0.2+ or v2/latest (auto-converted to v2.0.2)'
     required: false
-    default: 'v2.1.0'
+    default: 'v2.0.2'
   lint-args:
     description: 'Additional arguments for golangci-lint (lint job only)'
     required: false
@@ -164,9 +164,9 @@ runs:
       id: normalize-version
       run: |
         version="${{ inputs.golangci-lint-version }}"
-        # Convert generic v2 to specific version for golangci-lint-action@v8 compatibility
+        # Convert generic v2/latest to a pinned version for reproducible installs
         if [ "$version" = "v2" ] || [ "$version" = "latest" ]; then
-          version="v2.1.0"
+          version="v2.0.2"
         fi
         echo "normalized-version=$version" >> $GITHUB_OUTPUT
         echo "Using golangci-lint version: $version"
@@ -179,6 +179,17 @@ runs:
         curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin $version
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
+    - name: Validate golangci-lint installation
+      if: inputs.job == 'lint'
+      shell: bash
+      run: |
+        if ! command -v golangci-lint &> /dev/null; then
+          echo "::error::golangci-lint installation failed - binary not found in PATH"
+          exit 1
+        fi
+        echo "✅ golangci-lint installation verified"
+        golangci-lint version
+
     - name: Run golangci-lint
       if: inputs.job == 'lint'
       id: golangci-lint
@@ -186,29 +197,46 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       continue-on-error: true
       run: |
-        exit_code=0
-        json_exit_code=0
+        set +e  # Don't exit on error, we want to handle it ourselves
 
-        # Run with JSON output to capture issues for PR comment
-        golangci-lint run ${{ inputs.lint-args }} --out-format=json > golangci-lint-report.json 2>&1 || json_exit_code=$?
+        # Run golangci-lint with both JSON and text output (v2 config approach)
+        # Create a temporary config to enable multiple outputs
+        cat > /tmp/golangci-lint-output.yml << 'EOF'
+        version: "2"
+        output:
+          formats:
+            json:
+              path: golangci-lint-report.json
+            text:
+              path: stdout
+              colors: true
+        EOF
 
-        # Also run with colored output for GitHub Actions logs
-        golangci-lint run ${{ inputs.lint-args }} --out-format=colored-line-number || exit_code=$?
+        # Run golangci-lint with the output config
+        golangci-lint run ${{ inputs.lint-args }} --config=/tmp/golangci-lint-output.yml
+        lint_exit_code=$?
 
-        # Set output based on first run (JSON)
-        if [ -s golangci-lint-report.json ]; then
-          # Check if there are actual issues in the JSON
-          if grep -q '"Issues":\[' golangci-lint-report.json; then
-            echo "exit-code=1" >> $GITHUB_OUTPUT
-            exit 1
+        # Determine if there are actual linting issues vs other errors
+        issues_found=0
+        if [ -f golangci-lint-report.json ] && [ -s golangci-lint-report.json ]; then
+          # Check if JSON has actual issues
+          if grep -Eq '"Issues"[[:space:]]*:[[:space:]]*\[' golangci-lint-report.json; then
+            issues_found=1
           fi
         fi
 
-        if [ "$json_exit_code" -ne 0 ] || [ "$exit_code" -ne 0 ]; then
+        # Set output based on whether we found issues
+        if [ "$issues_found" -eq 1 ]; then
           echo "exit-code=1" >> $GITHUB_OUTPUT
           exit 1
+        elif [ "$lint_exit_code" -ne 0 ]; then
+          # golangci-lint failed for some other reason (config error, etc)
+          echo "exit-code=1" >> $GITHUB_OUTPUT
+          exit 1
+        else
+          echo "exit-code=0" >> $GITHUB_OUTPUT
+          exit 0
         fi
-        echo "exit-code=0" >> $GITHUB_OUTPUT
 
     - name: Store lint results
       if: inputs.job == 'lint' && always()
