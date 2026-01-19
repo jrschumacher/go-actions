@@ -27,9 +27,9 @@ inputs:
   
   # Lint job specific inputs
   golangci-lint-version:
-    description: 'golangci-lint version (lint job only). Use v2.1.0+ or v2/latest (auto-converted to v2.1.0)'
+    description: 'golangci-lint version (lint job only). Use v2.0.2+ or v2/latest (auto-converted to v2.0.2)'
     required: false
-    default: 'v2.1.0'
+    default: 'v2.0.2'
   lint-args:
     description: 'Additional arguments for golangci-lint (lint job only)'
     required: false
@@ -166,7 +166,7 @@ runs:
         version="${{ inputs.golangci-lint-version }}"
         # Convert generic v2/latest to a pinned version for reproducible installs
         if [ "$version" = "v2" ] || [ "$version" = "latest" ]; then
-          version="v2.1.0"
+          version="v2.0.2"
         fi
         echo "normalized-version=$version" >> $GITHUB_OUTPUT
         echo "Using golangci-lint version: $version"
@@ -202,11 +202,11 @@ runs:
         status_code=0
         issues_found=0
 
-        # Run with JSON output to capture issues for PR comment
-        golangci-lint run ${{ inputs.lint-args }} --format=json > golangci-lint-report.json 2>&1 || json_exit_code=$?
+        # Run with JSON output to capture issues for PR comment (v2 syntax)
+        golangci-lint run ${{ inputs.lint-args }} --output.json.path=golangci-lint-report.json 2>&1 || json_exit_code=$?
 
-        # Also run with colored output for GitHub Actions logs
-        golangci-lint run ${{ inputs.lint-args }} --format=colored-line-number || exit_code=$?
+        # Also run with colored output for GitHub Actions logs (v2 syntax)
+        golangci-lint run ${{ inputs.lint-args }} --output.text.path=stdout --output.text.colors=true || exit_code=$?
 
         # Determine status based on JSON issues or exit codes
         if [ -s golangci-lint-report.json ]; then
