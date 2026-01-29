@@ -18,6 +18,11 @@ export interface BenchmarkJobResult extends BaseJobResult {
         count: number;
     };
 }
+/** Security job result type */
+export interface SecurityJobResult extends BaseJobResult {
+    vulnerabilityCount?: number;
+    issues?: string;
+}
 /** Self-validate job result type */
 export interface SelfValidateJobResult extends BaseJobResult {
     actionsFound: string[];
@@ -31,13 +36,14 @@ export interface CIResults {
     test?: TestJobResult;
     lint?: LintJobResult;
     benchmark?: BenchmarkJobResult;
+    security?: SecurityJobResult;
     selfValidate?: SelfValidateJobResult;
 }
 /**
  * Type-safe mapping from job type to its result type
  * Used for storeResults and storeJobResults functions
  */
-export type JobResultType<T extends keyof CIResults> = T extends 'test' ? TestJobResult : T extends 'lint' ? LintJobResult : T extends 'benchmark' ? BenchmarkJobResult : T extends 'selfValidate' ? SelfValidateJobResult : never;
+export type JobResultType<T extends keyof CIResults> = T extends 'test' ? TestJobResult : T extends 'lint' ? LintJobResult : T extends 'benchmark' ? BenchmarkJobResult : T extends 'security' ? SecurityJobResult : T extends 'selfValidate' ? SelfValidateJobResult : never;
 export interface PRCommentOptions {
     workingDirectory?: string;
     commentId?: string;
@@ -59,6 +65,7 @@ export declare class UnifiedPRComment {
     private formatTestDetails;
     private formatLintDetails;
     private formatBenchmarkDetails;
+    private formatSecurityDetails;
     private formatEmptyComment;
     private formatProcessingComment;
     static storeResults<T extends keyof CIResults>(jobType: T, jobResults: JobResultType<T>): Promise<void>;

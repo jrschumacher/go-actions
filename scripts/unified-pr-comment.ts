@@ -37,6 +37,12 @@ export interface BenchmarkJobResult extends BaseJobResult {
   };
 }
 
+/** Security job result type */
+export interface SecurityJobResult extends BaseJobResult {
+  vulnerabilityCount?: number;
+  issues?: string;
+}
+
 /** Self-validate job result type */
 export interface SelfValidateJobResult extends BaseJobResult {
   actionsFound: string[];
@@ -51,6 +57,7 @@ export interface CIResults {
   test?: TestJobResult;
   lint?: LintJobResult;
   benchmark?: BenchmarkJobResult;
+  security?: SecurityJobResult;
   selfValidate?: SelfValidateJobResult;
 }
 
@@ -62,6 +69,7 @@ export type JobResultType<T extends keyof CIResults> =
   T extends 'test' ? TestJobResult :
   T extends 'lint' ? LintJobResult :
   T extends 'benchmark' ? BenchmarkJobResult :
+  T extends 'security' ? SecurityJobResult :
   T extends 'selfValidate' ? SelfValidateJobResult :
   never;
 
@@ -197,6 +205,16 @@ export class UnifiedPRComment {
       comment += '\n';
     }
 
+    if (results.security && results.security.status !== 'skipped') {
+      const icon = results.security.status === 'success' ? '✅' : '🚨';
+      comment += `${icon} **Security**`;
+      if (results.security.status === 'failure') {
+        const count = results.security.vulnerabilityCount || 0;
+        comment += ` **- ${count} Vulnerabilit${count === 1 ? 'y' : 'ies'} Found!**`;
+      }
+      comment += '\n';
+    }
+
     comment += '\n';
 
     // Details sections
@@ -214,6 +232,10 @@ export class UnifiedPRComment {
 
     if (results.benchmark && results.benchmark.status !== 'skipped') {
       comment += this.formatBenchmarkDetails(results.benchmark);
+    }
+
+    if (results.security && results.security.status !== 'skipped') {
+      comment += this.formatSecurityDetails(results.security);
     }
 
     // Footer
@@ -434,6 +456,26 @@ ${selfValidate.actionsFound.length > 0 ?
     }
   }
 
+  private formatSecurityDetails(security: NonNullable<CIResults['security']>): string {
+    if (security.status === 'success') {
+      return `<details><summary>Security Details</summary>\n\n🛡️ No known vulnerabilities found in dependencies!\n\n**Tool:** govulncheck (Go Vulnerability Database)\n\n</details>\n\n`;
+    } else {
+      let issuesOutput = '';
+      const count = security.vulnerabilityCount || 0;
+
+      if (security.issues && security.issues.trim()) {
+        // The issues are already formatted markdown from security-formatter
+        issuesOutput = `\n${security.issues.trim()}\n`;
+      } else if (security.error) {
+        issuesOutput = `\n**Error:** ${security.error}\n\nPlease check the workflow logs for details.`;
+      } else {
+        issuesOutput = '\nPlease check the workflow logs for details.';
+      }
+
+      return `<details open><summary>🚨 ${count} Vulnerabilit${count === 1 ? 'y' : 'ies'} Found</summary>\n\n**Security scan detected known CVEs in your dependencies!**${issuesOutput}\n\n</details>\n\n`;
+    }
+  }
+
   private formatEmptyComment(): string {
     return `# Go Actions Report
 
@@ -494,7 +536,7 @@ Validation is in progress. Results will appear here shortly.
   // Static method to load all stored results from artifacts
   static async loadStoredResults(): Promise<CIResults> {
     const results: CIResults = {};
-    const jobTypes: (keyof CIResults)[] = ['test', 'lint', 'benchmark', 'selfValidate'];
+    const jobTypes: (keyof CIResults)[] = ['test', 'lint', 'benchmark', 'security', 'selfValidate'];
     
     // Skip artifact download if not in GitHub Actions environment
     if (!process.env.ACTIONS_RUNTIME_TOKEN) {

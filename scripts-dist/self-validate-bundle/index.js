@@ -86616,6 +86616,15 @@ class UnifiedPRComment {
             }
             comment += '\n';
         }
+        if (results.security && results.security.status !== 'skipped') {
+            const icon = results.security.status === 'success' ? '✅' : '🚨';
+            comment += `${icon} **Security**`;
+            if (results.security.status === 'failure') {
+                const count = results.security.vulnerabilityCount || 0;
+                comment += ` **- ${count} Vulnerabilit${count === 1 ? 'y' : 'ies'} Found!**`;
+            }
+            comment += '\n';
+        }
         comment += '\n';
         // Details sections
         if (results.selfValidate && results.selfValidate.status !== 'skipped') {
@@ -86629,6 +86638,9 @@ class UnifiedPRComment {
         }
         if (results.benchmark && results.benchmark.status !== 'skipped') {
             comment += this.formatBenchmarkDetails(results.benchmark);
+        }
+        if (results.security && results.security.status !== 'skipped') {
+            comment += this.formatSecurityDetails(results.security);
         }
         // Footer
         comment += '*🤖 This comment will update automatically as you push changes.*\n';
@@ -86832,6 +86844,26 @@ ${selfValidate.actionsFound.length > 0 ?
             return `<details open><summary>Benchmark Issues</summary>\n\n**Benchmarks failed!**\n\n${benchmark.error ? `**Error:** ${benchmark.error}` : ''}\n\n${benchmark.config ? `**Configuration:**\n- Args: \`${benchmark.config.args}\`\n- Runs: ${benchmark.config.count}` : ''}\n\n</details>\n\n`;
         }
     }
+    formatSecurityDetails(security) {
+        if (security.status === 'success') {
+            return `<details><summary>Security Details</summary>\n\n🛡️ No known vulnerabilities found in dependencies!\n\n**Tool:** govulncheck (Go Vulnerability Database)\n\n</details>\n\n`;
+        }
+        else {
+            let issuesOutput = '';
+            const count = security.vulnerabilityCount || 0;
+            if (security.issues && security.issues.trim()) {
+                // The issues are already formatted markdown from security-formatter
+                issuesOutput = `\n${security.issues.trim()}\n`;
+            }
+            else if (security.error) {
+                issuesOutput = `\n**Error:** ${security.error}\n\nPlease check the workflow logs for details.`;
+            }
+            else {
+                issuesOutput = '\nPlease check the workflow logs for details.';
+            }
+            return `<details open><summary>🚨 ${count} Vulnerabilit${count === 1 ? 'y' : 'ies'} Found</summary>\n\n**Security scan detected known CVEs in your dependencies!**${issuesOutput}\n\n</details>\n\n`;
+        }
+    }
     formatEmptyComment() {
         return `# Go Actions Report
 
@@ -86883,7 +86915,7 @@ Validation is in progress. Results will appear here shortly.
     // Static method to load all stored results from artifacts
     static async loadStoredResults() {
         const results = {};
-        const jobTypes = ['test', 'lint', 'benchmark', 'selfValidate'];
+        const jobTypes = ['test', 'lint', 'benchmark', 'security', 'selfValidate'];
         // Skip artifact download if not in GitHub Actions environment
         if (!process.env.ACTIONS_RUNTIME_TOKEN) {
             console.log('Skipping artifact download - not in GitHub Actions environment');
