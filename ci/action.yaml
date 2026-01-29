@@ -18,13 +18,13 @@ inputs:
     description: 'Working directory (all jobs)'
     required: false
     default: '.'
-  
+
   # Test job specific inputs
   test-args:
     description: 'Additional arguments for go test (test job only)'
     required: false
-    default: '-v -race -coverprofile=coverage.out'
-  
+    default: '-v -race -coverprofile=coverage.out ./...'
+
   # Lint job specific inputs
   golangci-lint-version:
     description: 'golangci-lint version (lint job only). Use v2.0.2+ or v2/latest (auto-converted to v2.0.2)'
@@ -34,7 +34,7 @@ inputs:
     description: 'Additional arguments for golangci-lint (lint job only)'
     required: false
     default: ''
-  
+
   # Benchmark job specific inputs
   benchmark-args:
     description: 'Additional arguments for go test -bench (benchmark job only)'
@@ -58,10 +58,16 @@ inputs:
 outputs:
   coverage:
     description: "Test coverage percentage"
-    value: ${{ steps.coverage.outputs.coverage }}
+    value: ${{ steps.run-check.outputs.coverage }}
+  issues:
+    description: "Number of lint issues found"
+    value: ${{ steps.run-check.outputs.issues }}
   vulnerabilities:
-    description: "Number of vulnerabilities found (security job only)"
-    value: ${{ steps.security.outputs.vulnerabilities }}
+    description: "Number of vulnerabilities found"
+    value: ${{ steps.run-check.outputs.vulnerabilities }}
+  status:
+    description: "Check status: pass, fail, or error"
+    value: ${{ steps.run-check.outputs.status }}
 
 runs:
   using: "composite"
@@ -76,9 +82,6 @@ runs:
           exit 1
         fi
 
-    # Note: Users should checkout their repository before calling this action
-    # This action expects the repository to already be checked out
-
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
@@ -86,255 +89,27 @@ runs:
         go-version-file: ${{ !inputs.go-version && inputs.go-version-file || '' }}
 
     - name: Build go-actions CLI
-      id: build-cli
       shell: bash
       run: |
         echo "Building go-actions CLI..."
         cd "${{ github.action_path }}/../cli"
         go build -o /tmp/go-actions .
-        echo "cli-path=/tmp/go-actions" >> $GITHUB_OUTPUT
         echo "✅ CLI built successfully"
-
-    # Test job
-    - name: Run tests with go-actions CLI
-      if: inputs.job == 'test'
-      id: test
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      continue-on-error: true
-      env:
-        GO_ACTIONS_TEST_ARGS: ${{ inputs.test-args }}
-      run: |
-        # Run tests using CLI (config defaults will be used if no .go-actions.yaml)
-        ${{ steps.build-cli.outputs.cli-path }} check test --format=json > /tmp/test-result.json
-        exit_code=$?
-
-        echo "exit-code=$exit_code" >> $GITHUB_OUTPUT
-        exit $exit_code
-
-    - name: Store test results
-      if: inputs.job == 'test' && always()
-      id: coverage
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const { UnifiedPRComment } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
-          const fs = require('fs');
-          const path = require('path');
-
-          // Read test results from CLI output
-          const resultsPath = '/tmp/test-result.json';
-          let testResult = {
-            status: 'error',
-            error: 'Failed to read test results'
-          };
-
-          try {
-            if (fs.existsSync(resultsPath)) {
-              const data = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
-              const check = data.checks?.[0];
-
-              if (check) {
-                testResult = {
-                  status: check.status === 'pass' ? 'success' : 'failure',
-                  coverage: check.coverage > 0 ? check.coverage.toString() : undefined,
-                  coverageThreshold: check.threshold > 0 ? check.threshold : undefined,
-                  meetsThreshold: check.status === 'pass',
-                  error: check.message || undefined
-                };
-
-                // Set coverage output
-                if (check.coverage > 0) {
-                  core.setOutput('coverage', check.coverage.toString());
-                }
-              }
-            }
-          } catch (error) {
-            console.error('Error parsing test results:', error);
-          }
-
-          await UnifiedPRComment.storeResults('test', testResult);
-          console.log('Stored test results for unified comment');
-
-    - name: Fail test job if tests failed
-      if: inputs.job == 'test' && steps.test.outputs.exit-code != '0'
-      shell: bash
-      run: exit 1
-
-    # Benchmark job
-    - name: Run benchmarks with go-actions CLI
-      if: inputs.job == 'benchmark'
-      id: benchmark
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      continue-on-error: true
-      env:
-        GO_ACTIONS_BENCHMARK_ARGS: ${{ inputs.benchmark-args }}
-        GO_ACTIONS_BENCHMARK_COUNT: ${{ inputs.benchmark-count }}
-      run: |
-        # Run benchmarks using CLI (config defaults will be used if no .go-actions.yaml)
-        ${{ steps.build-cli.outputs.cli-path }} check benchmark --format=json > /tmp/benchmark-result.json
-        exit_code=$?
-
-        echo "exit-code=$exit_code" >> $GITHUB_OUTPUT
-        exit $exit_code
-
-    - name: Store benchmark results
-      if: inputs.job == 'benchmark' && always()
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const { UnifiedPRComment } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
-          const fs = require('fs');
-
-          // Read benchmark results from CLI output
-          const resultsPath = '/tmp/benchmark-result.json';
-          let benchmarkResult = {
-            status: 'error',
-            error: 'Failed to read benchmark results',
-            config: {
-              args: '${{ inputs.benchmark-args }}',
-              count: parseInt('${{ inputs.benchmark-count }}')
-            }
-          };
-
-          try {
-            if (fs.existsSync(resultsPath)) {
-              const data = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
-              const check = data.checks?.[0];
-
-              if (check) {
-                benchmarkResult = {
-                  status: check.status === 'pass' ? 'success' : 'failure',
-                  error: check.message || undefined,
-                  config: {
-                    args: '${{ inputs.benchmark-args }}',
-                    count: parseInt('${{ inputs.benchmark-count }}')
-                  }
-                };
-              }
-            }
-          } catch (error) {
-            console.error('Error parsing benchmark results:', error);
-          }
-
-          await UnifiedPRComment.storeResults('benchmark', benchmarkResult);
-          console.log('Stored benchmark results for unified comment');
-
-    - name: Fail benchmark job if benchmarks failed
-      if: inputs.job == 'benchmark' && steps.benchmark.outputs.exit-code != '0'
-      shell: bash
-      run: exit 1
-
-    # Lint job
-    - name: Normalize golangci-lint version
-      if: inputs.job == 'lint'
-      shell: bash
-      id: normalize-version
-      run: |
-        version="${{ inputs.golangci-lint-version }}"
-        # Convert generic v2/latest to a pinned version for reproducible installs
-        if [ "$version" = "v2" ] || [ "$version" = "latest" ]; then
-          version="v2.0.2"
-        fi
-        echo "normalized-version=$version" >> $GITHUB_OUTPUT
-        echo "Using golangci-lint version: $version"
 
     - name: Install golangci-lint
       if: inputs.job == 'lint'
       shell: bash
       run: |
-        version="${{ steps.normalize-version.outputs.normalized-version }}"
+        version="${{ inputs.golangci-lint-version }}"
+        # Convert generic v2/latest to a pinned version
+        if [ "$version" = "v2" ] || [ "$version" = "latest" ]; then
+          version="v2.0.2"
+        fi
+        echo "Installing golangci-lint $version..."
         curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin $version
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-
-    - name: Validate golangci-lint installation
-      if: inputs.job == 'lint'
-      shell: bash
-      run: |
-        if ! command -v golangci-lint &> /dev/null; then
-          echo "::error::golangci-lint installation failed - binary not found in PATH"
-          exit 1
-        fi
-        echo "✅ golangci-lint installation verified"
         golangci-lint version
 
-    - name: Run lint with go-actions CLI
-      if: inputs.job == 'lint'
-      id: golangci-lint
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      continue-on-error: true
-      env:
-        GO_ACTIONS_LINT_ARGS: ${{ inputs.lint-args }}
-      run: |
-        # Run lint using CLI (config defaults will be used if no .go-actions.yaml)
-        ${{ steps.build-cli.outputs.cli-path }} check lint --format=json > /tmp/lint-result.json
-        exit_code=$?
-
-        echo "exit-code=$exit_code" >> $GITHUB_OUTPUT
-        exit $exit_code
-
-    - name: Store lint results
-      if: inputs.job == 'lint' && always()
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const { UnifiedPRComment, formatLintOutputForPR, getWorkflowLogsUrl } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
-          const fs = require('fs');
-          const path = require('path');
-          const workingDir = '${{ inputs.working-directory }}' || '.';
-
-          // Read lint results from CLI output
-          const resultsPath = '/tmp/lint-result.json';
-          let lintResult = {
-            status: 'error',
-            error: 'Failed to read lint results'
-          };
-
-          try {
-            if (fs.existsSync(resultsPath)) {
-              const data = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
-              const check = data.checks?.[0];
-
-              if (check) {
-                lintResult = {
-                  status: check.status === 'pass' ? 'success' : 'failure'
-                };
-
-                if (check.status === 'fail' || check.status === 'error') {
-                  // Try to format lint output for PR comment
-                  // The CLI runs golangci-lint, which should have created golangci-lint-report.json
-                  const jsonFilePath = path.join(workingDir, 'golangci-lint-report.json');
-                  const workflowLogsUrl = getWorkflowLogsUrl();
-
-                  const formattedIssues = formatLintOutputForPR(jsonFilePath, {
-                    maxIssuesPerLinter: 10,
-                    maxTotalIssues: 50,
-                    workflowLogsUrl
-                  });
-
-                  if (formattedIssues) {
-                    lintResult.issues = formattedIssues;
-                  } else {
-                    lintResult.error = check.message || 'Linting issues found - check logs for details';
-                  }
-                }
-              }
-            }
-          } catch (error) {
-            console.error('Error parsing lint results:', error);
-          }
-
-          await UnifiedPRComment.storeResults('lint', lintResult);
-          console.log('Stored lint results for unified comment');
-
-    - name: Fail lint job on issues
-      if: inputs.job == 'lint' && steps.golangci-lint.outputs.exit-code == '1'
-      shell: bash
-      run: exit 1
-
-    # Security job
     - name: Install govulncheck
       if: inputs.job == 'security'
       shell: bash
@@ -343,105 +118,58 @@ runs:
         go install golang.org/x/vuln/cmd/govulncheck@${{ inputs.govulncheck-version }}
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
-    - name: Validate govulncheck installation
-      if: inputs.job == 'security'
-      shell: bash
-      run: |
-        if ! command -v govulncheck &> /dev/null; then
-          echo "::error::govulncheck installation failed - binary not found in PATH"
-          exit 1
-        fi
-        echo "✅ govulncheck installation verified"
-        govulncheck -version || echo "Version command not available"
-
-    - name: Run security check with go-actions CLI
-      if: inputs.job == 'security'
-      id: govulncheck
+    - name: Run check
+      id: run-check
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      continue-on-error: true
       env:
+        GO_ACTIONS_TEST_ARGS: ${{ inputs.test-args }}
+        GO_ACTIONS_LINT_ARGS: ${{ inputs.lint-args }}
+        GO_ACTIONS_BENCHMARK_ARGS: ${{ inputs.benchmark-args }}
+        GO_ACTIONS_BENCHMARK_COUNT: ${{ inputs.benchmark-count }}
         GO_ACTIONS_SECURITY_ARGS: ${{ inputs.security-args }}
       run: |
-        # Run security check using CLI (config defaults will be used if no .go-actions.yaml)
-        ${{ steps.build-cli.outputs.cli-path }} check security --format=json > /tmp/security-result.json
+        set +e  # Don't exit on error, we'll handle it
+
+        echo "Running ${{ inputs.job }} check..."
+        /tmp/go-actions check ${{ inputs.job }} --format=json > /tmp/result.json 2>&1
         exit_code=$?
 
-        # Determine if vulnerabilities were found
-        vulnerabilities_found="false"
-        if [ "$exit_code" -eq 1 ]; then
-          vulnerabilities_found="true"
+        echo "--- Raw output ---"
+        cat /tmp/result.json
+        echo "--- End output ---"
+
+        # Parse JSON output
+        if [ -f /tmp/result.json ] && grep -q '"status"' /tmp/result.json; then
+          status=$(grep -o '"status":"[^"]*"' /tmp/result.json | head -1 | cut -d'"' -f4)
+          coverage=$(grep -o '"coverage":[0-9.]*' /tmp/result.json | head -1 | cut -d':' -f2)
+          issues=$(grep -o '"issues":[0-9]*' /tmp/result.json | head -1 | cut -d':' -f2)
+          vulns=$(grep -o '"vulnerabilities":[0-9]*' /tmp/result.json | head -1 | cut -d':' -f2)
+          message=$(grep -o '"message":"[^"]*"' /tmp/result.json | head -1 | cut -d'"' -f4)
+
+          echo "status=${status:-unknown}" >> $GITHUB_OUTPUT
+          echo "coverage=${coverage:-0}" >> $GITHUB_OUTPUT
+          echo "issues=${issues:-0}" >> $GITHUB_OUTPUT
+          echo "vulnerabilities=${vulns:-0}" >> $GITHUB_OUTPUT
+
+          echo "📊 Results:"
+          echo "  Status: ${status:-unknown}"
+          [ -n "$coverage" ] && echo "  Coverage: ${coverage}%"
+          [ -n "$issues" ] && echo "  Issues: ${issues}"
+          [ -n "$vulns" ] && echo "  Vulnerabilities: ${vulns}"
+          [ -n "$message" ] && echo "  Message: ${message}"
+        else
+          echo "status=error" >> $GITHUB_OUTPUT
+          echo "coverage=0" >> $GITHUB_OUTPUT
+          echo "issues=0" >> $GITHUB_OUTPUT
+          echo "vulnerabilities=0" >> $GITHUB_OUTPUT
+          echo "::error::Failed to parse check results"
         fi
 
-        echo "exit-code=$exit_code" >> $GITHUB_OUTPUT
-        echo "vulnerabilities-found=$vulnerabilities_found" >> $GITHUB_OUTPUT
-        exit $exit_code
+        # Exit with original code
+        if [ "$exit_code" -ne 0 ]; then
+          echo "::error::${{ inputs.job }} check failed"
+          exit $exit_code
+        fi
 
-    - name: Store security results
-      if: inputs.job == 'security' && always()
-      id: security
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const { UnifiedPRComment, formatSecurityOutputForPR, getWorkflowLogsUrl } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
-          const fs = require('fs');
-          const path = require('path');
-          const workingDir = '${{ inputs.working-directory }}' || '.';
-
-          // Read security results from CLI output
-          const resultsPath = '/tmp/security-result.json';
-          let securityResult = {
-            status: 'error',
-            vulnerabilityCount: 0,
-            error: 'Failed to read security results'
-          };
-
-          try {
-            if (fs.existsSync(resultsPath)) {
-              const data = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
-              const check = data.checks?.[0];
-
-              if (check) {
-                securityResult = {
-                  status: check.status === 'pass' ? 'success' : 'failure',
-                  vulnerabilityCount: check.vulnerabilities || 0
-                };
-
-                if (check.status === 'fail' || check.status === 'error') {
-                  // Try to format security output for PR comment
-                  // The CLI runs govulncheck, which should have created report files
-                  const jsonFilePath = path.join(workingDir, 'govulncheck-report.json');
-                  const textFilePath = path.join(workingDir, 'govulncheck-output.txt');
-                  const workflowLogsUrl = getWorkflowLogsUrl();
-
-                  const formattedIssues = formatSecurityOutputForPR(jsonFilePath, textFilePath, {
-                    maxVulnerabilities: 20,
-                    workflowLogsUrl
-                  });
-
-                  if (formattedIssues) {
-                    securityResult.issues = formattedIssues.markdown;
-                    securityResult.vulnerabilityCount = formattedIssues.count;
-                  } else {
-                    securityResult.error = check.message || 'Vulnerabilities found - check logs for details';
-                  }
-                }
-              }
-            }
-          } catch (error) {
-            console.error('Error parsing security results:', error);
-          }
-
-          core.setOutput('vulnerabilities', securityResult.vulnerabilityCount.toString());
-          await UnifiedPRComment.storeResults('security', securityResult);
-          console.log('Stored security results for unified comment');
-
-    - name: Fail security job on vulnerabilities
-      if: inputs.job == 'security' && steps.govulncheck.outputs.vulnerabilities-found == 'true'
-      shell: bash
-      run: |
-        echo "::error::Vulnerabilities found in dependencies. See PR comment or logs for details."
-        exit 1
-
-    # Results are automatically stored and unified comment is updated by each job
-    # All CI results (test, lint, benchmark, security) appear in a single "Go Actions Report" comment
+        echo "✅ ${{ inputs.job }} check passed"
