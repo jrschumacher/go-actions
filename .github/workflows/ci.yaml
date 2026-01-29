@@ -47,6 +47,7 @@ jobs:
         with:
           job: ${{ matrix.job }}
           working-directory: cli
+          go-version-file: cli/go.mod
 
   validate-actions:
     runs-on: ubuntu-latest
