@@ -1,0 +1,14 @@
+version: 2
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  # Disable all linters by default, then enable only specific ones
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused

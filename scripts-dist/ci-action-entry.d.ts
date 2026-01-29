@@ -6,3 +6,4 @@ export { postUnifiedComment } from './action-comment';
 export { default as actionComment } from './action-comment';
 export { formatLintOutputForPR, getWorkflowLogsUrl } from './lint-formatter';
 export { formatSecurityOutputForPR, parseGovulncheckJson, parseGovulncheckText } from './security-formatter';
+export { resolveCIConfig, isJobEnabled, CIConfigResolver } from './ci-config-resolver';

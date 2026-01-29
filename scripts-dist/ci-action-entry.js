@@ -17,7 +17,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseGovulncheckText = exports.parseGovulncheckJson = exports.formatSecurityOutputForPR = exports.getWorkflowLogsUrl = exports.formatLintOutputForPR = exports.actionComment = exports.postUnifiedComment = exports.loadAllResults = exports.updateUnifiedComment = exports.UnifiedPRComment = exports.runBenchmarks = exports.extractCoverage = void 0;
+exports.CIConfigResolver = exports.isJobEnabled = exports.resolveCIConfig = exports.parseGovulncheckText = exports.parseGovulncheckJson = exports.formatSecurityOutputForPR = exports.getWorkflowLogsUrl = exports.formatLintOutputForPR = exports.actionComment = exports.postUnifiedComment = exports.loadAllResults = exports.updateUnifiedComment = exports.UnifiedPRComment = exports.runBenchmarks = exports.extractCoverage = void 0;
 // Entry point for ci-action bundle
 var coverage_extractor_1 = require("./coverage-extractor");
 Object.defineProperty(exports, "extractCoverage", { enumerable: true, get: function () { return coverage_extractor_1.extractCoverage; } });
@@ -39,6 +39,10 @@ var security_formatter_1 = require("./security-formatter");
 Object.defineProperty(exports, "formatSecurityOutputForPR", { enumerable: true, get: function () { return security_formatter_1.formatSecurityOutputForPR; } });
 Object.defineProperty(exports, "parseGovulncheckJson", { enumerable: true, get: function () { return security_formatter_1.parseGovulncheckJson; } });
 Object.defineProperty(exports, "parseGovulncheckText", { enumerable: true, get: function () { return security_formatter_1.parseGovulncheckText; } });
+var ci_config_resolver_1 = require("./ci-config-resolver");
+Object.defineProperty(exports, "resolveCIConfig", { enumerable: true, get: function () { return ci_config_resolver_1.resolveCIConfig; } });
+Object.defineProperty(exports, "isJobEnabled", { enumerable: true, get: function () { return ci_config_resolver_1.isJobEnabled; } });
+Object.defineProperty(exports, "CIConfigResolver", { enumerable: true, get: function () { return ci_config_resolver_1.CIConfigResolver; } });
 // Note: action-ci.ts was removed as it duplicated ci-action.ts functionality
 // The CIAction class from ci-action.ts is the canonical implementation
 //# sourceMappingURL=ci-action-entry.js.map

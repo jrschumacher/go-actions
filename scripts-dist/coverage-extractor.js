@@ -59,6 +59,7 @@ class CoverageExtractor {
             throw new Error(`Invalid coverage file name: ${coverageFile}. Only alphanumeric characters, dots, hyphens, and underscores are allowed.`);
         }
         this.coverageFile = coverageFile;
+        this.threshold = options.threshold || 0;
     }
     extractCoverage() {
         const coveragePath = path.join(this.workingDir, this.coverageFile);
@@ -82,8 +83,25 @@ class CoverageExtractor {
             // Looking for the line containing "total:" and extracting the percentage
             const output = result.stdout;
             const coverage = this.extractCoverageFromOutput(output);
+            const percentage = this.parseCoveragePercentage(coverage);
             console.log(`Test coverage: ${coverage}`);
-            return { coverage, hasCoverage: true };
+            // Check threshold if configured
+            let meetsThreshold = true;
+            if (this.threshold > 0 && percentage !== null) {
+                meetsThreshold = percentage >= this.threshold;
+                if (!meetsThreshold) {
+                    console.log(`Coverage ${percentage.toFixed(1)}% is below threshold ${this.threshold}%`);
+                }
+                else {
+                    console.log(`Coverage ${percentage.toFixed(1)}% meets threshold ${this.threshold}%`);
+                }
+            }
+            return {
+                coverage,
+                hasCoverage: true,
+                percentage: percentage !== null ? percentage : undefined,
+                meetsThreshold
+            };
         }
         catch (error) {
             console.log('Failed to extract coverage information');
@@ -106,11 +124,23 @@ class CoverageExtractor {
         const percentage = fields[fields.length - 1];
         return percentage || output.trim();
     }
+    /**
+     * Parse coverage percentage string to number
+     * @param coverage Coverage string (e.g., "85.3%")
+     * @returns Numeric percentage or null if parsing fails
+     */
+    parseCoveragePercentage(coverage) {
+        const match = coverage.match(/^(\d+\.?\d*)%?$/);
+        if (match) {
+            return parseFloat(match[1]);
+        }
+        return null;
+    }
 }
 exports.CoverageExtractor = CoverageExtractor;
 // Main execution for github-script
-function extractCoverage(workingDirectory = '.', coverageFile = 'coverage.out') {
-    const extractor = new CoverageExtractor({ workingDirectory, coverageFile });
+function extractCoverage(workingDirectory = '.', coverageFile = 'coverage.out', threshold = 0) {
+    const extractor = new CoverageExtractor({ workingDirectory, coverageFile, threshold });
     return extractor.extractCoverage();
 }
 //# sourceMappingURL=coverage-extractor.js.map

@@ -1,0 +1,72 @@
+# Example .go-actions.yaml configuration file
+# Place this file in your repository root as .go-actions.yaml or .go-actions.yml
+
+version: 1
+
+# CI workflow configuration
+ci:
+  # Go version configuration
+  go:
+    version: ""              # Explicit Go version (e.g., '1.21'), overrides version-file
+    version-file: "go.mod"   # Path to file containing Go version
+
+  # Test configuration
+  test:
+    enabled: true
+    args: "-v -race -coverprofile=coverage.out ./..."
+    coverage:
+      enabled: true
+      threshold: 80          # Minimum coverage percentage (0-100)
+
+  # Lint configuration
+  lint:
+    enabled: true
+    version: "v2.0.2"        # golangci-lint version
+    args: ""                 # Additional arguments
+
+  # Benchmark configuration
+  benchmark:
+    enabled: false
+    args: "-bench=. -benchmem"
+    count: 5                 # Number of iterations
+
+  # Security scanning configuration
+  security:
+    enabled: true
+    version: "latest"        # govulncheck version
+    args: ""                 # Additional arguments
+    fail-on: "high"          # Severity level to fail build on: critical, high, medium, low, none
+
+# Release workflow configuration
+release:
+  strategy: "release-please"   # Options: release-please, goreleaser, manual
+
+  # Release Please specific configuration
+  release-please:
+    release-type: "go"
+    extra-files:
+      - "VERSION"
+
+  # GoReleaser specific configuration
+  goreleaser:
+    args: "--clean"
+
+# Local development and CLI configuration (future use)
+local:
+  # Git hooks configuration
+  hooks:
+    pre-commit:
+      - "go fmt ./..."
+      - "go vet ./..."
+    pre-push:
+      - "go test ./..."
+
+  # AI agent features (future use)
+  agent:
+    enabled: false
+    auto-fix: false
+
+# Output formatting configuration
+output:
+  format: "auto"           # Options: auto, json, text, markdown
+  verbosity: "normal"      # Options: quiet, normal, verbose, debug

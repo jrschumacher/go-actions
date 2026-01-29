@@ -1,0 +1,109 @@
+package runner
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+
+	"github.com/jrschumacher/go-actions/cli/internal/output"
+)
+
+// RunLint runs golangci-lint
+func (r *Runner) RunLint() (output.CheckResult, error) {
+	result := output.CheckResult{
+		Name:   "lint",
+		Status: "pass",
+	}
+
+	start := time.Now()
+	defer func() {
+		result.Duration = time.Since(start)
+	}()
+
+	// Check if golangci-lint is installed
+	if err := checkToolInstalled("golangci-lint"); err != nil {
+		return result, err
+	}
+
+	// Build lint command
+	args := strings.Fields(r.cfg.CI.Lint.Args)
+	if len(args) == 0 {
+		args = []string{"run", "./..."}
+	}
+
+	// Add JSON output for parsing (golangci-lint v2.1+ format)
+	args = append(args, "--output.json.path", "stdout")
+
+	cmd := exec.Command("golangci-lint", args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+
+	// Save raw output to file for GitHub Actions formatter (ignore write errors)
+	_ = os.WriteFile("golangci-lint-report.json", stdout.Bytes(), 0644)
+
+	// Parse JSON output
+	issues, parseErr := parseLintOutput(stdout.Bytes())
+	if parseErr != nil {
+		// If JSON parsing fails, try to count issues from text output
+		result.Issues = 0
+		if err != nil {
+			result.Status = "error"
+			result.Message = "lint check failed"
+		}
+		return result, parseErr
+	}
+
+	result.Issues = len(issues)
+
+	if err != nil {
+		result.Status = "fail"
+		result.Message = "linter found issues"
+	}
+
+	return result, nil
+}
+
+// lintIssue represents a golangci-lint issue
+type lintIssue struct {
+	FromLinter string `json:"FromLinter"`
+	Text       string `json:"Text"`
+	Pos        struct {
+		Filename string `json:"Filename"`
+		Line     int    `json:"Line"`
+		Column   int    `json:"Column"`
+	} `json:"Pos"`
+}
+
+// lintReport represents golangci-lint JSON output
+type lintReport struct {
+	Issues []lintIssue `json:"Issues"`
+}
+
+func parseLintOutput(data []byte) ([]lintIssue, error) {
+	if len(data) == 0 {
+		return []lintIssue{}, nil
+	}
+
+	// golangci-lint v2.1+ outputs JSON on first line, then text summary
+	// Extract only the first line (the JSON)
+	lines := bytes.SplitN(data, []byte("\n"), 2)
+	jsonData := lines[0]
+
+	if len(jsonData) == 0 {
+		return []lintIssue{}, nil
+	}
+
+	var report lintReport
+	if err := json.Unmarshal(jsonData, &report); err != nil {
+		return nil, fmt.Errorf("failed to parse lint output: %w", err)
+	}
+
+	return report.Issues, nil
+}

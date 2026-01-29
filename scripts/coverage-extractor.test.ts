@@ -98,7 +98,9 @@ describe('CoverageExtractor', () => {
 
       expect(result).toEqual({
         coverage: '85.7%',
-        hasCoverage: true
+        hasCoverage: true,
+        percentage: 85.7,
+        meetsThreshold: true
       });
       expect(mockSpawnSync).toHaveBeenCalledWith(
         'go',
@@ -181,7 +183,9 @@ describe('CoverageExtractor', () => {
 
       expect(result).toEqual({
         coverage: '',
-        hasCoverage: true
+        hasCoverage: true,
+        percentage: undefined,
+        meetsThreshold: true
       });
     });
 
@@ -201,7 +205,9 @@ describe('CoverageExtractor', () => {
 
       expect(result).toEqual({
         coverage: 'some random output\nwithout total',
-        hasCoverage: true
+        hasCoverage: true,
+        percentage: undefined,
+        meetsThreshold: true
       });
     });
 
@@ -221,7 +227,9 @@ describe('CoverageExtractor', () => {
 
       expect(result).toEqual({
         coverage: '92.3%',
-        hasCoverage: true
+        hasCoverage: true,
+        percentage: 92.3,
+        meetsThreshold: true
       });
     });
 
@@ -245,7 +253,9 @@ total:					(statements)	75.0%
 
       expect(result).toEqual({
         coverage: '75.0%',
-        hasCoverage: true
+        hasCoverage: true,
+        percentage: 75.0,
+        meetsThreshold: true
       });
     });
   });
@@ -282,7 +292,9 @@ total:					(statements)	75.0%
 
       expect(result).toEqual({
         coverage: '75.0%',
-        hasCoverage: true
+        hasCoverage: true,
+        percentage: 75.0,
+        meetsThreshold: true
       });
     });
 
@@ -290,6 +302,167 @@ total:					(statements)	75.0%
       const { extractCoverage } = require('./coverage-extractor');
 
       expect(() => extractCoverage('.', '../malicious.out')).toThrow('Invalid coverage file name');
+    });
+  });
+
+  describe('coverage threshold', () => {
+    it('should check threshold when configured', () => {
+      const extractorWithThreshold = new CoverageExtractor({
+        workingDirectory: testWorkingDir,
+        threshold: 80
+      });
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockSpawnSync.mockReturnValue({
+        stdout: 'total:\t\t\t(statements)\t75.0%\n',
+        stderr: '',
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: ['', '', ''],
+        error: undefined
+      } as SpawnSyncReturns<string>);
+
+      const result = extractorWithThreshold.extractCoverage();
+
+      expect(result).toEqual({
+        coverage: '75.0%',
+        hasCoverage: true,
+        percentage: 75.0,
+        meetsThreshold: false
+      });
+    });
+
+    it('should pass threshold when coverage meets requirement', () => {
+      const extractorWithThreshold = new CoverageExtractor({
+        workingDirectory: testWorkingDir,
+        threshold: 80
+      });
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockSpawnSync.mockReturnValue({
+        stdout: 'total:\t\t\t(statements)\t85.0%\n',
+        stderr: '',
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: ['', '', ''],
+        error: undefined
+      } as SpawnSyncReturns<string>);
+
+      const result = extractorWithThreshold.extractCoverage();
+
+      expect(result).toEqual({
+        coverage: '85.0%',
+        hasCoverage: true,
+        percentage: 85.0,
+        meetsThreshold: true
+      });
+    });
+
+    it('should pass threshold when coverage exactly meets requirement', () => {
+      const extractorWithThreshold = new CoverageExtractor({
+        workingDirectory: testWorkingDir,
+        threshold: 75
+      });
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockSpawnSync.mockReturnValue({
+        stdout: 'total:\t\t\t(statements)\t75.0%\n',
+        stderr: '',
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: ['', '', ''],
+        error: undefined
+      } as SpawnSyncReturns<string>);
+
+      const result = extractorWithThreshold.extractCoverage();
+
+      expect(result).toEqual({
+        coverage: '75.0%',
+        hasCoverage: true,
+        percentage: 75.0,
+        meetsThreshold: true
+      });
+    });
+
+    it('should not check threshold when set to 0', () => {
+      const extractorNoThreshold = new CoverageExtractor({
+        workingDirectory: testWorkingDir,
+        threshold: 0
+      });
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockSpawnSync.mockReturnValue({
+        stdout: 'total:\t\t\t(statements)\t10.0%\n',
+        stderr: '',
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: ['', '', ''],
+        error: undefined
+      } as SpawnSyncReturns<string>);
+
+      const result = extractorNoThreshold.extractCoverage();
+
+      expect(result).toEqual({
+        coverage: '10.0%',
+        hasCoverage: true,
+        percentage: 10.0,
+        meetsThreshold: true
+      });
+    });
+
+    it('should handle threshold with unparseable coverage', () => {
+      const extractorWithThreshold = new CoverageExtractor({
+        workingDirectory: testWorkingDir,
+        threshold: 80
+      });
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockSpawnSync.mockReturnValue({
+        stdout: 'invalid output\n',
+        stderr: '',
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: ['', '', ''],
+        error: undefined
+      } as SpawnSyncReturns<string>);
+
+      const result = extractorWithThreshold.extractCoverage();
+
+      expect(result).toEqual({
+        coverage: 'invalid output',
+        hasCoverage: true,
+        percentage: undefined,
+        meetsThreshold: true
+      });
+    });
+
+    it('should work with threshold parameter in function export', () => {
+      const { extractCoverage } = require('./coverage-extractor');
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockSpawnSync.mockReturnValue({
+        stdout: 'total:\t\t\t(statements)\t65.0%\n',
+        stderr: '',
+        status: 0,
+        signal: null,
+        pid: 12345,
+        output: ['', '', ''],
+        error: undefined
+      } as SpawnSyncReturns<string>);
+
+      const result = extractCoverage('.', 'coverage.out', 70);
+
+      expect(result).toEqual({
+        coverage: '65.0%',
+        hasCoverage: true,
+        percentage: 65.0,
+        meetsThreshold: false
+      });
     });
   });
 });
