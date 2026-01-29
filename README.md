@@ -1,6 +1,6 @@
 # go-actions
 
-Composite GitHub Actions for Go projects. Provides CI (test, lint, benchmark), release automation, and configuration validation.
+Composite GitHub Actions for Go projects. Provides CI (test, lint, benchmark, security), release automation, and configuration validation.
 
 > **📖 For AI Agents & Claude Code**: See [CLAUDE.md](./CLAUDE.md) for detailed guidance on using this repository, including critical configuration requirements and common pitfalls to avoid.
 
@@ -45,8 +45,16 @@ jobs:
         with:
           job: lint
 
+  security:
+    needs: [validate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: jrschumacher/go-actions/ci@v1
+        with:
+          job: security
+
   comment:
-    needs: [test, lint]
+    needs: [test, lint, security]
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'pull_request'
     steps:
@@ -83,13 +91,13 @@ jobs:
 
 **Usage**: `jrschumacher/go-actions/ci@v1`
 
-Runs test, lint, or benchmark jobs for Go projects. Lint results include detailed issue reports grouped by linter type, posted directly to PR comments for faster iteration.
+Runs test, lint, benchmark, or security jobs for Go projects. Lint results include detailed issue reports grouped by linter type, posted directly to PR comments for faster iteration.
 
 #### Inputs
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `job` | Yes | - | Job type: `test`, `lint`, or `benchmark` |
+| `job` | Yes | - | Job type: `test`, `lint`, `benchmark`, or `security` |
 | `go-version` | No | from go.mod | Explicit Go version |
 | `go-version-file` | No | `go.mod` | Path to version file |
 | `working-directory` | No | `.` | Working directory |
@@ -98,12 +106,15 @@ Runs test, lint, or benchmark jobs for Go projects. Lint results include detaile
 | `lint-args` | No | - | Arguments for golangci-lint |
 | `benchmark-args` | No | `-bench=. -benchmem` | Benchmark arguments |
 | `benchmark-count` | No | `5` | Number of benchmark iterations |
+| `govulncheck-version` | No | `latest` | govulncheck version (security job) |
+| `security-args` | No | - | Arguments for govulncheck |
 
 #### Outputs
 
 | Output | Description |
 |--------|-------------|
 | `coverage` | Test coverage percentage (test job only) |
+| `vulnerabilities` | Number of vulnerabilities found (security job only) |
 
 #### Examples
 
@@ -130,6 +141,11 @@ Runs test, lint, or benchmark jobs for Go projects. Lint results include detaile
   with:
     job: benchmark
     benchmark-count: 10
+
+# Security (CVE scanning with govulncheck)
+- uses: jrschumacher/go-actions/ci@v1
+  with:
+    job: security
 ```
 
 ---
@@ -217,7 +233,7 @@ Validates project configuration for go-actions workflows. Checks required files 
 
 **Usage**: `jrschumacher/go-actions/comment@v1`
 
-Posts unified CI results to pull requests. Consolidates test, lint, and benchmark results into a single comment.
+Posts unified CI results to pull requests. Consolidates test, lint, security, and benchmark results into a single comment.
 
 #### Inputs
 
@@ -272,6 +288,14 @@ jobs:
         with:
           job: lint
 
+  security:
+    needs: [validate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: jrschumacher/go-actions/ci@v1
+        with:
+          job: security
+
   benchmark:
     needs: [validate]
     runs-on: ubuntu-latest
@@ -282,7 +306,7 @@ jobs:
           job: benchmark
 
   comment:
-    needs: [test, lint]
+    needs: [test, lint, security]
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'pull_request'
     steps:
@@ -458,6 +482,25 @@ linters:
 **Why**: This is the #1 cause of lint failures. golangci-lint v2.x made the version field mandatory to help with migration and compatibility.
 
 **Auto-Detection**: The `self-validate` action automatically detects this issue and provides the fix in PR comments.
+
+---
+
+### Security Job: Lint vs CVE Scanning
+
+The `security` job (govulncheck) and `lint` job (golangci-lint) serve **different purposes**:
+
+| Check Type | golangci-lint (lint) | govulncheck (security) |
+|------------|---------------------|------------------------|
+| **Purpose** | Code quality & patterns | Known CVE detection |
+| **Scope** | Your source code | Your dependencies |
+| **Database** | Linter rules | Go Vulnerability Database |
+| **Examples** | Unchecked errors, unused code | CVE-2023-XXXXX in `golang.org/x/net` |
+
+**Why run both?**
+- golangci-lint catches insecure **patterns** you write (e.g., hardcoded credentials via `gosec` linter)
+- govulncheck catches known **CVEs** in libraries you import (e.g., security flaws in third-party code)
+
+**govulncheck is call-graph aware**: It only reports vulnerabilities in code paths your application actually uses, reducing false positives compared to generic dependency scanners.
 
 ---
 

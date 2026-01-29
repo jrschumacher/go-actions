@@ -1,10 +1,10 @@
 name: 'Go CI Actions'
-description: 'CI workflows for Go projects - test, lint, and benchmark'
+description: 'CI workflows for Go projects - test, lint, benchmark, and security'
 author: 'Ryan Schumacher'
 
 inputs:
   job:
-    description: 'Job type to run: test, lint, or benchmark'
+    description: 'Job type to run: test, lint, benchmark, or security'
     required: true
   go-version:
     description: 'Go version to use (all jobs). Defaults to version from go.mod'
@@ -45,10 +45,23 @@ inputs:
     required: false
     default: '5'
 
+  # Security job specific inputs
+  govulncheck-version:
+    description: 'govulncheck version (security job only). Use "latest" for newest version'
+    required: false
+    default: 'latest'
+  security-args:
+    description: 'Additional arguments for govulncheck (security job only)'
+    required: false
+    default: ''
+
 outputs:
   coverage:
     description: "Test coverage percentage"
     value: ${{ steps.coverage.outputs.coverage }}
+  vulnerabilities:
+    description: "Number of vulnerabilities found (security job only)"
+    value: ${{ steps.security.outputs.vulnerabilities }}
 
 runs:
   using: "composite"
@@ -56,7 +69,7 @@ runs:
     - name: Validate job input
       shell: bash
       run: |
-        valid_jobs="test lint benchmark"
+        valid_jobs="test lint benchmark security"
         job="${{ inputs.job }}"
         if [[ ! " $valid_jobs " =~ " $job " ]]; then
           echo "::error::Invalid job type: $job. Valid options are: $valid_jobs"
@@ -282,5 +295,109 @@ runs:
       shell: bash
       run: exit 1
 
+    # Security job
+    - name: Install govulncheck
+      if: inputs.job == 'security'
+      shell: bash
+      run: |
+        echo "Installing govulncheck..."
+        go install golang.org/x/vuln/cmd/govulncheck@${{ inputs.govulncheck-version }}
+        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+    - name: Validate govulncheck installation
+      if: inputs.job == 'security'
+      shell: bash
+      run: |
+        if ! command -v govulncheck &> /dev/null; then
+          echo "::error::govulncheck installation failed - binary not found in PATH"
+          exit 1
+        fi
+        echo "✅ govulncheck installation verified"
+        govulncheck -version || echo "Version command not available"
+
+    - name: Run govulncheck
+      if: inputs.job == 'security'
+      id: govulncheck
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      continue-on-error: true
+      run: |
+        set +e  # Don't exit on error, we want to capture the output
+
+        echo "Running govulncheck..."
+
+        # Run govulncheck with JSON output for parsing
+        govulncheck -json ${{ inputs.security-args }} ./... > govulncheck-report.json 2>&1
+        vuln_exit_code=$?
+
+        # Also run with text output for logs
+        govulncheck ${{ inputs.security-args }} ./... 2>&1 | tee govulncheck-output.txt
+
+        # Check if vulnerabilities were found (exit code 3 = vulns found, 0 = none)
+        if [ "$vuln_exit_code" -eq 3 ]; then
+          echo "exit-code=3" >> $GITHUB_OUTPUT
+          echo "vulnerabilities-found=true" >> $GITHUB_OUTPUT
+          exit 1
+        elif [ "$vuln_exit_code" -ne 0 ]; then
+          echo "exit-code=$vuln_exit_code" >> $GITHUB_OUTPUT
+          echo "vulnerabilities-found=false" >> $GITHUB_OUTPUT
+          exit 1
+        else
+          echo "exit-code=0" >> $GITHUB_OUTPUT
+          echo "vulnerabilities-found=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+    - name: Store security results
+      if: inputs.job == 'security' && always()
+      id: security
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { UnifiedPRComment, formatSecurityOutputForPR, getWorkflowLogsUrl } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
+          const path = require('path');
+          const workingDir = '${{ inputs.working-directory }}' || '.';
+
+          // Check security outcome
+          const vulnExitCode = '${{ steps.govulncheck.outputs.exit-code }}';
+          const vulnsFound = '${{ steps.govulncheck.outputs.vulnerabilities-found }}' === 'true';
+          const vulnOutcome = '${{ steps.govulncheck.outcome }}';
+          const hasIssues = vulnsFound || vulnOutcome === 'failure';
+
+          let securityResult = {
+            status: hasIssues ? 'failure' : 'success',
+            vulnerabilityCount: 0
+          };
+
+          if (hasIssues) {
+            // Parse and format security output for PR comment
+            const jsonFilePath = path.join(workingDir, 'govulncheck-report.json');
+            const textFilePath = path.join(workingDir, 'govulncheck-output.txt');
+            const workflowLogsUrl = getWorkflowLogsUrl();
+
+            const formattedIssues = formatSecurityOutputForPR(jsonFilePath, textFilePath, {
+              maxVulnerabilities: 20,
+              workflowLogsUrl
+            });
+
+            if (formattedIssues) {
+              securityResult.issues = formattedIssues.markdown;
+              securityResult.vulnerabilityCount = formattedIssues.count;
+            } else {
+              securityResult.error = 'Vulnerabilities found - check logs for details';
+            }
+          }
+
+          core.setOutput('vulnerabilities', securityResult.vulnerabilityCount.toString());
+          await UnifiedPRComment.storeResults('security', securityResult);
+          console.log('Stored security results for unified comment');
+
+    - name: Fail security job on vulnerabilities
+      if: inputs.job == 'security' && steps.govulncheck.outputs.vulnerabilities-found == 'true'
+      shell: bash
+      run: |
+        echo "::error::Vulnerabilities found in dependencies. See PR comment or logs for details."
+        exit 1
+
     # Results are automatically stored and unified comment is updated by each job
-    # All CI results (test, lint, benchmark) appear in a single "Go Actions Report" comment
+    # All CI results (test, lint, benchmark, security) appear in a single "Go Actions Report" comment

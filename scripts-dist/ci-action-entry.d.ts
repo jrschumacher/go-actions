@@ -5,3 +5,4 @@ export { UnifiedPRComment, updateUnifiedComment, loadAllResults } from './unifie
 export { postUnifiedComment } from './action-comment';
 export { default as actionComment } from './action-comment';
 export { formatLintOutputForPR, getWorkflowLogsUrl } from './lint-formatter';
+export { formatSecurityOutputForPR, parseGovulncheckJson, parseGovulncheckText } from './security-formatter';

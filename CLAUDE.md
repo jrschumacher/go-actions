@@ -19,6 +19,10 @@ Handles development and quality assurance workflows:
   - Intelligent truncation for large outputs
   - Direct links to workflow logs
 - **benchmark**: Runs Go benchmarks with configurable iterations
+- **security**: Runs govulncheck for CVE scanning in dependencies
+  - Uses official Go vulnerability database
+  - Call-graph aware (only reports vulnerabilities in code paths you actually use)
+  - Results formatted in PR comments with severity levels and fix guidance
 
 ### Release Action (`release/action.yaml`)
 Handles automated releases:
@@ -48,6 +52,11 @@ The actions use TypeScript for complex logic, providing type safety and testabil
   - Truncates large outputs intelligently (configurable limits)
   - Generates markdown with collapsible sections
   - Includes workflow logs links
+- **`security-formatter.ts`**: Parses and formats govulncheck output for PR comments
+  - Parses govulncheck JSON/text output formats
+  - Groups vulnerabilities by severity (Critical, High, Medium, Low)
+  - Includes CVE references and fix version guidance
+  - Call stack information for affected code paths
 - **`validate-project.ts`**: Comprehensive Go project structure validation
 - **`validate-release.ts`**: Release Please configuration validation
 
@@ -95,6 +104,7 @@ npm run test:coverage # Run tests with coverage report
 - **Test**: `test-args` (defaults to `-v -race -coverprofile=coverage.out`)
 - **Lint**: `golangci-lint-version` (defaults to `v2.1.0`, auto-converts `v2`/`latest` to `v2.1.0`), `lint-args`
 - **Benchmark**: `benchmark-args` (defaults to `-bench=. -benchmem`), `benchmark-count` (defaults to 5)
+- **Security**: `govulncheck-version` (defaults to `latest`), `security-args`
 
 ### Release Action Inputs:
 - `go-version`: Explicit Go version (overrides file-based detection)
