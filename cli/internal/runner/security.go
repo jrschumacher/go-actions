@@ -42,8 +42,8 @@ func (r *Runner) RunSecurity() (output.CheckResult, error) {
 
 	err := cmdJSON.Run()
 
-	// Save JSON output to file for GitHub Actions formatter
-	os.WriteFile("govulncheck-report.json", stdoutJSON.Bytes(), 0644)
+	// Save JSON output to file for GitHub Actions formatter (ignore write errors)
+	_ = os.WriteFile("govulncheck-report.json", stdoutJSON.Bytes(), 0644)
 
 	// Also run with text output for GitHub Actions formatter
 	argsText := strings.Fields(r.cfg.CI.Security.Args)
@@ -56,8 +56,8 @@ func (r *Runner) RunSecurity() (output.CheckResult, error) {
 	cmdText.Stdout = &stdoutText
 	cmdText.Stderr = &stdoutText
 
-	cmdText.Run()
-	os.WriteFile("govulncheck-output.txt", stdoutText.Bytes(), 0644)
+	_ = cmdText.Run() // Ignore error, we have JSON output
+	_ = os.WriteFile("govulncheck-output.txt", stdoutText.Bytes(), 0644)
 
 	// Parse JSON output
 	vulns, parseErr := parseSecurityOutput(stdoutJSON.Bytes())

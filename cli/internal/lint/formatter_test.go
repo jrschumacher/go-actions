@@ -530,7 +530,7 @@ func TestGetWorkflowLogsURL(t *testing.T) {
 			// Clear and set env vars
 			os.Clearenv()
 			for k, v := range tt.envVars {
-				os.Setenv(k, v)
+				_ = os.Setenv(k, v)
 			}
 
 			got := GetWorkflowLogsURL()

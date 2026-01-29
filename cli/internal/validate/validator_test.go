@@ -314,7 +314,7 @@ func TestValidateGoReleaserConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	tests := []struct {
 		name         string
@@ -395,7 +395,7 @@ archives:
 			}
 
 			// Clean up
-			os.Remove(configPath)
+			_ = os.Remove(configPath)
 		})
 	}
 }
@@ -406,7 +406,7 @@ func TestValidateProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create .github/workflows directory
 	workflowDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -545,11 +545,11 @@ jobs:
 			files, _ := filepath.Glob(filepath.Join(tmpDir, "*"))
 			for _, f := range files {
 				if filepath.Base(f) != ".github" {
-					os.RemoveAll(f)
+					_ = os.RemoveAll(f)
 				}
 			}
-			os.RemoveAll(workflowDir)
-			os.MkdirAll(workflowDir, 0755)
+			_ = os.RemoveAll(workflowDir)
+			_ = os.MkdirAll(workflowDir, 0755)
 
 			// Setup files
 			for path, content := range tt.setupFiles {
@@ -587,7 +587,7 @@ func TestIsGoActionsRepo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	tests := []struct {
 		name       string
@@ -629,8 +629,8 @@ func TestIsGoActionsRepo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clean up
-			os.RemoveAll(tmpDir)
-			os.MkdirAll(tmpDir, 0755)
+			_ = os.RemoveAll(tmpDir)
+			_ = os.MkdirAll(tmpDir, 0755)
 
 			// Setup files
 			for _, file := range tt.setupFiles {
@@ -659,7 +659,7 @@ func TestValidateReleasePleaseConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	tests := []struct {
 		name       string
@@ -698,8 +698,8 @@ func TestValidateReleasePleaseConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clean up
-			os.RemoveAll(tmpDir)
-			os.MkdirAll(tmpDir, 0755)
+			_ = os.RemoveAll(tmpDir)
+			_ = os.MkdirAll(tmpDir, 0755)
 
 			// Setup files
 			for _, file := range tt.setupFiles {
@@ -729,7 +729,7 @@ func TestFindWorkflowFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create workflow directory and files
 	workflowDir := filepath.Join(tmpDir, ".github", "workflows")

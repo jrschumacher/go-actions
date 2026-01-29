@@ -139,25 +139,25 @@ runs:
         cat /tmp/result.json
         echo "--- End output ---"
 
-        # Parse JSON output
-        if [ -f /tmp/result.json ] && grep -q '"status"' /tmp/result.json; then
-          status=$(grep -o '"status":"[^"]*"' /tmp/result.json | head -1 | cut -d'"' -f4)
-          coverage=$(grep -o '"coverage":[0-9.]*' /tmp/result.json | head -1 | cut -d':' -f2)
-          issues=$(grep -o '"issues":[0-9]*' /tmp/result.json | head -1 | cut -d':' -f2)
-          vulns=$(grep -o '"vulnerabilities":[0-9]*' /tmp/result.json | head -1 | cut -d':' -f2)
-          message=$(grep -o '"message":"[^"]*"' /tmp/result.json | head -1 | cut -d'"' -f4)
+        # Parse JSON output using jq for reliable parsing
+        if [ -f /tmp/result.json ] && command -v jq &> /dev/null && jq -e '.status' /tmp/result.json > /dev/null 2>&1; then
+          status=$(jq -r '.status // "unknown"' /tmp/result.json)
+          coverage=$(jq -r '.checks[0].coverage // 0' /tmp/result.json)
+          issues=$(jq -r '.checks[0].issues // 0' /tmp/result.json)
+          vulns=$(jq -r '.checks[0].vulnerabilities // 0' /tmp/result.json)
+          message=$(jq -r '.checks[0].message // ""' /tmp/result.json)
 
-          echo "status=${status:-unknown}" >> $GITHUB_OUTPUT
-          echo "coverage=${coverage:-0}" >> $GITHUB_OUTPUT
-          echo "issues=${issues:-0}" >> $GITHUB_OUTPUT
-          echo "vulnerabilities=${vulns:-0}" >> $GITHUB_OUTPUT
+          echo "status=${status}" >> $GITHUB_OUTPUT
+          echo "coverage=${coverage}" >> $GITHUB_OUTPUT
+          echo "issues=${issues}" >> $GITHUB_OUTPUT
+          echo "vulnerabilities=${vulns}" >> $GITHUB_OUTPUT
 
           echo "📊 Results:"
-          echo "  Status: ${status:-unknown}"
-          [ -n "$coverage" ] && echo "  Coverage: ${coverage}%"
-          [ -n "$issues" ] && echo "  Issues: ${issues}"
-          [ -n "$vulns" ] && echo "  Vulnerabilities: ${vulns}"
-          [ -n "$message" ] && echo "  Message: ${message}"
+          echo "  Status: ${status}"
+          [ "$coverage" != "0" ] && [ "$coverage" != "null" ] && echo "  Coverage: ${coverage}%"
+          [ "$issues" != "0" ] && [ "$issues" != "null" ] && echo "  Issues: ${issues}"
+          [ "$vulns" != "0" ] && [ "$vulns" != "null" ] && echo "  Vulnerabilities: ${vulns}"
+          [ -n "$message" ] && [ "$message" != "null" ] && echo "  Message: ${message}"
         else
           echo "status=error" >> $GITHUB_OUTPUT
           echo "coverage=0" >> $GITHUB_OUTPUT

@@ -45,8 +45,8 @@ func (r *Runner) RunLint() (output.CheckResult, error) {
 
 	err := cmd.Run()
 
-	// Save raw output to file for GitHub Actions formatter
-	os.WriteFile("golangci-lint-report.json", stdout.Bytes(), 0644)
+	// Save raw output to file for GitHub Actions formatter (ignore write errors)
+	_ = os.WriteFile("golangci-lint-report.json", stdout.Bytes(), 0644)
 
 	// Parse JSON output
 	issues, parseErr := parseLintOutput(stdout.Bytes())

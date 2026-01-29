@@ -86,18 +86,18 @@ func (f *Formatter) printText(results *Results) error {
 			line += " - " + check.Message
 		}
 
-		fmt.Fprintln(f.writer, line)
+		_, _ = fmt.Fprintln(f.writer, line)
 	}
 
-	fmt.Fprintln(f.writer)
+	_, _ = fmt.Fprintln(f.writer)
 
 	switch results.Status {
 	case "pass":
-		fmt.Fprintln(f.writer, "All checks passed. Safe to push.")
+		_, _ = fmt.Fprintln(f.writer, "All checks passed. Safe to push.")
 	case "fail":
-		fmt.Fprintln(f.writer, "Some checks failed. Please fix the issues.")
+		_, _ = fmt.Fprintln(f.writer, "Some checks failed. Please fix the issues.")
 	case "error":
-		fmt.Fprintln(f.writer, "Some checks encountered errors.")
+		_, _ = fmt.Fprintln(f.writer, "Some checks encountered errors.")
 	}
 
 	return nil
@@ -124,7 +124,7 @@ func (f *Formatter) PrintProgress(checks []string) {
 		return // Skip progress messages in JSON mode
 	}
 
-	fmt.Fprintf(f.writer, "Running: %s\n\n", joinChecks(checks))
+	_, _ = fmt.Fprintf(f.writer, "Running: %s\n\n", joinChecks(checks))
 }
 
 func joinChecks(checks []string) string {

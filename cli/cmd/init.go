@@ -70,12 +70,8 @@ func detectProjectSettings(cfg *config.Config) error {
 		cfg.CI.Go.VersionFile = ".go-version"
 	}
 
-	// Check for golangci-lint config
-	if _, err := os.Stat(".golangci.yml"); err == nil {
-		// Config exists, keep lint enabled
-	} else if _, err := os.Stat(".golangci.yaml"); err == nil {
-		// Config exists, keep lint enabled
-	}
+	// Note: golangci-lint config detection is handled by the linter itself
+	// Lint is enabled by default in the config
 
 	// Look for test files to determine if testing is viable
 	hasTests := false
