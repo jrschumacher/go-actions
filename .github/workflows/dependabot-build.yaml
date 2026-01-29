@@ -1,0 +1,70 @@
+name: Build TypeScript for Dependabot PRs
+
+# This workflow ensures dependabot PRs include compiled TypeScript
+# so that Release Please sees the changes when the PR is merged.
+#
+# Uses pull_request_target to get write permissions for dependabot branches.
+# Security: Only runs npm install/build (no arbitrary code execution from PR).
+
+on:
+  pull_request_target:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build-and-commit:
+    # Only run for dependabot PRs to minimize security exposure
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.20.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+      - name: Check for changes in compiled scripts
+        id: changes
+        run: |
+          if [ -n "$(git status --porcelain scripts-dist/)" ]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "Compiled scripts need updating"
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "Compiled scripts are up to date"
+          fi
+
+      - name: Commit updated scripts
+        if: steps.changes.outputs.changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add scripts-dist/
+          git commit -m "build: update compiled TypeScript scripts
+
+          Automatically compiled from TypeScript sources after dependency update"
+          git push
+
+          echo "Compiled scripts updated and committed to PR"
