@@ -85,90 +85,146 @@ runs:
         go-version: ${{ inputs.go-version }}
         go-version-file: ${{ !inputs.go-version && inputs.go-version-file || '' }}
 
+    - name: Build go-actions CLI
+      id: build-cli
+      shell: bash
+      run: |
+        echo "Building go-actions CLI..."
+        cd "${{ github.action_path }}/../cli"
+        go build -o /tmp/go-actions .
+        echo "cli-path=/tmp/go-actions" >> $GITHUB_OUTPUT
+        echo "✅ CLI built successfully"
+
     # Test job
-    - name: Run tests
+    - name: Run tests with go-actions CLI
       if: inputs.job == 'test'
       id: test
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+      continue-on-error: true
+      env:
+        GO_ACTIONS_TEST_ARGS: ${{ inputs.test-args }}
       run: |
-        echo "Running Go tests..."
-        go test ${{ inputs.test-args }} ./...
+        # Run tests using CLI (config defaults will be used if no .go-actions.yaml)
+        ${{ steps.build-cli.outputs.cli-path }} check test --format=json > /tmp/test-result.json
+        exit_code=$?
 
-    - name: Extract coverage and store results
-      if: inputs.job == 'test'
+        echo "exit-code=$exit_code" >> $GITHUB_OUTPUT
+        exit $exit_code
+
+    - name: Store test results
+      if: inputs.job == 'test' && always()
       id: coverage
       uses: actions/github-script@v7
       with:
         script: |
-          const { extractCoverage, UnifiedPRComment, updateUnifiedComment } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
-          const workingDir = '${{ inputs.working-directory }}' || '.';
-          
-          const result = extractCoverage(workingDir);
-          
-          if (result.hasCoverage && result.coverage !== null) {
-            console.log(`Coverage: ${result.coverage}%`);
-            core.setOutput('coverage', result.coverage.toString());
-          } else {
-            console.log('No coverage data found');
-            core.setOutput('coverage', '0');
-          }
-          
-          // Store test results for unified comment
-          const testResult = {
-            status: '${{ steps.test.outcome }}' === 'success' ? 'success' : 'failure',
-            coverage: result.hasCoverage && result.coverage !== null ? `${result.coverage}%` : undefined,
-            error: '${{ steps.test.outcome }}' !== 'success' ? 'Test execution failed' : undefined
+          const { UnifiedPRComment } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
+          const fs = require('fs');
+          const path = require('path');
+
+          // Read test results from CLI output
+          const resultsPath = '/tmp/test-result.json';
+          let testResult = {
+            status: 'error',
+            error: 'Failed to read test results'
           };
-          
+
+          try {
+            if (fs.existsSync(resultsPath)) {
+              const data = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+              const check = data.checks?.[0];
+
+              if (check) {
+                testResult = {
+                  status: check.status === 'pass' ? 'success' : 'failure',
+                  coverage: check.coverage > 0 ? check.coverage.toString() : undefined,
+                  coverageThreshold: check.threshold > 0 ? check.threshold : undefined,
+                  meetsThreshold: check.status === 'pass',
+                  error: check.message || undefined
+                };
+
+                // Set coverage output
+                if (check.coverage > 0) {
+                  core.setOutput('coverage', check.coverage.toString());
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error parsing test results:', error);
+          }
+
           await UnifiedPRComment.storeResults('test', testResult);
           console.log('Stored test results for unified comment');
 
+    - name: Fail test job if tests failed
+      if: inputs.job == 'test' && steps.test.outputs.exit-code != '0'
+      shell: bash
+      run: exit 1
+
     # Benchmark job
-    - name: Run benchmarks and store results
+    - name: Run benchmarks with go-actions CLI
       if: inputs.job == 'benchmark'
       id: benchmark
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      continue-on-error: true
+      env:
+        GO_ACTIONS_BENCHMARK_ARGS: ${{ inputs.benchmark-args }}
+        GO_ACTIONS_BENCHMARK_COUNT: ${{ inputs.benchmark-count }}
+      run: |
+        # Run benchmarks using CLI (config defaults will be used if no .go-actions.yaml)
+        ${{ steps.build-cli.outputs.cli-path }} check benchmark --format=json > /tmp/benchmark-result.json
+        exit_code=$?
+
+        echo "exit-code=$exit_code" >> $GITHUB_OUTPUT
+        exit $exit_code
+
+    - name: Store benchmark results
+      if: inputs.job == 'benchmark' && always()
       uses: actions/github-script@v7
       with:
         script: |
-          const { runBenchmarks, UnifiedPRComment, updateUnifiedComment } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
-          const workingDir = '${{ inputs.working-directory }}' || '.';
-          const benchmarkArgs = '${{ inputs.benchmark-args }}' || '-bench=. -benchmem';
-          const benchmarkCount = parseInt('${{ inputs.benchmark-count }}') || 5;
-          
+          const { UnifiedPRComment } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
+          const fs = require('fs');
+
+          // Read benchmark results from CLI output
+          const resultsPath = '/tmp/benchmark-result.json';
+          let benchmarkResult = {
+            status: 'error',
+            error: 'Failed to read benchmark results',
+            config: {
+              args: '${{ inputs.benchmark-args }}',
+              count: parseInt('${{ inputs.benchmark-count }}')
+            }
+          };
+
           try {
-            const result = runBenchmarks(workingDir, benchmarkArgs, benchmarkCount);
-            console.log('Benchmark results:', result);
-            
-            // Store benchmark results for unified comment
-            const benchmarkResult = {
-              status: 'success',
-              config: {
-                args: benchmarkArgs,
-                count: benchmarkCount
+            if (fs.existsSync(resultsPath)) {
+              const data = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+              const check = data.checks?.[0];
+
+              if (check) {
+                benchmarkResult = {
+                  status: check.status === 'pass' ? 'success' : 'failure',
+                  error: check.message || undefined,
+                  config: {
+                    args: '${{ inputs.benchmark-args }}',
+                    count: parseInt('${{ inputs.benchmark-count }}')
+                  }
+                };
               }
-            };
-            
-            await UnifiedPRComment.storeResults('benchmark', benchmarkResult);
-            
+            }
           } catch (error) {
-            console.error('Benchmark failed:', error.message);
-            
-            // Store failure results
-            const benchmarkResult = {
-              status: 'failure',
-              error: error.message,
-              config: {
-                args: benchmarkArgs,
-                count: benchmarkCount
-              }
-            };
-            
-            await UnifiedPRComment.storeResults('benchmark', benchmarkResult);
-            throw error; // Re-throw to fail the job
+            console.error('Error parsing benchmark results:', error);
           }
-          
+
+          await UnifiedPRComment.storeResults('benchmark', benchmarkResult);
           console.log('Stored benchmark results for unified comment');
+
+    - name: Fail benchmark job if benchmarks failed
+      if: inputs.job == 'benchmark' && steps.benchmark.outputs.exit-code != '0'
+      shell: bash
+      run: exit 1
 
     # Lint job
     - name: Normalize golangci-lint version
@@ -203,53 +259,21 @@ runs:
         echo "✅ golangci-lint installation verified"
         golangci-lint version
 
-    - name: Run golangci-lint
+    - name: Run lint with go-actions CLI
       if: inputs.job == 'lint'
       id: golangci-lint
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       continue-on-error: true
+      env:
+        GO_ACTIONS_LINT_ARGS: ${{ inputs.lint-args }}
       run: |
-        set +e  # Don't exit on error, we want to handle it ourselves
+        # Run lint using CLI (config defaults will be used if no .go-actions.yaml)
+        ${{ steps.build-cli.outputs.cli-path }} check lint --format=json > /tmp/lint-result.json
+        exit_code=$?
 
-        # Run golangci-lint with both JSON and text output (v2 config approach)
-        # Create a temporary config to enable multiple outputs
-        cat > /tmp/golangci-lint-output.yml << 'EOF'
-        version: "2"
-        output:
-          formats:
-            json:
-              path: golangci-lint-report.json
-            text:
-              path: stdout
-              colors: true
-        EOF
-
-        # Run golangci-lint with the output config
-        golangci-lint run ${{ inputs.lint-args }} --config=/tmp/golangci-lint-output.yml
-        lint_exit_code=$?
-
-        # Determine if there are actual linting issues vs other errors
-        issues_found=0
-        if [ -f golangci-lint-report.json ] && [ -s golangci-lint-report.json ]; then
-          # Check if JSON has actual issues
-          if grep -Eq '"Issues"[[:space:]]*:[[:space:]]*\[' golangci-lint-report.json; then
-            issues_found=1
-          fi
-        fi
-
-        # Set output based on whether we found issues
-        if [ "$issues_found" -eq 1 ]; then
-          echo "exit-code=1" >> $GITHUB_OUTPUT
-          exit 1
-        elif [ "$lint_exit_code" -ne 0 ]; then
-          # golangci-lint failed for some other reason (config error, etc)
-          echo "exit-code=1" >> $GITHUB_OUTPUT
-          exit 1
-        else
-          echo "exit-code=0" >> $GITHUB_OUTPUT
-          exit 0
-        fi
+        echo "exit-code=$exit_code" >> $GITHUB_OUTPUT
+        exit $exit_code
 
     - name: Store lint results
       if: inputs.job == 'lint' && always()
@@ -257,34 +281,49 @@ runs:
       with:
         script: |
           const { UnifiedPRComment, formatLintOutputForPR, getWorkflowLogsUrl } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
+          const fs = require('fs');
           const path = require('path');
           const workingDir = '${{ inputs.working-directory }}' || '.';
 
-          // Check lint outcome
-          const lintExitCode = '${{ steps.golangci-lint.outputs.exit-code }}';
-          const lintOutcome = '${{ steps.golangci-lint.outcome }}';
-          const hasIssues = lintExitCode === '1' || lintOutcome === 'failure';
-
+          // Read lint results from CLI output
+          const resultsPath = '/tmp/lint-result.json';
           let lintResult = {
-            status: hasIssues ? 'failure' : 'success'
+            status: 'error',
+            error: 'Failed to read lint results'
           };
 
-          if (hasIssues) {
-            // Parse and format lint output for PR comment
-            const jsonFilePath = path.join(workingDir, 'golangci-lint-report.json');
-            const workflowLogsUrl = getWorkflowLogsUrl();
+          try {
+            if (fs.existsSync(resultsPath)) {
+              const data = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+              const check = data.checks?.[0];
 
-            const formattedIssues = formatLintOutputForPR(jsonFilePath, {
-              maxIssuesPerLinter: 10,
-              maxTotalIssues: 50,
-              workflowLogsUrl
-            });
+              if (check) {
+                lintResult = {
+                  status: check.status === 'pass' ? 'success' : 'failure'
+                };
 
-            if (formattedIssues) {
-              lintResult.issues = formattedIssues;
-            } else {
-              lintResult.error = 'Linting issues found - check logs for details';
+                if (check.status === 'fail' || check.status === 'error') {
+                  // Try to format lint output for PR comment
+                  // The CLI runs golangci-lint, which should have created golangci-lint-report.json
+                  const jsonFilePath = path.join(workingDir, 'golangci-lint-report.json');
+                  const workflowLogsUrl = getWorkflowLogsUrl();
+
+                  const formattedIssues = formatLintOutputForPR(jsonFilePath, {
+                    maxIssuesPerLinter: 10,
+                    maxTotalIssues: 50,
+                    workflowLogsUrl
+                  });
+
+                  if (formattedIssues) {
+                    lintResult.issues = formattedIssues;
+                  } else {
+                    lintResult.error = check.message || 'Linting issues found - check logs for details';
+                  }
+                }
+              }
             }
+          } catch (error) {
+            console.error('Error parsing lint results:', error);
           }
 
           await UnifiedPRComment.storeResults('lint', lintResult);
@@ -315,38 +354,28 @@ runs:
         echo "✅ govulncheck installation verified"
         govulncheck -version || echo "Version command not available"
 
-    - name: Run govulncheck
+    - name: Run security check with go-actions CLI
       if: inputs.job == 'security'
       id: govulncheck
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       continue-on-error: true
+      env:
+        GO_ACTIONS_SECURITY_ARGS: ${{ inputs.security-args }}
       run: |
-        set +e  # Don't exit on error, we want to capture the output
+        # Run security check using CLI (config defaults will be used if no .go-actions.yaml)
+        ${{ steps.build-cli.outputs.cli-path }} check security --format=json > /tmp/security-result.json
+        exit_code=$?
 
-        echo "Running govulncheck..."
-
-        # Run govulncheck with JSON output for parsing
-        govulncheck -json ${{ inputs.security-args }} ./... > govulncheck-report.json 2>&1
-        vuln_exit_code=$?
-
-        # Also run with text output for logs
-        govulncheck ${{ inputs.security-args }} ./... 2>&1 | tee govulncheck-output.txt
-
-        # Check if vulnerabilities were found (exit code 3 = vulns found, 0 = none)
-        if [ "$vuln_exit_code" -eq 3 ]; then
-          echo "exit-code=3" >> $GITHUB_OUTPUT
-          echo "vulnerabilities-found=true" >> $GITHUB_OUTPUT
-          exit 1
-        elif [ "$vuln_exit_code" -ne 0 ]; then
-          echo "exit-code=$vuln_exit_code" >> $GITHUB_OUTPUT
-          echo "vulnerabilities-found=false" >> $GITHUB_OUTPUT
-          exit 1
-        else
-          echo "exit-code=0" >> $GITHUB_OUTPUT
-          echo "vulnerabilities-found=false" >> $GITHUB_OUTPUT
-          exit 0
+        # Determine if vulnerabilities were found
+        vulnerabilities_found="false"
+        if [ "$exit_code" -eq 1 ]; then
+          vulnerabilities_found="true"
         fi
+
+        echo "exit-code=$exit_code" >> $GITHUB_OUTPUT
+        echo "vulnerabilities-found=$vulnerabilities_found" >> $GITHUB_OUTPUT
+        exit $exit_code
 
     - name: Store security results
       if: inputs.job == 'security' && always()
@@ -355,37 +384,52 @@ runs:
       with:
         script: |
           const { UnifiedPRComment, formatSecurityOutputForPR, getWorkflowLogsUrl } = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js');
+          const fs = require('fs');
           const path = require('path');
           const workingDir = '${{ inputs.working-directory }}' || '.';
 
-          // Check security outcome
-          const vulnExitCode = '${{ steps.govulncheck.outputs.exit-code }}';
-          const vulnsFound = '${{ steps.govulncheck.outputs.vulnerabilities-found }}' === 'true';
-          const vulnOutcome = '${{ steps.govulncheck.outcome }}';
-          const hasIssues = vulnsFound || vulnOutcome === 'failure';
-
+          // Read security results from CLI output
+          const resultsPath = '/tmp/security-result.json';
           let securityResult = {
-            status: hasIssues ? 'failure' : 'success',
-            vulnerabilityCount: 0
+            status: 'error',
+            vulnerabilityCount: 0,
+            error: 'Failed to read security results'
           };
 
-          if (hasIssues) {
-            // Parse and format security output for PR comment
-            const jsonFilePath = path.join(workingDir, 'govulncheck-report.json');
-            const textFilePath = path.join(workingDir, 'govulncheck-output.txt');
-            const workflowLogsUrl = getWorkflowLogsUrl();
+          try {
+            if (fs.existsSync(resultsPath)) {
+              const data = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+              const check = data.checks?.[0];
 
-            const formattedIssues = formatSecurityOutputForPR(jsonFilePath, textFilePath, {
-              maxVulnerabilities: 20,
-              workflowLogsUrl
-            });
+              if (check) {
+                securityResult = {
+                  status: check.status === 'pass' ? 'success' : 'failure',
+                  vulnerabilityCount: check.vulnerabilities || 0
+                };
 
-            if (formattedIssues) {
-              securityResult.issues = formattedIssues.markdown;
-              securityResult.vulnerabilityCount = formattedIssues.count;
-            } else {
-              securityResult.error = 'Vulnerabilities found - check logs for details';
+                if (check.status === 'fail' || check.status === 'error') {
+                  // Try to format security output for PR comment
+                  // The CLI runs govulncheck, which should have created report files
+                  const jsonFilePath = path.join(workingDir, 'govulncheck-report.json');
+                  const textFilePath = path.join(workingDir, 'govulncheck-output.txt');
+                  const workflowLogsUrl = getWorkflowLogsUrl();
+
+                  const formattedIssues = formatSecurityOutputForPR(jsonFilePath, textFilePath, {
+                    maxVulnerabilities: 20,
+                    workflowLogsUrl
+                  });
+
+                  if (formattedIssues) {
+                    securityResult.issues = formattedIssues.markdown;
+                    securityResult.vulnerabilityCount = formattedIssues.count;
+                  } else {
+                    securityResult.error = check.message || 'Vulnerabilities found - check logs for details';
+                  }
+                }
+              }
             }
+          } catch (error) {
+            console.error('Error parsing security results:', error);
           }
 
           core.setOutput('vulnerabilities', securityResult.vulnerabilityCount.toString());
