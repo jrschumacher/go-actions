@@ -27,9 +27,9 @@ inputs:
 
   # Lint job specific inputs
   golangci-lint-version:
-    description: 'golangci-lint version (lint job only). Use v2.0.2+ or v2/latest (auto-converted to v2.0.2)'
+    description: 'golangci-lint version (lint job only). Use v2.1.0+ or v2/latest (auto-converted to v2.1.0)'
     required: false
-    default: 'v2.0.2'
+    default: 'v2.1.0'
   lint-args:
     description: 'Additional arguments for golangci-lint (lint job only)'
     required: false
@@ -103,7 +103,7 @@ runs:
         version="${{ inputs.golangci-lint-version }}"
         # Convert generic v2/latest to a pinned version
         if [ "$version" = "v2" ] || [ "$version" = "latest" ]; then
-          version="v2.0.2"
+          version="v2.1.0"
         fi
         echo "Installing golangci-lint $version..."
         curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin $version

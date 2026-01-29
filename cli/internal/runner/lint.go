@@ -35,8 +35,8 @@ func (r *Runner) RunLint() (output.CheckResult, error) {
 		args = []string{"run", "./..."}
 	}
 
-	// Add JSON output for parsing
-	args = append(args, "--out-format=json")
+	// Add JSON output for parsing (golangci-lint v2.1+ format)
+	args = append(args, "--output.json.path", "stdout")
 
 	cmd := exec.Command("golangci-lint", args...)
 	var stdout, stderr bytes.Buffer
@@ -91,8 +91,17 @@ func parseLintOutput(data []byte) ([]lintIssue, error) {
 		return []lintIssue{}, nil
 	}
 
+	// golangci-lint v2.1+ outputs JSON on first line, then text summary
+	// Extract only the first line (the JSON)
+	lines := bytes.SplitN(data, []byte("\n"), 2)
+	jsonData := lines[0]
+
+	if len(jsonData) == 0 {
+		return []lintIssue{}, nil
+	}
+
 	var report lintReport
-	if err := json.Unmarshal(data, &report); err != nil {
+	if err := json.Unmarshal(jsonData, &report); err != nil {
 		return nil, fmt.Errorf("failed to parse lint output: %w", err)
 	}
 
