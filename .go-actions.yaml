@@ -1,0 +1,32 @@
+version: 1
+
+# Dogfood config - testing go-actions with itself
+ci:
+  go:
+    version-file: "cli/go.mod"
+
+  test:
+    enabled: true
+    args: "-v -race -coverprofile=coverage.out ./..."
+    coverage:
+      enabled: true
+      threshold: 70  # Target 70% coverage for CLI
+
+  lint:
+    enabled: true
+    version: "v2.0.2"
+
+  benchmark:
+    enabled: false
+
+  security:
+    enabled: true
+    version: "latest"
+    fail-on: "high"
+
+release:
+  strategy: "release-please"
+
+output:
+  format: "auto"
+  verbosity: "normal"
