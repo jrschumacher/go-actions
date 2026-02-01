@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/jrschumacher/go-actions/compare/go-actions-v2.0.0...go-actions-v3.0.0) (2026-02-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* Actions now require Go to build CLI during execution. TypeScript formatters retained for PR comment generation.
+
+### Features
+
+* port actions to Go CLI for local/CI parity (v3.0.0-beta.1) ([#26](https://github.com/jrschumacher/go-actions/issues/26)) ([660cb55](https://github.com/jrschumacher/go-actions/commit/660cb550c17022855efc3a79775244aba8ce71e6))
+
 ## [2.0.0](https://github.com/jrschumacher/go-actions/compare/go-actions-v1.2.0...go-actions-v2.0.0) (2026-01-29)
 
 
