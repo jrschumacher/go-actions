@@ -77,7 +77,9 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		formatter.PrintProgress(checks)
+		if err := formatter.PrintProgress(checks); err != nil {
+			return fmt.Errorf("failed to print progress: %w", err)
+		}
 		results, err = r.RunAll()
 	} else {
 		// Run specific check
@@ -95,7 +97,9 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("unknown check: %s (valid: lint, test, security, benchmark)", checkName)
 		}
 
-		formatter.PrintProgress([]string{checkName})
+		if err := formatter.PrintProgress([]string{checkName}); err != nil {
+			return fmt.Errorf("failed to print progress: %w", err)
+		}
 		results, err = r.RunCheck(checkName)
 	}
 
