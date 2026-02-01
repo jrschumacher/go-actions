@@ -15,8 +15,8 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+    # Note: The calling workflow must check out the repository before using this action.
+    # We don't do checkout here to avoid overwriting files created by the calling workflow.
 
     - name: Setup Go
       uses: actions/setup-go@v5
