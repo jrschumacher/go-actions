@@ -24,16 +24,20 @@ runs:
         go-version-file: '${{ github.action_path }}/../cli/go.mod'
         cache: false
 
+    - name: Build CLI
+      shell: bash
+      run: |
+        cd "${{ github.action_path }}/../cli"
+        go build -o /tmp/go-actions-validator .
+        echo "✅ CLI built successfully"
+
     - name: Run validation
       id: validate
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
-        # Run the Go CLI validator
-        cd "${{ github.action_path }}/../cli"
-
-        # Run validation and capture output
-        if output=$(go run . validate --format json --quiet 2>&1); then
+        # Run the pre-built Go CLI validator (avoids go download messages in output)
+        if output=$(/tmp/go-actions-validator validate --format json --quiet 2>&1); then
           echo "validation_passed=true" >> $GITHUB_OUTPUT
           echo "result=$output" >> $GITHUB_OUTPUT
         else

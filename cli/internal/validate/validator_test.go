@@ -50,8 +50,12 @@ func TestValidateGolangciLint(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create required project files
-	os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module test\n\ngo 1.21\n"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module test\n\ngo 1.21\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Test without config (should pass with warning)
 	v := New(Options{WorkingDir: tmpDir})
@@ -61,21 +65,27 @@ func TestValidateGolangciLint(t *testing.T) {
 	}
 
 	// Test with missing version
-	os.WriteFile(filepath.Join(tmpDir, ".golangci.yml"), []byte("linters:\n  enable:\n    - gofmt\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, ".golangci.yml"), []byte("linters:\n  enable:\n    - gofmt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	result = v.Validate()
 	if result.IsValid {
 		t.Error("Expected validation to fail without version field")
 	}
 
 	// Test with valid config
-	os.WriteFile(filepath.Join(tmpDir, ".golangci.yml"), []byte("version: 2\n\nlinters:\n  enable:\n    - gofmt\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, ".golangci.yml"), []byte("version: 2\n\nlinters:\n  enable:\n    - gofmt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	result = v.Validate()
 	if !result.IsValid {
 		t.Errorf("Expected validation to pass with valid config, got errors: %v", result.Errors)
 	}
 
 	// Test with v1 schema fields
-	os.WriteFile(filepath.Join(tmpDir, ".golangci.yml"), []byte("version: 2\n\nlinters-settings:\n  gofmt:\n    simplify: true\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, ".golangci.yml"), []byte("version: 2\n\nlinters-settings:\n  gofmt:\n    simplify: true\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	result = v.Validate()
 	if result.IsValid {
 		t.Error("Expected validation to fail with v1 schema fields")
@@ -86,12 +96,18 @@ func TestValidateGolangciLintFix(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create required project files
-	os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module test\n\ngo 1.21\n"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module test\n\ngo 1.21\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create config without version
 	configPath := filepath.Join(tmpDir, ".golangci.yml")
-	os.WriteFile(configPath, []byte("linters:\n  enable:\n    - gofmt\n"), 0644)
+	if err := os.WriteFile(configPath, []byte("linters:\n  enable:\n    - gofmt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Validate with fix
 	v := New(Options{WorkingDir: tmpDir, Fix: true})

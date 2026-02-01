@@ -148,16 +148,20 @@ func (v *Validator) validateGolangciLint(result *Result) {
 
 	// Validate version value
 	versionStr := fmt.Sprintf("%v", config.Version)
-	if versionStr != "2" {
+	switch versionStr {
+	case "2":
+		// Valid version, continue with validation
+	case "v2", "V2":
 		result.IsValid = false
-		
-		if versionStr == "v2" || versionStr == "V2" {
-			result.Errors = append(result.Errors, "golangci-lint config has 'version: v2' - remove the 'v' prefix, use 'version: 2'")
-		} else if versionStr == "1" || versionStr == "v1" {
-			result.Errors = append(result.Errors, "golangci-lint config uses version 1 - upgrade to 'version: 2'")
-		} else {
-			result.Errors = append(result.Errors, fmt.Sprintf("golangci-lint config has unsupported version: %s (expected: 2)", versionStr))
-		}
+		result.Errors = append(result.Errors, "golangci-lint config has 'version: v2' - remove the 'v' prefix, use 'version: 2'")
+		return
+	case "1", "v1":
+		result.IsValid = false
+		result.Errors = append(result.Errors, "golangci-lint config uses version 1 - upgrade to 'version: 2'")
+		return
+	default:
+		result.IsValid = false
+		result.Errors = append(result.Errors, fmt.Sprintf("golangci-lint config has unsupported version: %s (expected: 2)", versionStr))
 		return
 	}
 
