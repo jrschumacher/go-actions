@@ -17,5 +17,5 @@ runs:
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
         script: |
-          const actionComment = require('${{ github.action_path }}/../scripts-dist/ci-action-bundle/index.js').actionComment;
-          await actionComment();
+          const { postUnifiedComment } = require('${{ github.action_path }}/../scripts-dist/unified-comment-bundle/index.js');
+          await postUnifiedComment();

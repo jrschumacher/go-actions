@@ -106,9 +106,7 @@ jobs:
         run: |
           # Check that required bundle files exist
           REQUIRED_BUNDLES=(
-            "scripts-dist/ci-action-bundle/index.js"
-            "scripts-dist/release-action-bundle/index.js"
-            "scripts-dist/self-validate-bundle/index.js"
+            "scripts-dist/unified-comment-bundle/index.js"
           )
 
           for bundle in "${REQUIRED_BUNDLES[@]}"; do
@@ -130,18 +128,13 @@ jobs:
 
           # Validate bundles export expected functions
           node -e "
-            const ci = require('./scripts-dist/ci-action-bundle/index.js');
-            const validate = require('./scripts-dist/self-validate-bundle/index.js');
+            const comment = require('./scripts-dist/unified-comment-bundle/index.js');
 
-            // Check CI action exports
-            if (typeof ci.extractCoverage !== 'function') throw new Error('Missing extractCoverage');
-            if (typeof ci.runBenchmarks !== 'function') throw new Error('Missing runBenchmarks');
-            console.log('✅ CI bundle exports verified');
-
-            // Check self-validate exports
-            if (typeof validate.validateWorkflows !== 'function') throw new Error('Missing validateWorkflows');
-            if (typeof validate.WorkflowValidator !== 'function') throw new Error('Missing WorkflowValidator');
-            console.log('✅ Self-validate bundle exports verified');
+            // Check unified comment exports
+            if (typeof comment.storeJobResults !== 'function') throw new Error('Missing storeJobResults');
+            if (typeof comment.setProcessingState !== 'function') throw new Error('Missing setProcessingState');
+            if (typeof comment.postUnifiedComment !== 'function') throw new Error('Missing postUnifiedComment');
+            console.log('✅ Unified comment bundle exports verified');
           "
 
           echo "✅ All compiled bundles validated successfully"

@@ -39,24 +39,19 @@ An incomplete Go project that is missing required files for go-actions:
 
 These fixtures are used by:
 
-1. **TypeScript unit tests** - To test validation logic without external dependencies
+1. **Go CLI tests** - To test validation logic without external dependencies
 2. **CI workflows** - To verify actions work correctly in real GitHub Actions environment
 3. **Integration tests** - To test end-to-end functionality
 
 ## Testing Locally
 
 ```bash
-# Test valid fixture
-node -e "
-const { validateWorkflows } = require('./scripts-dist/workflow-validator.js');
-const result = validateWorkflows('./fixtures/go-valid');
-console.log('Valid fixture:', result);
-"
+# Build the CLI
+cd cli && go build -o go-actions .
 
-# Test invalid fixture  
-node -e "
-const { validateWorkflows } = require('./scripts-dist/workflow-validator.js');
-const result = validateWorkflows('./fixtures/go-invalid');
-console.log('Invalid fixture:', result);
-"
+# Test valid fixture
+cd ../fixtures/go-valid && ../../cli/go-actions validate
+
+# Test invalid fixture
+cd ../fixtures/go-invalid && ../../cli/go-actions validate
 ```

@@ -27,9 +27,9 @@ inputs:
 
   # Lint job specific inputs
   golangci-lint-version:
-    description: 'golangci-lint version (lint job only). Use v2.1.0+ or v2/latest (auto-converted to v2.1.0)'
+    description: 'golangci-lint version: "auto" (stable matrix), "latest" (bleeding edge), or explicit like "v2.8.0"'
     required: false
-    default: 'v2.1.0'
+    default: 'auto'
   lint-args:
     description: 'Additional arguments for golangci-lint (lint job only)'
     required: false
@@ -101,10 +101,35 @@ runs:
       shell: bash
       run: |
         version="${{ inputs.golangci-lint-version }}"
-        # Convert generic v2/latest to a pinned version
-        if [ "$version" = "v2" ] || [ "$version" = "latest" ]; then
-          version="v2.1.0"
+
+        if [ "$version" = "auto" ] || [ "$version" = "v2" ]; then
+          # Auto-detect compatible version based on Go version using stable matrix
+          go_version=$(go version | awk '{print $3}' | sed 's/go//')
+          go_minor=$(echo "$go_version" | cut -d. -f2)
+
+          # Compatibility matrix: golangci-lint version by Go minor version
+          # Go 1.25+ requires golangci-lint v2.4.0+ (v2.8.0 is latest stable)
+          # Go 1.24 works with v2.3.x
+          # Go 1.23 and earlier work with v2.1.x
+          if [ "$go_minor" -ge "25" ]; then
+            version="v2.8.0"
+          elif [ "$go_minor" -ge "24" ]; then
+            version="v2.3.1"
+          else
+            version="v2.1.0"
+          fi
+          echo "🔍 Auto-detected golangci-lint $version for Go $go_version (stable matrix)"
+        elif [ "$version" = "latest" ]; then
+          # Fetch the actual latest version from GitHub
+          version=$(curl -sS https://api.github.com/repos/golangci/golangci-lint/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            echo "⚠️ Failed to fetch latest version, falling back to v2.8.0"
+            version="v2.8.0"
+          else
+            echo "🚀 Using latest golangci-lint $version (bleeding edge)"
+          fi
         fi
+
         echo "Installing golangci-lint $version..."
         curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin $version
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH

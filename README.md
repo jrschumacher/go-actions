@@ -102,7 +102,7 @@ Runs test, lint, benchmark, or security jobs for Go projects. Lint results inclu
 | `go-version-file` | No | `go.mod` | Path to version file |
 | `working-directory` | No | `.` | Working directory |
 | `test-args` | No | `-v -race -coverprofile=coverage.out` | Arguments for `go test` |
-| `golangci-lint-version` | No | `v2.1.0` | golangci-lint version |
+| `golangci-lint-version` | No | `auto` | `auto` (stable matrix), `latest` (bleeding edge), or explicit like `v2.8.0` |
 | `lint-args` | No | - | Arguments for golangci-lint |
 | `benchmark-args` | No | `-bench=. -benchmem` | Benchmark arguments |
 | `benchmark-count` | No | `5` | Number of benchmark iterations |
@@ -130,11 +130,22 @@ Runs test, lint, benchmark, or security jobs for Go projects. Lint results inclu
     job: test
     test-args: '-v -short'
 
-# Lint with specific version
+# Lint (auto - stable matrix based on Go version)
 - uses: jrschumacher/go-actions/ci@v1
   with:
     job: lint
-    golangci-lint-version: v2.1.0
+
+# Lint with latest (bleeding edge)
+- uses: jrschumacher/go-actions/ci@v1
+  with:
+    job: lint
+    golangci-lint-version: latest
+
+# Lint with pinned version (for reproducibility)
+- uses: jrschumacher/go-actions/ci@v1
+  with:
+    job: lint
+    golangci-lint-version: v2.8.0
 
 # Benchmark
 - uses: jrschumacher/go-actions/ci@v1
