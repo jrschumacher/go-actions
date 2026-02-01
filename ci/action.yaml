@@ -55,6 +55,12 @@ inputs:
     required: false
     default: ''
 
+  # GitHub comment options
+  github-comment:
+    description: 'Post results as PR comment (auto-enabled on PRs when true)'
+    required: false
+    default: 'false'
+
 outputs:
   coverage:
     description: "Test coverage percentage"
@@ -157,7 +163,14 @@ runs:
         set +e  # Don't exit on error, we'll handle it
 
         echo "Running ${{ inputs.job }} check..."
-        /tmp/go-actions check ${{ inputs.job }} --format=json > /tmp/result.json 2>&1
+
+        # Build command with optional github-comment flag
+        comment_flag=""
+        if [ "${{ inputs.github-comment }}" = "true" ]; then
+          comment_flag="--github-comment"
+        fi
+
+        /tmp/go-actions check ${{ inputs.job }} --format=json $comment_flag > /tmp/result.json 2>&1
         exit_code=$?
 
         echo "--- Raw output ---"

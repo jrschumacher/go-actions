@@ -6,32 +6,11 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
-  # TypeScript tests for action scripts
-  test-typescript:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.20.0'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run TypeScript build
-        run: npm run build
-
-      - name: Run tests
-        run: npm test
-
-      - name: Check test coverage
-        run: npm run test:coverage
-
   # Dogfood: Use go-actions to test itself (Go CLI)
   test-go-cli:
     runs-on: ubuntu-latest
@@ -63,108 +42,47 @@ jobs:
               echo "Validating $action_file"
               # Basic YAML syntax check
               python -c "import yaml; yaml.safe_load(open('$action_file'))"
-              
+
               # Check required fields
               if ! grep -q "name:" "$action_file"; then
                 echo "Error: $action_file missing 'name' field"
                 exit 1
               fi
-              
+
               if ! grep -q "description:" "$action_file"; then
                 echo "Error: $action_file missing 'description' field"
                 exit 1
               fi
-              
+
               if ! grep -q "using:" "$action_file"; then
                 echo "Error: $action_file missing 'using' field"
                 exit 1
               fi
-              
+
               echo "✅ $action_file is valid"
             fi
           done
 
-  check-compiled-scripts:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.20.0'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build TypeScript
-        run: npm run build
-
-      - name: Validate compiled bundles
-        run: |
-          # Check that required bundle files exist
-          REQUIRED_BUNDLES=(
-            "scripts-dist/unified-comment-bundle/index.js"
-          )
-
-          for bundle in "${REQUIRED_BUNDLES[@]}"; do
-            if [ ! -f "$bundle" ]; then
-              echo "❌ Missing required bundle: $bundle"
-              exit 1
-            fi
-            echo "✅ Found bundle: $bundle"
-          done
-
-          # Validate bundles are valid JavaScript by checking syntax
-          for bundle in "${REQUIRED_BUNDLES[@]}"; do
-            if ! node --check "$bundle" 2>/dev/null; then
-              echo "❌ Bundle has syntax errors: $bundle"
-              exit 1
-            fi
-            echo "✅ Bundle syntax valid: $bundle"
-          done
-
-          # Validate bundles export expected functions
-          node -e "
-            const comment = require('./scripts-dist/unified-comment-bundle/index.js');
-
-            // Check unified comment exports
-            if (typeof comment.storeJobResults !== 'function') throw new Error('Missing storeJobResults');
-            if (typeof comment.setProcessingState !== 'function') throw new Error('Missing setProcessingState');
-            if (typeof comment.postUnifiedComment !== 'function') throw new Error('Missing postUnifiedComment');
-            console.log('✅ Unified comment bundle exports verified');
-          "
-
-          echo "✅ All compiled bundles validated successfully"
-
   test-actions:
     runs-on: ubuntu-latest
-    needs: [test-typescript, test-go-cli, validate-actions, check-compiled-scripts]
+    needs: [test-go-cli, validate-actions]
     strategy:
       matrix:
-        action: [ci, release, self-validate, comment]
+        action: [ci, release, self-validate]
         job: [test, lint, benchmark]
         exclude:
           # Only test relevant job types for ci action
           - action: release
             job: test
-          - action: release  
+          - action: release
             job: lint
           - action: release
             job: benchmark
           - action: self-validate
             job: test
           - action: self-validate
-            job: lint  
-          - action: self-validate
-            job: benchmark
-          - action: comment
-            job: test
-          - action: comment
             job: lint
-          - action: comment
+          - action: self-validate
             job: benchmark
     steps:
       - name: Checkout
@@ -175,35 +93,35 @@ jobs:
           # Create a minimal Go module for testing
           echo 'module test-project' > go.mod
           echo 'go 1.21' >> go.mod
-          
+
           # Create a simple Go file
           cat > main.go << 'EOF'
           package main
-          
+
           import "fmt"
-          
+
           func main() {
               fmt.Println("Hello, World!")
           }
-          
+
           func Add(a, b int) int {
               return a + b
           }
           EOF
-          
+
           # Create a test file
           cat > main_test.go << 'EOF'
           package main
-          
+
           import "testing"
-          
+
           func TestAdd(t *testing.T) {
               result := Add(2, 3)
               if result != 5 {
                   t.Errorf("Add(2, 3) = %d; want 5", result)
               }
           }
-          
+
           func BenchmarkAdd(b *testing.B) {
               for i := 0; i < b.N; i++ {
                   Add(2, 3)
@@ -218,18 +136,14 @@ jobs:
           job: ${{ matrix.job }}
           go-version: '1.21'
 
-      - name: Test self-validate action  
+      - name: Test self-validate action
         if: matrix.action == 'self-validate'
         uses: ./self-validate
-
-      - name: Test comment action
-        if: matrix.action == 'comment'
-        uses: ./comment
 
   # Test release action in isolation since it requires special setup
   test-release-action:
     runs-on: ubuntu-latest
-    needs: [test-typescript, test-go-cli, validate-actions, check-compiled-scripts]
+    needs: [test-go-cli, validate-actions]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -247,14 +161,14 @@ jobs:
             }
           }
           EOF
-          
+
           # Create Release Please manifest
           cat > .release-please-manifest.json << 'EOF'
           {
             ".": "0.1.0"
           }
           EOF
-          
+
           # Create minimal Go module
           echo 'module test-project' > go.mod
           echo 'go 1.21' >> go.mod
@@ -265,59 +179,27 @@ jobs:
           release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         continue-on-error: true  # Release action may fail in test environment
 
-  lint-and-format:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.20.0'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Check TypeScript formatting and linting
-        run: |
-          # Build to check for TypeScript errors
-          npm run build
-          
-          # Check if there are any TypeScript errors
-          if ! npx tsc --noEmit; then
-            echo "❌ TypeScript compilation errors found"
-            exit 1
-          fi
-          
-          echo "✅ TypeScript checks passed"
-
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Run npm audit
-        run: npm audit --audit-level=high
-
-      - name: Check for secrets in code
-        run: |
-          # Basic check for common secret patterns
-          if grep -r -E "(password|token|key|secret|api_key|apikey)" scripts/ --include="*.ts" --include="*.js" | grep -v -E "(test|spec|mock)" | grep -v -E "(interface|type|description|comment)" | head -5; then
-            echo "⚠️ Potential secrets found in code. Please review."
-            # Don't fail the build for this, just warn
-          fi
-
-  # Post unified comment for PR
+  # Post PR comment with CI results
   comment:
     runs-on: ubuntu-latest
-    needs: [test-typescript, test-go-cli, validate-actions, check-compiled-scripts, test-actions, test-release-action, lint-and-format]
+    needs: [test-go-cli, validate-actions, test-actions, test-release-action]
     if: always() && github.event_name == 'pull_request'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Post unified CI results
-        uses: ./comment
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+
+      - name: Post CI results comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd cli
+          go build -o /tmp/go-actions .
+
+          # Run a quick check and post comment
+          # Since we're in the comment job, we just post a summary
+          /tmp/go-actions check test --github-comment --format=json || true
