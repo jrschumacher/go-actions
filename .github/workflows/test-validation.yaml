@@ -15,7 +15,49 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
+
+      - name: Create minimal Go project for testing
+        run: |
+          # Create a minimal Go module for testing self-validate
+          # (go-actions itself is not a Go project at root level)
+          echo 'module test-project' > go.mod
+          echo 'go 1.21' >> go.mod
+
+          # Create a simple Go file
+          cat > main.go << 'EOF'
+          package main
+
+          import "fmt"
+
+          func main() {
+              fmt.Println("Hello, World!")
+          }
+          EOF
+
+          # Create a test file
+          cat > main_test.go << 'EOF'
+          package main
+
+          import "testing"
+
+          func TestHello(t *testing.T) {
+              // Simple test
+          }
+          EOF
+
+          # Create golangci-lint config with required version: 2
+          cat > .golangci.yml << 'EOF'
+          version: 2
+
+          run:
+            timeout: 5m
+
+          linters:
+            enable:
+              - gofmt
+              - govet
+          EOF
+
       - name: Validate go-actions configuration
         uses: ./self-validate
         with:
