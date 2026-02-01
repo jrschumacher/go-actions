@@ -37,32 +37,32 @@ Validates project configuration when go-actions are used:
 - Comments on PRs with validation results and helpful examples
 - Checks golangci-lint version compatibility
 
-## TypeScript Backend
+## Go CLI (`cli/`)
 
-The actions use TypeScript for complex logic, providing type safety and testability:
+The core CI/CD logic is implemented as a Go CLI for local/CI parity:
+
+### Commands
+- **`go-actions check [test|lint|benchmark|security]`**: Run CI checks locally
+- **`go-actions validate`**: Validate project configuration (golangci-lint, release files)
+
+### Internal Packages (`cli/internal/`)
+- **`benchmark/`**: Runs Go benchmarks with multiple iterations
+- **`config/`**: Configuration loading and parsing
+- **`coverage/`**: Extracts test coverage from Go coverage files
+- **`lint/`**: Runs golangci-lint and formats output
+- **`security/`**: Runs govulncheck for CVE scanning
+- **`validate/`**: Project structure and configuration validation
+
+## TypeScript (PR Comments Only)
+
+TypeScript is only used for unified PR comment functionality:
 
 ### Core Modules (`scripts/`)
-- **`workflow-validator.ts`**: Validates workflow files and project configuration
-- **`coverage-extractor.ts`**: Extracts test coverage from Go coverage files
-- **`benchmark-runner.ts`**: Runs Go benchmarks with multiple iterations
-- **`lint-formatter.ts`**: Parses and formats golangci-lint output for PR comments
-  - Parses golangci-lint JSON output format
-  - Groups issues by linter type for better organization
-  - Sorts linters by issue count (most issues first)
-  - Truncates large outputs intelligently (configurable limits)
-  - Generates markdown with collapsible sections
-  - Includes workflow logs links
-- **`security-formatter.ts`**: Parses and formats govulncheck output for PR comments
-  - Parses govulncheck JSON/text output formats
-  - Groups vulnerabilities by severity (Critical, High, Medium, Low)
-  - Includes CVE references and fix version guidance
-  - Call stack information for affected code paths
-- **`validate-project.ts`**: Comprehensive Go project structure validation
-- **`validate-release.ts`**: Release Please configuration validation
+- **`unified-pr-comment.ts`**: Formats and posts unified CI results to PRs
+- **`action-comment.ts`**: Entry point for comment action
 
 ### Compiled JavaScript (`scripts-dist/`)
-- All TypeScript modules are compiled to JavaScript for GitHub Actions consumption
-- Source maps and type definitions included for debugging
+- **`unified-comment-bundle/`**: Bundled comment functionality for GitHub Actions
 
 ## Development Commands
 
@@ -77,9 +77,8 @@ npm run test:coverage # Run tests with coverage report
 ```
 
 ### Testing Infrastructure
-- **Jest**: Testing framework with TypeScript support
-- **High test coverage** across all modules
-- **211+ test cases** covering various environmental scenarios
+- **Go tests**: `cd cli && go test ./...` for CLI logic
+- **Jest**: Testing framework for TypeScript PR comment functionality
 - **Mocked dependencies**: fs, child_process for isolated testing
 
 ### GitHub Actions Testing
@@ -102,7 +101,7 @@ npm run test:coverage # Run tests with coverage report
 
 **Job-Specific Inputs:**
 - **Test**: `test-args` (defaults to `-v -race -coverprofile=coverage.out`)
-- **Lint**: `golangci-lint-version` (defaults to `v2.1.0`, auto-converts `v2`/`latest` to `v2.1.0`), `lint-args`
+- **Lint**: `golangci-lint-version` (defaults to `auto` for Go-version-aware selection from stable matrix, or `latest` for bleeding edge), `lint-args`
 - **Benchmark**: `benchmark-args` (defaults to `-bench=. -benchmem`), `benchmark-count` (defaults to 5)
 - **Security**: `govulncheck-version` (defaults to `latest`), `security-args`
 
@@ -118,66 +117,73 @@ npm run test:coverage # Run tests with coverage report
 
 ## Code Quality Standards
 
-### TypeScript Best Practices
+### Go CLI Standards
+- **Idiomatic Go**: Follow standard Go conventions and patterns
+- **Error handling**: Use Go error handling patterns, wrap errors with context
+- **Testing**: Unit tests required for all packages in `cli/internal/`
+- **Modular design**: Each package has a single responsibility
+
+### TypeScript Standards (PR Comments Only)
 - **Strict typing**: All functions have proper type annotations
 - **Interface definitions**: Clear contracts for data structures
 - **Error handling**: Comprehensive error catching and reporting
-- **Modular design**: Each module has a single responsibility
-
-### Testing Requirements
-- **Unit tests required** for all new TypeScript functions
-- **Coverage target**: Maintain >95% test coverage
-- **Test scenarios**: Must cover success, failure, and edge cases
-- **Mocked dependencies**: External dependencies must be mocked
 
 ### Performance Considerations
-- **Bash for simple operations**: Use bash for file checks and simple commands
-- **TypeScript for complex logic**: Use TypeScript for validation, parsing, and workflows
-- **Minimal GitHub Script overhead**: Reduce Node.js startup costs where possible
+- **Go CLI for CI checks**: Fast execution, single binary, no Node.js overhead
+- **TypeScript for PR comments**: GitHub Script integration for API access
+- **Minimal dependencies**: Prefer standard library solutions
 
 ## Important Notes
 
 ### File Structure
-- TypeScript source files in `scripts/`
+- Go CLI source in `cli/`
+- Go CLI tests use `_test.go` suffix
+- TypeScript source files in `scripts/` (PR comments only)
 - Compiled JavaScript in `scripts-dist/` (committed for GitHub Actions)
-- Test files use `.test.ts` suffix
-- Jest configuration in `jest.config.js`
 
 ### Action Requirements
 - CI action assumes Go projects follow standard conventions (go.mod at root, `./...` for recursive operations)
 - Coverage reporting requires tests to generate `coverage.out` file
 - Release action requires a Personal Access Token (PAT) - GITHUB_TOKEN cannot create PRs
 - Release action expects `.goreleaser.yaml` in the consuming repository
-- Self-validate runs without Go setup for lightweight validation
+- Self-validate uses Go CLI for validation
 
 ### golangci-lint Version Management
-- Default version is `v2.0.2` (latest stable v2, can be overridden with `golangci-lint-version`, auto-converts `v2`/`latest`)
+- **Three version modes**:
+  - `auto` (default): Uses stable compatibility matrix based on Go version
+  - `latest`: Fetches newest release from GitHub (bleeding edge)
+  - Explicit version (e.g., `v2.8.0`): Pinned for reproducibility
+- **Auto-detection compatibility matrix**:
+  - Go 1.25+: uses golangci-lint v2.8.0
+  - Go 1.24: uses golangci-lint v2.3.1
+  - Go 1.23 and earlier: uses golangci-lint v2.1.0
 - Self-validate checks version compatibility between workflow and config file
 - Supports both `.golangci.yml` and `.golangci.yaml` formats
 - Validates major version compatibility (v1 vs v2)
 
 **Version Update Process**:
 
-The CI action uses manual installation of golangci-lint (not golangci-lint-action) to avoid cache collision issues. The version is pinned to `v2.0.2` for reproducibility.
+The CI action uses manual installation of golangci-lint (not golangci-lint-action) to avoid cache collision issues. Auto-detection ensures compatibility with the project's Go version.
 
-**To update to a newer v2.x version**:
+**To update the compatibility matrix**:
 1. Check [golangci-lint releases](https://github.com/golangci/golangci-lint/releases) for new v2.x versions
-2. Update `ci/action.yaml` line ~169: Change `version="v2.0.2"` to `version="v2.X.Y"`
+2. Update the compatibility matrix in `ci/action.yaml` (Install golangci-lint step)
 3. Test the change:
+   - Run `cd cli && go test ./...` to ensure Go tests pass
    - Run `npm test` to ensure TypeScript tests pass
    - Test in a real workflow with actual Go projects
    - Verify the new version doesn't introduce breaking changes
-4. Update the default in `ci/action.yaml` input description (line ~30)
+4. Update this documentation with new version mappings
 5. Document any breaking changes or new features in commit message
-6. Consider updating README.md examples if version behavior changes
 
 **Maintenance Schedule**: Check for new v2.x releases quarterly to catch:
+- Go version compatibility updates (new Go releases need newer golangci-lint)
 - Security patches
 - Performance improvements
 - New linter support
-- Bug fixes
 
 **Why Manual Installation**:
+- Enables Go-version-aware auto-detection of compatible golangci-lint
 - Eliminates cache collision errors (`gtar: Cannot open: File exists`)
 - Provides direct control over installation process
 - Better error visibility and troubleshooting

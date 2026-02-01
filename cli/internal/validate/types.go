@@ -1,47 +1,38 @@
 package validate
 
-// ValidationResult represents the overall validation result
-type ValidationResult struct {
-	Valid    bool               `json:"valid"`
-	Errors   []ValidationIssue  `json:"errors"`
-	Warnings []ValidationIssue  `json:"warnings"`
-	Actions  []DetectedAction   `json:"actions"`
+// Options configures the validator
+type Options struct {
+	WorkingDir string
+	Fix        bool
+	Quiet      bool
 }
 
-// ValidationIssue represents a validation error or warning
-type ValidationIssue struct {
-	File     string `json:"file"`
-	Line     int    `json:"line,omitempty"`
-	Message  string `json:"message"`
-	Code     string `json:"code"`
-	Severity string `json:"severity,omitempty"` // "error" or "warning"
-	Expected string `json:"expected,omitempty"`
-	Actual   string `json:"actual,omitempty"`
+// Result contains validation results
+type Result struct {
+	IsValid  bool
+	Errors   []string
+	Warnings []string
 }
 
-// DetectedAction represents a go-action found in a workflow
-type DetectedAction struct {
-	Name     string `json:"name"`     // ci, release, self-validate
-	Version  string `json:"version"`  // e.g., v1, main
-	Workflow string `json:"workflow"` // workflow file name
+// GolangciConfig represents golangci-lint configuration
+type GolangciConfig struct {
+	Version         interface{}            `yaml:"version"`
+	Linters         *LintersConfig         `yaml:"linters"`
+	LintersSettings map[string]interface{} `yaml:"linters-settings"` // v1 schema (deprecated)
+	Issues          *IssuesConfig          `yaml:"issues"`
+	Run             map[string]interface{} `yaml:"run"`
 }
 
-// WorkflowConfig represents configuration extracted from a workflow file
-type WorkflowConfig struct {
-	GolangciLintVersion string
+// LintersConfig represents the linters section
+type LintersConfig struct {
+	Enable     []string `yaml:"enable"`
+	Disable    []string `yaml:"disable"`
+	EnableAll  bool     `yaml:"enable-all"`
+	DisableAll bool     `yaml:"disable-all"`
+	Preset     string   `yaml:"preset"`
 }
 
-// IssueType constants for validation issues
-const (
-	IssueTypeMissingFile           = "missing_file"
-	IssueTypeVersionMismatch       = "version_mismatch"
-	IssueTypeIncompatibleVersions  = "incompatible_versions"
-	IssueTypeGoReleaserConfig      = "goreleaser_config"
-	IssueTypeReleasePleaseConfig   = "release_please_config"
-)
-
-// Severity constants
-const (
-	SeverityError   = "error"
-	SeverityWarning = "warning"
-)
+// IssuesConfig represents the issues section
+type IssuesConfig struct {
+	ExcludeRules []interface{} `yaml:"exclude-rules"` // v1 schema (deprecated)
+}

@@ -18,17 +18,64 @@ runs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Validate go-actions usage
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: '${{ github.action_path }}/../cli/go.mod'
+        cache: false
+
+    - name: Run validation
       id: validate
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        # Run the Go CLI validator
+        cd "${{ github.action_path }}/../cli"
+
+        # Run validation and capture output
+        if output=$(go run . validate --format json --quiet 2>&1); then
+          echo "validation_passed=true" >> $GITHUB_OUTPUT
+          echo "result=$output" >> $GITHUB_OUTPUT
+        else
+          echo "validation_passed=false" >> $GITHUB_OUTPUT
+          echo "result=$output" >> $GITHUB_OUTPUT
+        fi
+
+        # Always output the JSON for downstream processing
+        echo "$output"
+
+    - name: Store results for unified comment
+      if: inputs.comment-on-pr == 'true' && github.event_name == 'pull_request'
       uses: actions/github-script@v7
       env:
-        INPUT_WORKFLOW_PATHS: ${{ inputs.workflow-paths }}
-        INPUT_COMMENT_ON_PR: ${{ inputs.comment-on-pr }}
-        INPUT_WORKING_DIRECTORY: '.'
+        VALIDATION_RESULT: ${{ steps.validate.outputs.result }}
+        VALIDATION_PASSED: ${{ steps.validate.outputs.validation_passed }}
       with:
         script: |
-          const actionSelfValidate = require('${{ github.action_path }}/../scripts-dist/self-validate-bundle/index.js').actionSelfValidate;
-          await actionSelfValidate();
+          const { storeJobResults, setProcessingState } = require('${{ github.action_path }}/../scripts-dist/unified-comment-bundle/index.js');
 
-    # Self-validation results are now stored for unified comment
-    # Individual validation comments are consolidated into a single unified comment
+          // Parse validation result
+          let result;
+          try {
+            result = JSON.parse(process.env.VALIDATION_RESULT || '{}');
+          } catch (e) {
+            result = { valid: false, errors: ['Failed to parse validation result'], warnings: [] };
+          }
+
+          // Store results for unified comment
+          await storeJobResults('selfValidate', {
+            status: result.valid ? 'success' : 'failure',
+            actionsFound: [],
+            errors: (result.errors || []).map(msg => ({
+              type: 'validation_error',
+              message: msg,
+              severity: 'error'
+            }))
+          });
+
+    - name: Fail if validation failed
+      if: steps.validate.outputs.validation_passed == 'false'
+      shell: bash
+      run: |
+        echo "::error::Validation failed"
+        exit 1
