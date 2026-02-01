@@ -405,9 +405,9 @@ func TestCommentStructure(t *testing.T) {
 	}
 
 	// Verify order: marker -> status lines -> details sections -> footer
-	if !(markerIdx < testStatusIdx && testStatusIdx < lintStatusIdx &&
-		lintStatusIdx < testDetailsIdx && testDetailsIdx < lintDetailsIdx &&
-		lintDetailsIdx < footerIdx) {
+	if markerIdx >= testStatusIdx || testStatusIdx >= lintStatusIdx ||
+		lintStatusIdx >= testDetailsIdx || testDetailsIdx >= lintDetailsIdx ||
+		lintDetailsIdx >= footerIdx {
 		t.Error("Comment elements not in expected order")
 	}
 }

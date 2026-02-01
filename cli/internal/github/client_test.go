@@ -113,7 +113,7 @@ func TestListComments(t *testing.T) {
 				}
 
 				w.WriteHeader(tt.statusCode)
-				w.Write([]byte(tt.responseBody))
+				_, _ = w.Write([]byte(tt.responseBody))
 			}))
 			defer server.Close()
 
@@ -185,7 +185,7 @@ func TestCreateComment(t *testing.T) {
 				}
 
 				w.WriteHeader(tt.statusCode)
-				w.Write([]byte(`{"id": 1}`))
+				_, _ = w.Write([]byte(`{"id": 1}`))
 			}))
 			defer server.Close()
 
@@ -248,7 +248,7 @@ func TestUpdateComment(t *testing.T) {
 				}
 
 				w.WriteHeader(tt.statusCode)
-				w.Write([]byte(`{"id": 123}`))
+				_, _ = w.Write([]byte(`{"id": 123}`))
 			}))
 			defer server.Close()
 
@@ -339,19 +339,19 @@ func TestUpsertComment(t *testing.T) {
 						comments = append(comments, *tt.existingComment)
 					}
 					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(comments)
+					_ = json.NewEncoder(w).Encode(comments)
 
 				case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/issues/1/comments"):
 					// Create comment
 					createCalled = true
 					w.WriteHeader(http.StatusCreated)
-					w.Write([]byte(`{"id": 999}`))
+					_, _ = w.Write([]byte(`{"id": 999}`))
 
 				case r.Method == http.MethodPatch && strings.Contains(r.URL.Path, "/issues/comments/"):
 					// Update comment
 					updateCalled = true
 					w.WriteHeader(http.StatusOK)
-					w.Write([]byte(`{"id": 123}`))
+					_, _ = w.Write([]byte(`{"id": 123}`))
 
 				default:
 					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -383,7 +383,7 @@ func TestUpsertComment(t *testing.T) {
 func TestUpsertCommentListError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"message": "Bad credentials"}`))
+		_, _ = w.Write([]byte(`{"message": "Bad credentials"}`))
 	}))
 	defer server.Close()
 

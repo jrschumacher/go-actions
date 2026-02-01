@@ -55,7 +55,7 @@ func (c *Client) ListComments(owner, repo string, prNumber int) ([]Comment, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to list comments: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -91,7 +91,7 @@ func (c *Client) CreateComment(owner, repo string, prNumber int, body string) er
 	if err != nil {
 		return fmt.Errorf("failed to create comment: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
@@ -122,7 +122,7 @@ func (c *Client) UpdateComment(owner, repo string, commentID int64, body string)
 	if err != nil {
 		return fmt.Errorf("failed to update comment: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

@@ -48,35 +48,6 @@ runs:
         # Always output the JSON for downstream processing
         echo "$output"
 
-    - name: Store results for unified comment
-      if: inputs.comment-on-pr == 'true' && github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      env:
-        VALIDATION_RESULT: ${{ steps.validate.outputs.result }}
-        VALIDATION_PASSED: ${{ steps.validate.outputs.validation_passed }}
-      with:
-        script: |
-          const { storeJobResults, setProcessingState } = require('${{ github.action_path }}/../scripts-dist/unified-comment-bundle/index.js');
-
-          // Parse validation result
-          let result;
-          try {
-            result = JSON.parse(process.env.VALIDATION_RESULT || '{}');
-          } catch (e) {
-            result = { valid: false, errors: ['Failed to parse validation result'], warnings: [] };
-          }
-
-          // Store results for unified comment
-          await storeJobResults('selfValidate', {
-            status: result.valid ? 'success' : 'failure',
-            actionsFound: [],
-            errors: (result.errors || []).map(msg => ({
-              type: 'validation_error',
-              message: msg,
-              severity: 'error'
-            }))
-          });
-
     - name: Fail if validation failed
       if: steps.validate.outputs.validation_passed == 'false'
       shell: bash
