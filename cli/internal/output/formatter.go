@@ -86,18 +86,29 @@ func (f *Formatter) printText(results *Results) error {
 			line += " - " + check.Message
 		}
 
-		_, _ = fmt.Fprintln(f.writer, line)
+		if _, err := fmt.Fprintln(f.writer, line); err != nil {
+			return fmt.Errorf("failed to write check result: %w", err)
+		}
 	}
 
-	_, _ = fmt.Fprintln(f.writer)
+	if _, err := fmt.Fprintln(f.writer); err != nil {
+		return fmt.Errorf("failed to write separator: %w", err)
+	}
 
+	var statusMsg string
 	switch results.Status {
 	case "pass":
-		_, _ = fmt.Fprintln(f.writer, "All checks passed. Safe to push.")
+		statusMsg = "All checks passed. Safe to push."
 	case "fail":
-		_, _ = fmt.Fprintln(f.writer, "Some checks failed. Please fix the issues.")
+		statusMsg = "Some checks failed. Please fix the issues."
 	case "error":
-		_, _ = fmt.Fprintln(f.writer, "Some checks encountered errors.")
+		statusMsg = "Some checks encountered errors."
+	}
+
+	if statusMsg != "" {
+		if _, err := fmt.Fprintln(f.writer, statusMsg); err != nil {
+			return fmt.Errorf("failed to write status message: %w", err)
+		}
 	}
 
 	return nil
@@ -119,12 +130,15 @@ func getStatusSymbol(status string) string {
 }
 
 // PrintProgress outputs a progress message
-func (f *Formatter) PrintProgress(checks []string) {
+func (f *Formatter) PrintProgress(checks []string) error {
 	if f.format == "json" {
-		return // Skip progress messages in JSON mode
+		return nil // Skip progress messages in JSON mode
 	}
 
-	_, _ = fmt.Fprintf(f.writer, "Running: %s\n\n", joinChecks(checks))
+	if _, err := fmt.Fprintf(f.writer, "Running: %s\n\n", joinChecks(checks)); err != nil {
+		return fmt.Errorf("failed to write progress message: %w", err)
+	}
+	return nil
 }
 
 func joinChecks(checks []string) string {
