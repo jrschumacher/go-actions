@@ -519,4 +519,4 @@ The `security` job (govulncheck) and `lint` job (golangci-lint) serve **differen
 
 - **`@v1`**: Latest stable v1.x.x release (recommended)
 - **`@v1.2.3`**: Exact version pinning
-- **`@main`**: Development branch (not recommended for production)
+- **`@v3`**: Development branch (not recommended for production)
