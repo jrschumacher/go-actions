@@ -111,8 +111,8 @@ jobs:
           args: release --clean
           workdir: cli
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
   # Build and test the release
   test-actions:
