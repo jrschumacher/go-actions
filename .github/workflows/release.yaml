@@ -9,50 +9,28 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Build and test before release
+  # Build and test Go CLI before release
   pre-release-validation:
     runs-on: ubuntu-latest
-    outputs:
-      scripts-changed: ${{ steps.changes.outputs.scripts }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Need full history for change detection
+          fetch-depth: 0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          node-version: '20.20.0'
-          cache: 'npm'
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
 
-      - name: Install dependencies
-        run: npm install
+      - name: Run Go CLI tests
+        working-directory: cli
+        run: go test ./...
 
-      - name: Build TypeScript
-        run: npm run build
-
-      - name: Run tests
-        run: npm test
-
-      - name: Check for TypeScript changes
-        id: changes
-        run: |
-          # Check if any TypeScript files changed in the last commit
-          if git diff --name-only HEAD~1 HEAD | grep -E '\.(ts|js)$' || git diff --name-only HEAD~1 HEAD | grep 'package\.json'; then
-            echo "scripts=true" >> $GITHUB_OUTPUT
-          else
-            echo "scripts=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Validate compiled scripts are current
-        if: steps.changes.outputs.scripts == 'true'
-        run: |
-          if [ -n "$(git status --porcelain scripts-dist/)" ]; then
-            echo "❌ TypeScript changes detected but compiled scripts not updated"
-            echo "Please run 'npm run build' and commit the scripts-dist/ changes"
-            exit 1
-          fi
+      - name: Build Go CLI
+        working-directory: cli
+        run: go build -o go-actions .
 
   # Handle Release Please for version management
   release-please:
