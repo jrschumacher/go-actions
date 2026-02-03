@@ -19,6 +19,8 @@
     "scripts-dist/**/*.js"
   ],
   "packages": {
-    ".": {}
+    ".": {
+      "release-as": "3.0.1"
+    }
   }
 }
