@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.0.1](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.0.0...go-actions-v3.0.1) (2026-02-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* The separate `comment` action has been removed. PR comments are now posted directly by the CI action using `github-comment: true` input.
+
+### Bug Fixes
+
+* checkout release tag in goreleaser job ([#34](https://github.com/jrschumacher/go-actions/issues/34)) ([d3da738](https://github.com/jrschumacher/go-actions/commit/d3da738d14e566e2f88b01320166b8dea779836e))
+* Port PR comments to Go CLI, remove TypeScript ([#31](https://github.com/jrschumacher/go-actions/issues/31)) ([3c02cef](https://github.com/jrschumacher/go-actions/commit/3c02cef8682201f4368ad23e979339dffbae6a01))
+* remove obsolete TypeScript validation from release workflow ([#32](https://github.com/jrschumacher/go-actions/issues/32)) ([2d371bb](https://github.com/jrschumacher/go-actions/commit/2d371bb488f1c01bf39d320a7691dd527f5dca66))
+
+
+### Documentation
+
+* update README to use [@v3](https://github.com/v3) tag ([86eb108](https://github.com/jrschumacher/go-actions/commit/86eb10888066277ac813e09b496bfe786422e93d))
+
 ## [3.0.0](https://github.com/jrschumacher/go-actions/compare/go-actions-v2.0.0...go-actions-v3.0.0) (2026-02-01)
 
 
