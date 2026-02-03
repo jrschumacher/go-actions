@@ -66,25 +66,53 @@ jobs:
           TAG_NAME="${{ needs.release-please.outputs.tag-name }}"
           MAJOR="${{ needs.release-please.outputs.major }}"
           MINOR="${{ needs.release-please.outputs.minor }}"
-          
+
           echo "New release: $TAG_NAME"
           echo "Major: $MAJOR, Minor: $MINOR"
-          
+
           # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+
           # Update major tag (v1, v2, etc.)
           echo "Updating major tag v$MAJOR"
           git tag -fa "v$MAJOR" -m "Update major tag to $TAG_NAME"
           git push origin "v$MAJOR" --force
-          
+
           # Update minor tag (v1.2, v1.3, etc.)
           echo "Updating minor tag v$MAJOR.$MINOR"
           git tag -fa "v$MAJOR.$MINOR" -m "Update minor tag to $TAG_NAME"
           git push origin "v$MAJOR.$MINOR" --force
-          
+
           echo "✅ Updated action tags for GitHub Actions consumers"
+
+  # Build and publish CLI binaries with GoReleaser
+  goreleaser:
+    runs-on: ubuntu-latest
+    needs: release-please
+    if: needs.release-please.outputs.release-created == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+          workdir: cli
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
   # Build and test the release
   test-actions:
@@ -191,29 +219,40 @@ jobs:
   # Notify about the release
   notify-release:
     runs-on: ubuntu-latest
-    needs: [release-please, update-action-tags, test-actions]
+    needs: [release-please, update-action-tags, test-actions, goreleaser]
     if: always() && needs.release-please.outputs.release-created == 'true'
     steps:
       - name: Create release summary
         run: |
           TAG_NAME="${{ needs.release-please.outputs.tag-name }}"
           MAJOR="${{ needs.release-please.outputs.major }}"
-          
+
           echo "## 🚀 go-actions $TAG_NAME Released!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### What's New" >> $GITHUB_STEP_SUMMARY
           echo "- New release $TAG_NAME is now available" >> $GITHUB_STEP_SUMMARY
           echo "- Major tag \`v$MAJOR\` has been updated" >> $GITHUB_STEP_SUMMARY
-          echo "- All composite actions are ready to use" >> $GITHUB_STEP_SUMMARY
+          echo "- CLI binaries published to GitHub Releases" >> $GITHUB_STEP_SUMMARY
+          echo "- Homebrew formula updated in jrschumacher/homebrew-tap" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Usage" >> $GITHUB_STEP_SUMMARY
+          echo "### GitHub Actions Usage" >> $GITHUB_STEP_SUMMARY
           echo "You can now use:" >> $GITHUB_STEP_SUMMARY
           echo "- \`jrschumacher/go-actions/ci@v$MAJOR\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`jrschumacher/go-actions/release@v$MAJOR\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`jrschumacher/go-actions/self-validate@v$MAJOR\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`jrschumacher/go-actions/comment@v$MAJOR\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Testing Status" >> $GITHUB_STEP_SUMMARY
+          echo "### CLI Installation" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Homebrew" >> $GITHUB_STEP_SUMMARY
+          echo "brew install jrschumacher/tap/go-actions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Or download from GitHub Releases" >> $GITHUB_STEP_SUMMARY
+          echo "# https://github.com/jrschumacher/go-actions/releases/$TAG_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Release Status" >> $GITHUB_STEP_SUMMARY
           echo "- Pre-release validation: ✅" >> $GITHUB_STEP_SUMMARY
-          echo "- Action tags updated: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Action tags updated: ${{ needs.update-action-tags.result == 'success' && '✅' || '⚠️' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- CLI binaries: ${{ needs.goreleaser.result == 'success' && '✅' || '⚠️' }}" >> $GITHUB_STEP_SUMMARY
           echo "- Release testing: ${{ needs.test-actions.result == 'success' && '✅' || '⚠️' }}" >> $GITHUB_STEP_SUMMARY

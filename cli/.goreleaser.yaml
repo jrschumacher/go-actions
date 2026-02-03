@@ -1,0 +1,55 @@
+version: 2
+
+project_name: go-actions
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: go-actions
+    main: .
+    binary: go-actions
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/jrschumacher/go-actions/cli/cmd.version={{.Version}}
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  disable: true  # Release Please handles changelog
+
+brews:
+  - name: go-actions
+    repository:
+      owner: jrschumacher
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/jrschumacher/go-actions"
+    description: "Local CLI for go-actions CI checks - enables local/CI parity"
+    license: "MIT"
+    test: |
+      system "#{bin}/go-actions", "version"
+    install: |
+      bin.install "go-actions"
