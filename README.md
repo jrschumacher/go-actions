@@ -533,77 +533,18 @@ The `security` job (govulncheck) and `lint` job (golangci-lint) serve **differen
 
 ## Framework-Specific Notes
 
-### Wails v3 Apps
+### Wails Apps
 
-Wails v3 apps have specific CI challenges. Here's how to handle them with go-actions:
+Wails desktop apps have specific CI/CD challenges — CGO dependencies, frontend embedding, and platform-specific builds. We provide complete recommendation guides with ready-to-copy workflows:
 
-**1. Install Linux build dependencies**
+- **[Wails v3 Recommendation](./wails_v3-recommendation.md)** — CI on Linux, release builds on macOS, complete workflow and config examples
+- **[Wails v2 Recommendation](./wails_v2-recommendation.md)** — Same approach adapted for Wails v2 (different WebKit packages, `wails build` instead of `wails3 build`)
 
-Wails uses GTK and WebKit on Linux. CI runners need these installed before test or lint jobs:
+**Quick summary of the approach:**
 
-```yaml
-- name: Install Linux build dependencies
-  run: |
-    sudo apt-get update
-    sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev
-
-- uses: jrschumacher/go-actions/ci@v3
-  with:
-    job: test
-```
-
-**2. Handle `go:embed` in clean checkouts**
-
-Wails apps typically have `//go:embed all:frontend/dist` which fails in clean CI checkouts. Create the directory before linting:
-
-```yaml
-- name: Create frontend dist stub
-  run: mkdir -p frontend/dist
-
-- uses: jrschumacher/go-actions/ci@v3
-  with:
-    job: lint
-```
-
-**3. Scope tests to avoid embed failures**
-
-If your root package has embed directives that require built frontend assets, scope tests to specific packages:
-
-```yaml
-- uses: jrschumacher/go-actions/ci@v3
-  with:
-    job: test
-    test-args: '-v -race -coverprofile=coverage.out ./internal/...'
-```
-
-**4. Exclude platform-specific directories from linting**
-
-Wails `build/` directory may contain platform-specific code (iOS, GTK) that fails on CI runners. Exclude it in `.golangci.yml`:
-
-```yaml
-version: 2
-
-linters:
-  exclusions:
-    paths:
-      - build
-      - vendor
-```
-
-**5. Handle British spelling in Wails API**
-
-The Wails v3 API uses British spelling (`Minimise`, `Maximise`). If you enable the `misspell` linter, add an exclusion:
-
-```yaml
-version: 2
-
-linters:
-  exclusions:
-    rules:
-      - path: main\.go
-        linters:
-          - misspell
-```
+1. **CI runs on Linux** (`ubuntu-latest`) — install GTK/WebKit deps, create `frontend/dist` stub for `go:embed`, scope tests to `./internal/...`
+2. **Release builds on macOS** (`macos-latest`) — only the app build needs macOS for native framework linking and `.app` bundling
+3. **GoReleaser skips `go build`** — Wails apps need `wails build` / `wails3 build` for proper frontend embedding, so GoReleaser handles GitHub release creation only (`builds: [{skip: true}]`)
 
 ---
 
