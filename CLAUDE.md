@@ -221,14 +221,6 @@ The CI action uses manual installation of golangci-lint (not golangci-lint-actio
 
   run:
     timeout: 5m
-    # Critical for CI environments: prevent scanning cached dependencies
-    skip-dirs:
-      - vendor
-      - node_modules
-      - .git
-    skip-files:
-      - '*.pb.go'
-      - '*_generated.go'
 
   linters:
     enable:
@@ -237,19 +229,24 @@ The CI action uses manual installation of golangci-lint (not golangci-lint-actio
       - unused        # Find unused code
       - gosimple      # Suggest simpler code
       - govet         # Standard Go static analysis
+    exclusions:
+      paths:
+        - vendor
+        - node_modules
+        - .git
+        - '.*\.pb\.go$'
+        - '.*_generated\.go$'
   ```
 
-  **Why these skip paths are essential in CI/CD**:
-  - **GitHub Actions Issue**: Without skip-dirs, golangci-lint may attempt to scan `/opt/hostedcache/` leading to "Cannot open: file exists" errors
+  **Why path exclusions are essential in CI/CD**:
+  - **Dependencies**: vendor/ and node_modules/ are external code you shouldn't lint
   - **Generated Files**: Proto files (*.pb.go) and generated code shouldn't be linted
-  - **Dependencies**: vendor/ and node_modules/ are external code, not your responsibility to lint
   - **Version Control**: .git/ directory contains no Go code to lint
 
   **When to use**:
-  - ✅ Running in GitHub Actions or similar CI/CD
-  - ✅ Project uses code generation (protobuf, mockery, wire)
-  - ✅ Vendoring dependencies
-  - ❌ Local development only (ultra-minimal works fine)
+  - Running in GitHub Actions or similar CI/CD
+  - Project uses code generation (protobuf, mockery, wire)
+  - Vendoring dependencies
 
 **Real-world example** (from [workctl](https://github.com/jrschumacher/workctl)) - balanced approach:
   ```yaml
@@ -337,6 +334,40 @@ The CI action uses manual installation of golangci-lint (not golangci-lint-actio
             - errcheck
   ```
 
+### Project Setup Checklist (for AI agents)
+
+When setting up go-actions for a new Go project, follow this complete checklist. Do not stop after CI — release automation should be part of the initial setup.
+
+**1. CI Setup:**
+- Create `.github/workflows/ci.yaml` with test, lint, security, and comment jobs
+- Create `.golangci.yml` with `version: 2` (see config examples above)
+- Optionally create `.go-actions.yaml` for custom CI configuration
+
+**2. Release Setup (do this alongside CI, not later):**
+- Create `.github/workflows/release.yaml` using `jrschumacher/go-actions/release@v3`
+- Create `.release-please-config.json`:
+  ```json
+  {
+    "packages": {
+      ".": {
+        "release-type": "go",
+        "package-name": "your-module-name"
+      }
+    }
+  }
+  ```
+- Create `.release-please-manifest.json`:
+  ```json
+  {
+    ".": "0.1.0"
+  }
+  ```
+- Create `.goreleaser.yaml` (run `goreleaser init` or provide a minimal config)
+- Remind the user to create a `RELEASE_PLEASE_TOKEN` secret (PAT with `contents:write` and `pull_requests:write`)
+
+**3. Validation:**
+- Include the `self-validate` job in the CI workflow to catch configuration issues early
+
 ### Development Workflow
 1. Make changes to TypeScript files in `scripts/`
 2. Add/update tests in corresponding `.test.ts` files
@@ -350,12 +381,12 @@ The CI action uses manual installation of golangci-lint (not golangci-lint-actio
 
 1. **Commit**: Create commit with descriptive message including Claude attribution
 2. **Push**: Push changes to remote repository (`git push origin main`)
-3. **Tag new version**: Create specific version tag (e.g., `git tag v1.3.1`)
-4. **Retag v1**: Update the `v1` tag to point to latest stable version (`git tag -f v1`)
+3. **Tag new version**: Create specific version tag (e.g., `git tag v3.0.2`)
+4. **Retag v3**: Update the `v3` tag to point to latest stable version (`git tag -f v3`)
 5. **Push tags**: Push all tags to remote (`git push --tags --force`)
 
-**Rationale**: 
-- Consuming repositories use `@v1` as a moving tag for latest stable release
-- Specific version tags (v1.3.1, v1.3.2, etc.) provide fixed points for rollback
-- The `v1` tag should always point to the most recent stable version
-- Force push is needed when retagging `v1` to update remote
+**Rationale**:
+- Consuming repositories use `@v3` as a moving tag for latest stable release
+- Specific version tags (v3.0.1, v3.0.2, etc.) provide fixed points for rollback
+- The `v3` tag should always point to the most recent stable version
+- Force push is needed when retagging `v3` to update remote
