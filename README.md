@@ -27,13 +27,13 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: jrschumacher/go-actions/self-validate@v1
+      - uses: jrschumacher/go-actions/self-validate@v3
 
   test:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: test
 
@@ -41,7 +41,7 @@ jobs:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: lint
 
@@ -49,7 +49,7 @@ jobs:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: security
 
@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'pull_request'
     steps:
-      - uses: jrschumacher/go-actions/comment@v1
+      - uses: jrschumacher/go-actions/comment@v3
 ```
 
 ### Release Workflow
@@ -76,7 +76,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: jrschumacher/go-actions/release@v1
+      - uses: jrschumacher/go-actions/release@v3
         with:
           release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 ```
@@ -89,7 +89,7 @@ jobs:
 
 ### CI Action
 
-**Usage**: `jrschumacher/go-actions/ci@v1`
+**Usage**: `jrschumacher/go-actions/ci@v3`
 
 Runs test, lint, benchmark, or security jobs for Go projects. Lint results include detailed issue reports grouped by linter type, posted directly to PR comments for faster iteration.
 
@@ -120,50 +120,68 @@ Runs test, lint, benchmark, or security jobs for Go projects. Lint results inclu
 
 ```yaml
 # Basic test
-- uses: jrschumacher/go-actions/ci@v1
+- uses: jrschumacher/go-actions/ci@v3
   with:
     job: test
 
 # Test with custom args
-- uses: jrschumacher/go-actions/ci@v1
+- uses: jrschumacher/go-actions/ci@v3
   with:
     job: test
     test-args: '-v -short'
 
 # Lint (auto - stable matrix based on Go version)
-- uses: jrschumacher/go-actions/ci@v1
+- uses: jrschumacher/go-actions/ci@v3
   with:
     job: lint
 
 # Lint with latest (bleeding edge)
-- uses: jrschumacher/go-actions/ci@v1
+- uses: jrschumacher/go-actions/ci@v3
   with:
     job: lint
     golangci-lint-version: latest
 
 # Lint with pinned version (for reproducibility)
-- uses: jrschumacher/go-actions/ci@v1
+- uses: jrschumacher/go-actions/ci@v3
   with:
     job: lint
     golangci-lint-version: v2.8.0
 
 # Benchmark
-- uses: jrschumacher/go-actions/ci@v1
+- uses: jrschumacher/go-actions/ci@v3
   with:
     job: benchmark
     benchmark-count: 10
 
 # Security (CVE scanning with govulncheck)
-- uses: jrschumacher/go-actions/ci@v1
+- uses: jrschumacher/go-actions/ci@v3
   with:
     job: security
 ```
+
+#### Input Precedence
+
+Action inputs (e.g., `test-args`, `lint-args`) are passed directly as arguments to the underlying tools (`go test`, `golangci-lint`). They fully replace the defaults — they do not append to them.
+
+For example, if you set `test-args: '-v -short'`, the default `-race -coverprofile=coverage.out` flags are **not** included unless you add them yourself.
+
+#### golangci-lint Version Compatibility
+
+When `golangci-lint-version` is set to `auto` (the default), the action selects a compatible version based on your Go version:
+
+| Go Version | golangci-lint Version | Notes |
+|------------|----------------------|-------|
+| 1.25+ | v2.8.0 | Latest stable for modern Go |
+| 1.24 | v2.3.1 | Compatible with Go 1.24 |
+| 1.23 and earlier | v2.1.0 | Minimum v2 support |
+
+**Important**: Different golangci-lint minor versions may have different config schemas. Use `linters.exclusions.paths` for path exclusions (not the deprecated `run.skip-dirs`). When in doubt, pin a specific version for reproducibility.
 
 ---
 
 ### Release Action
 
-**Usage**: `jrschumacher/go-actions/release@v1`
+**Usage**: `jrschumacher/go-actions/release@v3`
 
 Automates releases using Release Please and GoReleaser.
 
@@ -206,12 +224,12 @@ Before using, create these files in your repository:
 
 ```yaml
 # Basic release
-- uses: jrschumacher/go-actions/release@v1
+- uses: jrschumacher/go-actions/release@v3
   with:
     release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
 # With version aliases (v1 -> v1.2.3)
-- uses: jrschumacher/go-actions/release@v1
+- uses: jrschumacher/go-actions/release@v3
   with:
     release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
     create-version-aliases: true
@@ -221,7 +239,7 @@ Before using, create these files in your repository:
 
 ### Self-Validate Action
 
-**Usage**: `jrschumacher/go-actions/self-validate@v1`
+**Usage**: `jrschumacher/go-actions/self-validate@v3`
 
 Validates project configuration for go-actions workflows. Checks required files exist and configurations are valid.
 
@@ -235,14 +253,14 @@ Validates project configuration for go-actions workflows. Checks required files 
 #### Example
 
 ```yaml
-- uses: jrschumacher/go-actions/self-validate@v1
+- uses: jrschumacher/go-actions/self-validate@v3
 ```
 
 ---
 
 ### Comment Action
 
-**Usage**: `jrschumacher/go-actions/comment@v1`
+**Usage**: `jrschumacher/go-actions/comment@v3`
 
 Posts unified CI results to pull requests. Consolidates test, lint, security, and benchmark results into a single comment.
 
@@ -255,7 +273,7 @@ Posts unified CI results to pull requests. Consolidates test, lint, security, an
 #### Example
 
 ```yaml
-- uses: jrschumacher/go-actions/comment@v1
+- uses: jrschumacher/go-actions/comment@v3
 ```
 
 ---
@@ -281,13 +299,13 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: jrschumacher/go-actions/self-validate@v1
+      - uses: jrschumacher/go-actions/self-validate@v3
 
   test:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: test
 
@@ -295,7 +313,7 @@ jobs:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: lint
 
@@ -303,7 +321,7 @@ jobs:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: security
 
@@ -312,7 +330,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: benchmark
 
@@ -321,7 +339,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'pull_request'
     steps:
-      - uses: jrschumacher/go-actions/comment@v1
+      - uses: jrschumacher/go-actions/comment@v3
 ```
 
 ---
@@ -354,7 +372,7 @@ run:
   timeout: 5m  # Optional: only if you need more time
 ```
 
-**For CI/CD environments (GitHub Actions)**, add skip paths to prevent cache scanning errors:
+**For CI/CD environments (GitHub Actions)**, add path exclusions to prevent scanning external or generated code:
 
 ```yaml
 # .golangci.yml - RECOMMENDED for GitHub Actions
@@ -362,14 +380,6 @@ version: 2
 
 run:
   timeout: 5m
-  # Critical: prevent scanning cached dependencies in CI
-  skip-dirs:
-    - vendor
-    - node_modules
-    - .git
-  skip-files:
-    - '*.pb.go'
-    - '*_generated.go'
 
 linters:
   enable:
@@ -378,13 +388,19 @@ linters:
     - unused        # Find unused code
     - gosimple      # Suggest simpler code
     - govet         # Standard Go static analysis
+  exclusions:
+    paths:
+      - vendor
+      - node_modules
+      - .git
+      - '.*\.pb\.go$'
+      - '.*_generated\.go$'
 ```
 
-**Why these skip paths are essential in CI/CD:**
-- 🚨 **Prevents CI noise**: Skipping vendor/node_modules/.git avoids linting external or generated content and keeps reports focused
-- 📦 **Excludes Dependencies**: vendor/ and node_modules/ are external code you shouldn't lint
-- 🤖 **Skips Generated Files**: *.pb.go and *_generated.go are auto-generated, not manually written code
-- 📁 **.git Exclusion**: Version control metadata contains no Go code
+**Why path exclusions are essential in CI/CD:**
+- Skipping vendor/node_modules/.git avoids linting external or generated content
+- Excluding *.pb.go and *_generated.go skips auto-generated code
+- Keeps lint reports focused on your actual source code
 
 **If you see `gtar: ... Cannot open: File exists` in GitHub Actions**:
 That error comes from **golangci-lint-action cache restore collisions** (older go-actions versions or direct use of that action), not from golangci-lint scanning. Upgrade to the latest go-actions or disable the lint action cache (`skip-cache`/`skip-save-cache`) to resolve it.
@@ -482,11 +498,11 @@ linters:
 - ❌ Missing the field entirely
 - ❌ Listing all linters manually - let golangci-lint use its defaults
 - ❌ Using v1 schema fields (`linters-settings`, `issues.exclude-rules`) with v2
-- ❌ Missing skip-dirs in CI/CD - Will lint external/generated files and slow down runs
+- ❌ Missing path exclusions in CI/CD - Will lint external/generated files and slow down runs
 - ✅ `version: 2` - Correct
 - ✅ `version: "2"` - Also correct
 - ✅ Minimal config relying on defaults - Best practice
-- ✅ Include skip-dirs for vendor, node_modules, .git in CI configs - Essential for GitHub Actions
+- ✅ Include `linters.exclusions.paths` for vendor, node_modules, .git in CI configs
 - ✅ `linters.settings` - Correct v2 schema for linter settings (if needed)
 - ✅ `linters.exclusions` - Correct v2 schema for exclusion rules (if needed)
 
@@ -515,8 +531,83 @@ The `security` job (govulncheck) and `lint` job (golangci-lint) serve **differen
 
 ---
 
+## Framework-Specific Notes
+
+### Wails v3 Apps
+
+Wails v3 apps have specific CI challenges. Here's how to handle them with go-actions:
+
+**1. Install Linux build dependencies**
+
+Wails uses GTK and WebKit on Linux. CI runners need these installed before test or lint jobs:
+
+```yaml
+- name: Install Linux build dependencies
+  run: |
+    sudo apt-get update
+    sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev
+
+- uses: jrschumacher/go-actions/ci@v3
+  with:
+    job: test
+```
+
+**2. Handle `go:embed` in clean checkouts**
+
+Wails apps typically have `//go:embed all:frontend/dist` which fails in clean CI checkouts. Create the directory before linting:
+
+```yaml
+- name: Create frontend dist stub
+  run: mkdir -p frontend/dist
+
+- uses: jrschumacher/go-actions/ci@v3
+  with:
+    job: lint
+```
+
+**3. Scope tests to avoid embed failures**
+
+If your root package has embed directives that require built frontend assets, scope tests to specific packages:
+
+```yaml
+- uses: jrschumacher/go-actions/ci@v3
+  with:
+    job: test
+    test-args: '-v -race -coverprofile=coverage.out ./internal/...'
+```
+
+**4. Exclude platform-specific directories from linting**
+
+Wails `build/` directory may contain platform-specific code (iOS, GTK) that fails on CI runners. Exclude it in `.golangci.yml`:
+
+```yaml
+version: 2
+
+linters:
+  exclusions:
+    paths:
+      - build
+      - vendor
+```
+
+**5. Handle British spelling in Wails API**
+
+The Wails v3 API uses British spelling (`Minimise`, `Maximise`). If you enable the `misspell` linter, add an exclusion:
+
+```yaml
+version: 2
+
+linters:
+  exclusions:
+    rules:
+      - path: main\.go
+        linters:
+          - misspell
+```
+
+---
+
 ## Version Policy
 
-- **`@v1`**: Latest stable v1.x.x release (recommended)
-- **`@v1.2.3`**: Exact version pinning
-- **`@v3`**: Development branch (not recommended for production)
+- **`@v3`**: Latest stable v3.x.x release (recommended)
+- **`@v3.0.1`**: Exact version pinning
