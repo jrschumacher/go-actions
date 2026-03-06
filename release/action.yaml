@@ -18,6 +18,14 @@ inputs:
   release-token:
     description: 'Personal Access Token (PAT) for Release Please. Required for creating PRs. Must be passed as a secret (e.g., secrets.RELEASE_PAT)'
     required: true
+  config-file:
+    description: 'Path to release-please config file. Defaults to release-please-config.json'
+    required: false
+    default: 'release-please-config.json'
+  manifest-file:
+    description: 'Path to release-please manifest file. Defaults to .release-please-manifest.json'
+    required: false
+    default: '.release-please-manifest.json'
   create-version-aliases:
     description: 'Create major/minor version aliases (e.g., v1 -> v1.2.3, v1.2 -> v1.2.3). Defaults to false for reproducible builds.'
     required: false
@@ -44,6 +52,8 @@ runs:
       with:
         token: ${{ inputs.release-token }}
         release-type: go
+        config-file: ${{ inputs.config-file }}
+        manifest-file: ${{ inputs.manifest-file }}
         package-name: ''
         
     - name: Check Release Please outputs
