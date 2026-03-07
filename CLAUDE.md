@@ -344,7 +344,7 @@ When setting up go-actions for a new Go project, follow this complete checklist.
 - Optionally create `.go-actions.yaml` for custom CI configuration
 
 **2. Release Setup (do this alongside CI, not later):**
-- Create `.github/workflows/release.yaml` using `jrschumacher/go-actions/release@v3`
+- Create `.github/workflows/release.yaml` with `actions/checkout@v4` (with `fetch-depth: 0` and `token`) followed by `jrschumacher/go-actions/release@v3`
 - Create `.release-please-config.json`:
   ```json
   {

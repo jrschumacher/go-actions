@@ -76,12 +76,16 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
       - uses: jrschumacher/go-actions/release@v3
         with:
           release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 ```
 
-**Required**: Create a PAT with `contents:write` and `pull_requests:write` permissions. Add as `RELEASE_PLEASE_TOKEN` secret.
+**Required**: Create a PAT with `contents:write` and `pull_requests:write` permissions. Add as `RELEASE_PLEASE_TOKEN` secret. The checkout step must use `fetch-depth: 0` (full history) and the same PAT as its `token`.
 
 ---
 
@@ -224,11 +228,19 @@ Before using, create these files in your repository:
 
 ```yaml
 # Basic release
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+    token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 - uses: jrschumacher/go-actions/release@v3
   with:
     release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
 # With version aliases (v1 -> v1.2.3)
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+    token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 - uses: jrschumacher/go-actions/release@v3
   with:
     release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
