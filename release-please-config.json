@@ -16,6 +16,8 @@
     {"type": "ci", "section": "Continuous Integration", "hidden": true}
   ],
   "packages": {
-    ".": {}
+    ".": {
+      "component": "go-actions"
+    }
   }
 }
