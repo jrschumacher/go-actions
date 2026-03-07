@@ -117,14 +117,9 @@ jobs:
 
       - name: Run tests
         run: npm test
-
-  comment:
-    needs: [test, lint, security, frontend]
-    runs-on: ubuntu-latest
-    if: always() && github.event_name == 'pull_request'
-    steps:
-      - uses: jrschumacher/go-actions/comment@v3
 ```
+
+Each CI job automatically posts and merges its results into a single unified PR comment — no separate comment job needed.
 
 ### Why each step matters
 

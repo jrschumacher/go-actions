@@ -57,14 +57,9 @@ jobs:
         with:
           job: security
 
-  comment:
-    needs: [test, lint, security]
-    runs-on: ubuntu-latest
-    if: always() && github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: jrschumacher/go-actions/comment@v3
 ```
+
+Each CI job automatically posts and merges its results into a single unified PR comment — no separate comment job needed.
 
 ### Release Workflow
 
@@ -150,6 +145,7 @@ Runs test, lint, benchmark, or security jobs for Go projects. Lint results inclu
 | `benchmark-count` | No | from config or `5` | Number of benchmark iterations (overrides `.go-actions.yaml`) |
 | `govulncheck-version` | No | `latest` | govulncheck version (security job) |
 | `security-args` | No | from config or built-in | Arguments for govulncheck (overrides `.go-actions.yaml`) |
+| `github-comment` | No | `true` | Post results as PR comment. Each job merges into a unified comment. |
 
 #### Outputs
 
@@ -317,27 +313,6 @@ Validates project configuration for go-actions workflows. Checks required files 
 
 ---
 
-### Comment Action
-
-**Usage**: `jrschumacher/go-actions/comment@v3`
-
-Posts unified CI results to pull requests. Consolidates test, lint, security, and benchmark results into a single comment.
-
-#### Inputs
-
-| Input | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `github-token` | No | `${{ github.token }}` | Token for posting comments |
-
-#### Example
-
-```yaml
-- uses: actions/checkout@v4
-- uses: jrschumacher/go-actions/comment@v3
-```
-
----
-
 ## Complete Workflow Example
 
 Full CI/CD setup with all features:
@@ -398,15 +373,9 @@ jobs:
       - uses: jrschumacher/go-actions/ci@v3
         with:
           job: benchmark
-
-  comment:
-    needs: [test, lint, security]
-    runs-on: ubuntu-latest
-    if: always() && github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: jrschumacher/go-actions/comment@v3
 ```
+
+Each CI job automatically posts and merges its results into a single unified PR comment.
 
 ---
 
