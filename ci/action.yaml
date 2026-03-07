@@ -170,8 +170,15 @@ runs:
           comment_flag="--github-comment"
         fi
 
-        /tmp/go-actions check ${{ inputs.job }} --format=json $comment_flag > /tmp/result.json 2>&1
+        /tmp/go-actions check ${{ inputs.job }} --format=json $comment_flag > /tmp/result.json 2>/tmp/result.stderr
         exit_code=$?
+
+        # Show stderr warnings in logs (kept separate from JSON output)
+        if [ -s /tmp/result.stderr ]; then
+          echo "--- Stderr ---"
+          cat /tmp/result.stderr
+          echo "--- End stderr ---"
+        fi
 
         echo "--- Raw output ---"
         cat /tmp/result.json
