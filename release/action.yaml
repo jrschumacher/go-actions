@@ -26,6 +26,14 @@ inputs:
     description: 'Path to release-please manifest file. Defaults to .release-please-manifest.json'
     required: false
     default: '.release-please-manifest.json'
+  skip-github-release:
+    description: 'If true, compute release state without creating a GitHub release.'
+    required: false
+    default: 'false'
+  skip-github-pull-request:
+    description: 'If true, compute release state without creating or updating release PRs.'
+    required: false
+    default: 'false'
   create-version-aliases:
     description: 'Create major/minor version aliases (e.g., v1 -> v1.2.3, v1.2 -> v1.2.3). Defaults to false for reproducible builds.'
     required: false
@@ -81,7 +89,8 @@ runs:
         release-type: go
         config-file: ${{ inputs.config-file }}
         manifest-file: ${{ inputs.manifest-file }}
-        package-name: ''
+        skip-github-release: ${{ inputs.skip-github-release }}
+        skip-github-pull-request: ${{ inputs.skip-github-pull-request }}
         
     - name: Check Release Please outputs
       shell: bash

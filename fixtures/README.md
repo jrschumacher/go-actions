@@ -10,7 +10,7 @@ A complete, valid Go project that includes all required files for go-actions:
 - ✅ `main.go` - Go source files  
 - ✅ `main_test.go` - Test files with benchmarks
 - ✅ `.golangci.yml` - Linting configuration
-- ✅ `.release-please-config.json` - Release Please configuration
+- ✅ `release-please-config.json` - Release Please configuration
 - ✅ `.release-please-manifest.json` - Release Please manifest
 - ✅ `.goreleaser.yaml` - GoReleaser configuration
 - ✅ `.github/workflows/ci.yaml` - Workflow using go-actions
@@ -24,14 +24,14 @@ An incomplete Go project that is missing required files for go-actions:
 - ❌ **Missing** `go.mod` - Required for CI actions
 - ✅ `main.go` - Go source files present
 - ✅ `main_test.go` - Test files present
-- ❌ **Missing** `.release-please-config.json` - Required for release action
+- ❌ **Missing** `release-please-config.json` - Required for release action
 - ❌ **Missing** `.release-please-manifest.json` - Required for release action
 - ❌ **Missing** `.goreleaser.yaml` - Required for release action
 - ✅ `.github/workflows/ci.yaml` - Workflow using go-actions
 
 **Expected validation result**: ❌ **FAIL** - Should detect missing files:
 - `go.mod (required for CI actions)`
-- `.release-please-config.json (required for release action)`
+- `release-please-config.json (required for release action)`
 - `.release-please-manifest.json (required for release action)`
 - `.goreleaser.yaml or .goreleaser.yml (required for release action)`
 

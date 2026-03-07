@@ -151,7 +151,7 @@ jobs:
       - name: Create minimal release configuration
         run: |
           # Create Release Please config
-          cat > .release-please-config.json << 'EOF'
+          cat > release-please-config.json << 'EOF'
           {
             "packages": {
               ".": {
@@ -177,6 +177,8 @@ jobs:
         uses: ./release
         with:
           release-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          skip-github-release: true
+          skip-github-pull-request: true
         continue-on-error: true  # Release action may fail in test environment
 
   # Post PR comment with CI results

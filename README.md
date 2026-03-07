@@ -245,7 +245,7 @@ Automates releases using Release Please and GoReleaser.
 
 Before using, create these files in your repository:
 
-**`.release-please-config.json`**:
+**`release-please-config.json`**:
 ```json
 {
   "packages": {
@@ -385,7 +385,7 @@ Each CI job automatically posts and merges its results into a single unified PR 
 |------|--------------|---------|
 | `go.mod` | All actions | Go module definition, version detection |
 | `.golangci.yml` | lint (optional) | golangci-lint configuration |
-| `.release-please-config.json` | release | Release Please configuration |
+| `release-please-config.json` | release | Release Please configuration |
 | `.release-please-manifest.json` | release | Version tracking |
 | `.goreleaser.yaml` | release | GoReleaser configuration |
 
