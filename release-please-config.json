@@ -1,6 +1,4 @@
 {
-  "release-type": "simple",
-  "package-name": "go-actions",
   "changelog-sections": [
     {"type": "feat", "section": "Features"},
     {"type": "fix", "section": "Bug Fixes"},
@@ -17,7 +15,9 @@
   ],
   "packages": {
     ".": {
-      "component": "go-actions"
+      "release-type": "simple",
+      "component": "go-actions",
+      "package-name": "go-actions"
     }
   }
 }
