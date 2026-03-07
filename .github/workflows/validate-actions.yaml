@@ -202,22 +202,19 @@ jobs:
         uses: ./go-actions/ci
         with:
           job: test
-        env:
-          WORKING_DIR: test-project
+          working-directory: test-project
 
-      - name: Test lint action with test project  
+      - name: Test lint action with test project
         uses: ./go-actions/ci
         with:
           job: lint
-        env:
-          WORKING_DIR: test-project
+          working-directory: test-project
 
       - name: Test benchmark action with test project
         uses: ./go-actions/ci
         with:
           job: benchmark
-        env:
-          WORKING_DIR: test-project
+          working-directory: test-project
 
       - name: Test self-validate action
         uses: ./go-actions/self-validate
@@ -260,9 +257,8 @@ jobs:
         uses: ./ci
         with:
           job: test
+          working-directory: broken-project
         continue-on-error: true  # Expected to fail, but shouldn't crash
-        env:
-          WORKING_DIR: broken-project
 
   test-fixtures:
     runs-on: ubuntu-latest

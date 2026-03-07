@@ -137,8 +137,8 @@ runs:
         fi
 
         echo "Installing golangci-lint $version..."
-        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin $version
-        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(go env GOPATH)/bin" "$version"
+        echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
         golangci-lint version
 
     - name: Install govulncheck

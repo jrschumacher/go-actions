@@ -174,8 +174,7 @@ jobs:
         continue-on-error: true
         with:
           job: test
-        env:
-          WORKING_DIR: test-project
+          working-directory: test-project
 
       - name: Test self-validate action with major tag
         uses: jrschumacher/go-actions/self-validate@main
