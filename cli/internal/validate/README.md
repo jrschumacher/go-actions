@@ -1,6 +1,6 @@
 # Workflow Validator Package
 
-This package provides Go implementation of the workflow validator, ported from TypeScript.
+This package provides Go implementation of the workflow validator.
 
 ## Overview
 
@@ -143,14 +143,6 @@ go test ./internal/validate/... -run TestValidateProject
 
 ## Implementation Notes
 
-### Differences from TypeScript Version
-
-1. **Error Handling**: Go uses explicit error returns instead of try-catch
-2. **File I/O**: Uses `os.ReadFile` and `os.Stat` instead of Node.js `fs` module
-3. **Pattern Matching**: Uses `filepath.Glob` instead of `fs.readdirSync` with filters
-4. **Regular Expressions**: Uses Go's `regexp` package with similar patterns
-5. **Type Safety**: Go's static typing provides compile-time safety
-
 ### Design Decisions
 
 1. **Simplicity First**: Clear, readable code over clever optimizations
@@ -188,7 +180,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: test
 ```
@@ -199,7 +191,7 @@ With `go.mod` present → Valid
 
 Workflow:
 ```yaml
-- uses: jrschumacher/go-actions/ci@v1
+- uses: jrschumacher/go-actions/ci@v3
   with:
     golangci-lint-version: v2.0.2
 ```
@@ -214,7 +206,7 @@ version: 1
 ### Example 3: Incompatible Version
 
 ```yaml
-- uses: jrschumacher/go-actions/ci@v1
+- uses: jrschumacher/go-actions/ci@v3
   with:
     golangci-lint-version: v1.54.2
 ```

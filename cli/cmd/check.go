@@ -173,12 +173,11 @@ func maybePostGitHubComment(results *output.Results) error {
 		return fmt.Errorf("not a pull request event")
 	}
 
-	// Format and post comment
+	// Merge results into existing comment and post
 	client := github.NewClient(ghCtx)
-	commentBody := github.FormatComment(results)
 
 	fmt.Fprintln(os.Stderr, "Posting results to PR comment...")
-	return client.UpsertComment(ghCtx.Owner, ghCtx.Repo, ghCtx.PRNumber, commentBody, github.CommentMarker)
+	return client.MergeAndUpsertComment(ghCtx.Owner, ghCtx.Repo, ghCtx.PRNumber, results, github.CommentMarker)
 }
 
 func getEnabledCheckNames(cfg *config.Config) []string {

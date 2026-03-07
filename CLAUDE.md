@@ -49,47 +49,38 @@ The core CI/CD logic is implemented as a Go CLI for local/CI parity:
 - **`benchmark/`**: Runs Go benchmarks with multiple iterations
 - **`config/`**: Configuration loading and parsing
 - **`coverage/`**: Extracts test coverage from Go coverage files
+- **`github/`**: GitHub API client for PR comments with merge-aware upsert
 - **`lint/`**: Runs golangci-lint and formats output
+- **`output/`**: Result formatting (JSON and text output)
 - **`security/`**: Runs govulncheck for CVE scanning
 - **`validate/`**: Project structure and configuration validation
 
-## TypeScript (PR Comments Only)
-
-TypeScript is only used for unified PR comment functionality:
-
-### Core Modules (`scripts/`)
-- **`unified-pr-comment.ts`**: Formats and posts unified CI results to PRs
-- **`action-comment.ts`**: Entry point for comment action
-
-### Compiled JavaScript (`scripts-dist/`)
-- **`unified-comment-bundle/`**: Bundled comment functionality for GitHub Actions
+### PR Comment System
+The Go CLI handles PR commenting directly (no TypeScript/Node.js needed):
+- Each CI job automatically posts/merges results into a single unified PR comment
+- Results are embedded as hidden JSON in the comment for reliable parsing across updates
+- Parallel jobs use optimistic retry (3 attempts with backoff) to handle race conditions
+- Comments are identified by the `# Go Actions Report` marker and upserted via the GitHub API
 
 ## Development Commands
 
-### TypeScript Development
+### Go CLI Development
 ```bash
-npm install          # Install dependencies
-npm run build        # Compile TypeScript to JavaScript
-npm run clean        # Remove compiled files
-npm test             # Run comprehensive test suite
-npm run test:watch   # Run tests in watch mode
-npm run test:coverage # Run tests with coverage report
+cd cli && go test ./...   # Run all CLI tests
+cd cli && go build .      # Build the CLI binary
 ```
 
 ### Testing Infrastructure
-- **Go tests**: `cd cli && go test ./...` for CLI logic
-- **Jest**: Testing framework for TypeScript PR comment functionality
-- **Mocked dependencies**: fs, child_process for isolated testing
+- **Go tests**: `cd cli && go test ./...` for all CLI logic including PR comment formatting
 
 ### GitHub Actions Testing
-1. Made changes to TypeScript files
-2. Run `npm run build` to compile
-3. Push changes to a branch
-4. Reference the action in a test workflow:
+1. Make changes to Go CLI or action YAML files
+2. Push changes to a branch
+3. Reference the action in a test workflow:
    - `uses: jrschumacher/go-actions/ci@branch-name`
    - `uses: jrschumacher/go-actions/release@branch-name`
    - `uses: jrschumacher/go-actions/self-validate@branch-name`
-5. Verify the action runs correctly in the workflow
+4. Verify the action runs correctly in the workflow
 
 ## Input Configuration
 
@@ -104,6 +95,9 @@ npm run test:coverage # Run tests with coverage report
 - **Lint**: `golangci-lint-version` (defaults to `auto` for Go-version-aware selection from stable matrix, or `latest` for bleeding edge), `lint-args`
 - **Benchmark**: `benchmark-args` (defaults to `-bench=. -benchmem`), `benchmark-count` (defaults to 5)
 - **Security**: `govulncheck-version` (defaults to `latest`), `security-args`
+
+**Comment Options:**
+- `github-comment`: Post results as a PR comment (defaults to `true`). Each job merges its results into a single unified comment using optimistic retry for concurrent safety.
 
 ### Release Action Inputs:
 - `go-version`: Explicit Go version (overrides file-based detection)
@@ -123,14 +117,8 @@ npm run test:coverage # Run tests with coverage report
 - **Testing**: Unit tests required for all packages in `cli/internal/`
 - **Modular design**: Each package has a single responsibility
 
-### TypeScript Standards (PR Comments Only)
-- **Strict typing**: All functions have proper type annotations
-- **Interface definitions**: Clear contracts for data structures
-- **Error handling**: Comprehensive error catching and reporting
-
 ### Performance Considerations
-- **Go CLI for CI checks**: Fast execution, single binary, no Node.js overhead
-- **TypeScript for PR comments**: GitHub Script integration for API access
+- **Go CLI for everything**: Fast execution, single binary, no Node.js overhead
 - **Minimal dependencies**: Prefer standard library solutions
 
 ## Important Notes
@@ -138,8 +126,6 @@ npm run test:coverage # Run tests with coverage report
 ### File Structure
 - Go CLI source in `cli/`
 - Go CLI tests use `_test.go` suffix
-- TypeScript source files in `scripts/` (PR comments only)
-- Compiled JavaScript in `scripts-dist/` (committed for GitHub Actions)
 
 ### Action Requirements
 - CI action assumes Go projects follow standard conventions (go.mod at root, `./...` for recursive operations)
@@ -169,8 +155,7 @@ The CI action uses manual installation of golangci-lint (not golangci-lint-actio
 1. Check [golangci-lint releases](https://github.com/golangci/golangci-lint/releases) for new v2.x versions
 2. Update the compatibility matrix in `ci/action.yaml` (Install golangci-lint step)
 3. Test the change:
-   - Run `cd cli && go test ./...` to ensure Go tests pass
-   - Run `npm test` to ensure TypeScript tests pass
+   - Run `cd cli && go test ./...` to ensure all tests pass
    - Test in a real workflow with actual Go projects
    - Verify the new version doesn't introduce breaking changes
 4. Update this documentation with new version mappings
@@ -369,12 +354,11 @@ When setting up go-actions for a new Go project, follow this complete checklist.
 - Include the `self-validate` job in the CI workflow to catch configuration issues early
 
 ### Development Workflow
-1. Make changes to TypeScript files in `scripts/`
-2. Add/update tests in corresponding `.test.ts` files
-3. Run `npm test` to ensure all tests pass
-4. Run `npm run build` to compile TypeScript
-5. Commit both source and compiled files
-6. Test changes in actual GitHub Actions workflows
+1. Make changes to Go CLI files in `cli/` or action YAML files
+2. Add/update tests in corresponding `_test.go` files
+3. Run `cd cli && go test ./...` to ensure all tests pass
+4. Commit changes
+5. Test changes in actual GitHub Actions workflows
 
 ### Release and Tagging Workflow
 **IMPORTANT**: Follow this exact sequence when releasing fixes or features:

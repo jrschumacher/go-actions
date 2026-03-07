@@ -1,6 +1,6 @@
 # Benchmark Package
 
-Go implementation of the benchmark runner, ported from TypeScript.
+Go implementation of the benchmark runner.
 
 ## Overview
 
@@ -169,16 +169,6 @@ go test ./internal/benchmark/... -v -cover
 ```
 
 Current test coverage: **94.2%**
-
-## Comparison with TypeScript Implementation
-
-This Go implementation provides the same functionality as the original TypeScript version with these improvements:
-
-1. **Type Safety**: Go's static typing catches errors at compile time
-2. **Performance**: Native Go execution is faster than Node.js
-3. **Better Integration**: Seamlessly integrates with Go tooling and CLI
-4. **Enhanced Testing**: More comprehensive test suite with 94% coverage
-5. **Idiomatic Go**: Follows Go best practices and conventions
 
 ## Integration
 

@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: test
           working-directory: example
@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: lint
           working-directory: example
@@ -92,7 +92,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: benchmark
           working-directory: example
@@ -101,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: jrschumacher/go-actions/self-validate@v1
+      - uses: jrschumacher/go-actions/self-validate@v3
         with:
           workflow-paths: .github/workflows/*.yaml
 ```

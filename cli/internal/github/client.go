@@ -8,7 +8,12 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/jrschumacher/go-actions/cli/internal/output"
 )
+
+const mergeRetries = 3
 
 // Client is a minimal GitHub API client for PR comments
 type Client struct {
@@ -101,6 +106,36 @@ func (c *Client) CreateComment(owner, repo string, prNumber int, body string) er
 	return nil
 }
 
+// GetComment fetches a single comment by ID
+func (c *Client) GetComment(owner, repo string, commentID int64) (*Comment, error) {
+	url := fmt.Sprintf("%s/repos/%s/%s/issues/comments/%d", c.apiURL, owner, repo, commentID)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	c.setHeaders(req)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get comment: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("GitHub API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var comment Comment
+	if err := json.NewDecoder(resp.Body).Decode(&comment); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &comment, nil
+}
+
 // UpdateComment updates an existing comment
 func (c *Client) UpdateComment(owner, repo string, commentID int64, body string) error {
 	url := fmt.Sprintf("%s/repos/%s/%s/issues/comments/%d", c.apiURL, owner, repo, commentID)
@@ -148,6 +183,78 @@ func (c *Client) UpsertComment(owner, repo string, prNumber int, body, marker st
 
 	// No existing comment found, create new
 	return c.CreateComment(owner, repo, prNumber, body)
+}
+
+// MergeAndUpsertComment finds an existing comment, merges new results into it, and updates.
+// If no existing comment is found, creates a new one.
+// Uses optimistic retry to handle concurrent updates from parallel CI jobs.
+func (c *Client) MergeAndUpsertComment(owner, repo string, prNumber int, newResults *output.Results, marker string) error {
+	for attempt := range mergeRetries {
+		comments, err := c.ListComments(owner, repo, prNumber)
+		if err != nil {
+			return fmt.Errorf("failed to list comments: %w", err)
+		}
+
+		// Find existing bot comment with marker
+		var existingComment *Comment
+		for i := range comments {
+			if comments[i].User.Type == "Bot" && strings.Contains(comments[i].Body, marker) {
+				existingComment = &comments[i]
+				break
+			}
+		}
+
+		if existingComment == nil {
+			// No existing comment, create new
+			body := FormatComment(newResults)
+			return c.CreateComment(owner, repo, prNumber, body)
+		}
+
+		// Parse existing data and merge
+		existing := ParseCommentData(existingComment.Body)
+		merged := MergeResults(existing, newResults)
+		body := FormatComment(merged)
+
+		if err := c.UpdateComment(owner, repo, existingComment.ID, body); err != nil {
+			return err
+		}
+
+		// Verify our results are present (detect race condition)
+		updated, err := c.GetComment(owner, repo, existingComment.ID)
+		if err != nil {
+			// Verification failed but update succeeded — acceptable
+			return nil
+		}
+
+		updatedData := ParseCommentData(updated.Body)
+		if updatedData != nil && containsChecks(updatedData, newResults) {
+			return nil
+		}
+
+		// Our results were overwritten by a concurrent update — retry
+		if attempt < mergeRetries-1 {
+			time.Sleep(time.Duration(attempt+1) * 500 * time.Millisecond)
+		}
+	}
+
+	return fmt.Errorf("failed to merge comment after %d retries (concurrent update conflict)", mergeRetries)
+}
+
+// containsChecks returns true if merged contains all checks from incoming
+func containsChecks(merged, incoming *output.Results) bool {
+	if incoming == nil {
+		return true
+	}
+	mergedMap := make(map[string]bool, len(merged.Checks))
+	for _, check := range merged.Checks {
+		mergedMap[check.Name] = true
+	}
+	for _, check := range incoming.Checks {
+		if !mergedMap[check.Name] {
+			return false
+		}
+	}
+	return true
 }
 
 // setHeaders sets common headers for GitHub API requests

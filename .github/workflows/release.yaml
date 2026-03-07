@@ -181,10 +181,6 @@ jobs:
         uses: jrschumacher/go-actions/self-validate@main
         continue-on-error: true
 
-      - name: Test comment action with major tag
-        uses: jrschumacher/go-actions/comment@main
-        continue-on-error: true
-
   # Update documentation if needed
   update-docs:
     runs-on: ubuntu-latest
@@ -243,7 +239,6 @@ jobs:
           echo "- \`jrschumacher/go-actions/ci@v$MAJOR\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`jrschumacher/go-actions/release@v$MAJOR\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`jrschumacher/go-actions/self-validate@v$MAJOR\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`jrschumacher/go-actions/comment@v$MAJOR\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### CLI Installation" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
