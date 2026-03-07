@@ -1,5 +1,72 @@
 # Changelog
 
+## [2.0.0](https://github.com/jrschumacher/go-actions/compare/v1.0.0...v2.0.0) (2026-03-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* The separate `comment` action has been removed. PR comments are now posted directly by the CI action using `github-comment: true` input.
+* Actions now require Go to build CLI during execution. TypeScript formatters retained for PR comment generation.
+* Updated Release Please configuration format
+
+### Features
+
+* add comprehensive Release Please filename validation ([da3c32e](https://github.com/jrschumacher/go-actions/commit/da3c32eeeb6cbd04ce7cc4556c77107b44f0373f))
+* add golangci-lint validator ([78a0eb0](https://github.com/jrschumacher/go-actions/commit/78a0eb06ac62036a74ea3c4dce1247fe73bf0bd4))
+* add processing state indicator to PR comments ([#6](https://github.com/jrschumacher/go-actions/issues/6)) ([709a3d3](https://github.com/jrschumacher/go-actions/commit/709a3d33567a3ddda98db90ecd0f9561f90bb93f))
+* add security job type with govulncheck CVE scanning ([#16](https://github.com/jrschumacher/go-actions/issues/16)) ([7112841](https://github.com/jrschumacher/go-actions/commit/7112841d56cdd0689410ae0fe2ba2fa424a04f87))
+* auto-compile TypeScript for dependabot PRs ([#18](https://github.com/jrschumacher/go-actions/issues/18)) ([615f0bb](https://github.com/jrschumacher/go-actions/commit/615f0bbed045b607c654077f7b0310424a9ccfc4))
+* auto-compile TypeScript for Release Please PRs ([#20](https://github.com/jrschumacher/go-actions/issues/20)) ([5081cfb](https://github.com/jrschumacher/go-actions/commit/5081cfb74b0a52d5783986d6ae0d0b1611068506))
+* comprehensive validator enhancements with structured PR comments ([6120608](https://github.com/jrschumacher/go-actions/commit/612060843920b0f30aa83bc15e21aeffe42c3849))
+* consolidate action logic and fix cross-job commenting ([f6875b9](https://github.com/jrschumacher/go-actions/commit/f6875b9a65059a090f91a7f4b00b5ce72934d450))
+* enforce caller-provided checkout across all actions ([#44](https://github.com/jrschumacher/go-actions/issues/44)) ([9bba67a](https://github.com/jrschumacher/go-actions/commit/9bba67ae92ef72e90e7a8d7f892027d7de8536ca))
+* enhance golangci-lint validation and defaults-first documentation ([#11](https://github.com/jrschumacher/go-actions/issues/11)) ([ade6c0d](https://github.com/jrschumacher/go-actions/commit/ade6c0de31f35c42a05b2fd7eb13c0e892177d2d))
+* enhance PR comments with actionable fix suggestions ([1129fd7](https://github.com/jrschumacher/go-actions/commit/1129fd77d044dfedb8ccbe8062937b5f47d20084))
+* enhance self-validator to detect golangci-lint version incompatibilities ([4597e57](https://github.com/jrschumacher/go-actions/commit/4597e5762cc55eb651da0db347029eebf17e36a6))
+* expose lint issues directly in PR comments ([e2a95da](https://github.com/jrschumacher/go-actions/commit/e2a95daa3a29efecd80d14d3bc0e76be00c64f34))
+* first commit ([9b21efd](https://github.com/jrschumacher/go-actions/commit/9b21efda6016673febe9b0fa2a55b1171c54ce24))
+* implement clean unified workflow architecture ([68ac005](https://github.com/jrschumacher/go-actions/commit/68ac005468cf60834efddeb1c94a25f5efb1030a))
+* implement unified Go Actions Report comment system ([dff14cf](https://github.com/jrschumacher/go-actions/commit/dff14cfa54e2c80b1072b4f69be440e929f9c9be))
+* improve Release Please configuration validation for v16+ ([4354632](https://github.com/jrschumacher/go-actions/commit/4354632e61283876e58b6af7fbef1af1735de74f))
+* include golangci-lint issues in PR comments ([#10](https://github.com/jrschumacher/go-actions/issues/10)) ([#12](https://github.com/jrschumacher/go-actions/issues/12)) ([219507a](https://github.com/jrschumacher/go-actions/commit/219507a65663f2811492557733c574c61a7b1dba))
+* integrate .go-actions.yaml config into CI and release actions ([#46](https://github.com/jrschumacher/go-actions/issues/46)) ([2b6d6b0](https://github.com/jrschumacher/go-actions/commit/2b6d6b0cf5fd0b6a7a194e97d97b186e0d856412))
+* integrate all CI jobs with unified Go Actions Report ([4265004](https://github.com/jrschumacher/go-actions/commit/426500446f389e56c6f75d93cd7aae86ff86fec1))
+* merge-aware PR commenting with race handling ([#49](https://github.com/jrschumacher/go-actions/issues/49)) ([c9c41ae](https://github.com/jrschumacher/go-actions/commit/c9c41aef258ef752a24ab87b57d6e6a7d2466c69))
+* port actions to Go CLI for local/CI parity (v3.0.0-beta.1) ([#26](https://github.com/jrschumacher/go-actions/issues/26)) ([660cb55](https://github.com/jrschumacher/go-actions/commit/660cb550c17022855efc3a79775244aba8ce71e6))
+* **release:** pass through release-please config-file and manifest-file inputs ([#40](https://github.com/jrschumacher/go-actions/issues/40)) ([40ae089](https://github.com/jrschumacher/go-actions/commit/40ae089116760b5433070989bde494647e832069)), closes [#39](https://github.com/jrschumacher/go-actions/issues/39)
+* surface test/lint/security output in CI action for better failure diagnostics ([#50](https://github.com/jrschumacher/go-actions/issues/50)) ([fbf376e](https://github.com/jrschumacher/go-actions/commit/fbf376ecbb8ec9a3f3ac893d25017f1ec0f74d69))
+
+
+### Bug Fixes
+
+* add golangci-lint v2 CI/CD configuration guidance and fix schema compliance ([#13](https://github.com/jrschumacher/go-actions/issues/13)) ([be33fb2](https://github.com/jrschumacher/go-actions/commit/be33fb248866a7d866fb285daf04bc1f285fbb90))
+* add missing release-type parameter to Release Please action ([7dd9639](https://github.com/jrschumacher/go-actions/commit/7dd963947cc17a50b96542badeb6a8a75888a2fb))
+* bundle dependencies with proper exports ([569e358](https://github.com/jrschumacher/go-actions/commit/569e35813cd89ca5153cf83024c7a5f3c40735fc))
+* checkout release tag in goreleaser job ([#34](https://github.com/jrschumacher/go-actions/issues/34)) ([d3da738](https://github.com/jrschumacher/go-actions/commit/d3da738d14e566e2f88b01320166b8dea779836e))
+* correct Go module tagging in release action ([c24a699](https://github.com/jrschumacher/go-actions/commit/c24a699a05534bcb8a0da050b05f6e2ce962354e))
+* handle missing ACTIONS_RUNTIME_TOKEN in artifact operations ([01a3dd4](https://github.com/jrschumacher/go-actions/commit/01a3dd41b6762b5acba47bd9503348229595e1ea))
+* implement proper unified comment system with dedicated post-job action ([f680463](https://github.com/jrschumacher/go-actions/commit/f68046378dee0816997e52b4f87716b8bb3218da))
+* improve security, type safety, and code quality ([#5](https://github.com/jrschumacher/go-actions/issues/5)) ([b1a2202](https://github.com/jrschumacher/go-actions/commit/b1a22023058477e3361ce8e0ac650def91f88c71))
+* move github.context check inside try-catch block ([e5888d6](https://github.com/jrschumacher/go-actions/commit/e5888d6f00015d470444bc2797d6a10942db6f48))
+* Port PR comments to Go CLI, remove TypeScript ([#31](https://github.com/jrschumacher/go-actions/issues/31)) ([3c02cef](https://github.com/jrschumacher/go-actions/commit/3c02cef8682201f4368ad23e979339dffbae6a01))
+* raise audit level to high to allow moderate ReDoS vulnerabilities in dependencies ([c38de1a](https://github.com/jrschumacher/go-actions/commit/c38de1ae70e74ed276526af5199835369201e08c))
+* rebuild all bundles with correct sizes to prevent nesting issue ([4298faf](https://github.com/jrschumacher/go-actions/commit/4298faff7a95b3092b998f4940b09c1c9433ba3c))
+* remove brittle needs dependency from comment job ([16fc00b](https://github.com/jrschumacher/go-actions/commit/16fc00b2ca4ea042ff73ab3e2faabdd4d2a60da4))
+* remove obsolete TypeScript validation from release workflow ([#32](https://github.com/jrschumacher/go-actions/issues/32)) ([2d371bb](https://github.com/jrschumacher/go-actions/commit/2d371bb488f1c01bf39d320a7691dd527f5dca66))
+* remove redundant validation from release action ([1786dd9](https://github.com/jrschumacher/go-actions/commit/1786dd936041d548e59e957bea8cf4bfd12171cc))
+* resolve ncc build nesting issue by cleaning scripts-dist ([a9f64dd](https://github.com/jrschumacher/go-actions/commit/a9f64ddada6fb01a37d5240280f8d45da0748914))
+* simplify golangci-lint upgrade guidance to align with go-actions philosophy ([008519f](https://github.com/jrschumacher/go-actions/commit/008519f7f02aa43b61058382f4fcf16924f3d850))
+* update all tests to match new release-please filename convention ([d83e2e5](https://github.com/jrschumacher/go-actions/commit/d83e2e5db4021301c5c70e050b44f9ea120a522e))
+* update comment detection string to match new PR comment header ([3280672](https://github.com/jrschumacher/go-actions/commit/32806729412b07f5cc2b3b8f671e513c275a34d9))
+* update compiled self-validate bundle to match source ([6bfed4e](https://github.com/jrschumacher/go-actions/commit/6bfed4e6748e1b4a76eb39a8a9cfffc1263b6d14))
+* update Release Please action to v4.2.0 and remove redundant parameters ([fe62a18](https://github.com/jrschumacher/go-actions/commit/fe62a1832cd7c9b404127b1eb144d80172023f80))
+* update Release Please config to v16+ format ([c88410d](https://github.com/jrschumacher/go-actions/commit/c88410d2ebe9c42ed5d4abd0c203bb38bf0714b6))
+* update unified PR comment tests to match new format ([d737ebb](https://github.com/jrschumacher/go-actions/commit/d737ebbb299096c6e78c253e009f17c98b97ab2c))
+* use correct context import for PR commenting ([cd4fff0](https://github.com/jrschumacher/go-actions/commit/cd4fff0afd9d1bcf05ef89c14bfe159bb3de5eb9))
+* use environment variables instead of @actions/github for PR commenting ([19e00a1](https://github.com/jrschumacher/go-actions/commit/19e00a1330bcbe57ef4af8b95a7c3c308695665b))
+* validate correct Release Please config filename ([963161c](https://github.com/jrschumacher/go-actions/commit/963161cb6ed15aad50a56fdcde59c49c2958b5f3))
+* wrap PR commenting in try-catch to prevent action failure ([6aefbc2](https://github.com/jrschumacher/go-actions/commit/6aefbc2808f5940bf3c39a18706d25aafd2200cd))
+
 ## [3.0.1](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.0.0...go-actions-v3.0.1) (2026-02-03)
 
 
