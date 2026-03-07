@@ -57,9 +57,9 @@ inputs:
 
   # GitHub comment options
   github-comment:
-    description: 'Post results as PR comment (auto-enabled on PRs when true)'
+    description: 'Post results as PR comment. Each job merges its results into a single unified comment.'
     required: false
-    default: 'false'
+    default: 'true'
 
 outputs:
   coverage:
