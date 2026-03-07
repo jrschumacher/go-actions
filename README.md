@@ -27,12 +27,14 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: jrschumacher/go-actions/self-validate@v3
 
   test:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: jrschumacher/go-actions/ci@v3
         with:
           job: test
@@ -41,6 +43,7 @@ jobs:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: jrschumacher/go-actions/ci@v3
         with:
           job: lint
@@ -49,6 +52,7 @@ jobs:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: jrschumacher/go-actions/ci@v3
         with:
           job: security
@@ -58,6 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'pull_request'
     steps:
+      - uses: actions/checkout@v4
       - uses: jrschumacher/go-actions/comment@v3
 ```
 
@@ -157,40 +162,47 @@ Runs test, lint, benchmark, or security jobs for Go projects. Lint results inclu
 
 ```yaml
 # Basic test
+- uses: actions/checkout@v4
 - uses: jrschumacher/go-actions/ci@v3
   with:
     job: test
 
 # Test with custom args
+- uses: actions/checkout@v4
 - uses: jrschumacher/go-actions/ci@v3
   with:
     job: test
     test-args: '-v -short'
 
 # Lint (auto - stable matrix based on Go version)
+- uses: actions/checkout@v4
 - uses: jrschumacher/go-actions/ci@v3
   with:
     job: lint
 
 # Lint with latest (bleeding edge)
+- uses: actions/checkout@v4
 - uses: jrschumacher/go-actions/ci@v3
   with:
     job: lint
     golangci-lint-version: latest
 
 # Lint with pinned version (for reproducibility)
+- uses: actions/checkout@v4
 - uses: jrschumacher/go-actions/ci@v3
   with:
     job: lint
     golangci-lint-version: v2.8.0
 
 # Benchmark
+- uses: actions/checkout@v4
 - uses: jrschumacher/go-actions/ci@v3
   with:
     job: benchmark
     benchmark-count: 10
 
 # Security (CVE scanning with govulncheck)
+- uses: actions/checkout@v4
 - uses: jrschumacher/go-actions/ci@v3
   with:
     job: security
@@ -299,6 +311,7 @@ Validates project configuration for go-actions workflows. Checks required files 
 #### Example
 
 ```yaml
+- uses: actions/checkout@v4
 - uses: jrschumacher/go-actions/self-validate@v3
 ```
 
@@ -319,6 +332,7 @@ Posts unified CI results to pull requests. Consolidates test, lint, security, an
 #### Example
 
 ```yaml
+- uses: actions/checkout@v4
 - uses: jrschumacher/go-actions/comment@v3
 ```
 
@@ -345,12 +359,14 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: jrschumacher/go-actions/self-validate@v3
 
   test:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: jrschumacher/go-actions/ci@v3
         with:
           job: test
@@ -359,6 +375,7 @@ jobs:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: jrschumacher/go-actions/ci@v3
         with:
           job: lint
@@ -367,6 +384,7 @@ jobs:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: jrschumacher/go-actions/ci@v3
         with:
           job: security
@@ -376,6 +394,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
+      - uses: actions/checkout@v4
       - uses: jrschumacher/go-actions/ci@v3
         with:
           job: benchmark
@@ -385,6 +404,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'pull_request'
     steps:
+      - uses: actions/checkout@v4
       - uses: jrschumacher/go-actions/comment@v3
 ```
 
