@@ -1,5 +1,5 @@
 {
-  "release-type": "node",
+  "release-type": "simple",
   "package-name": "go-actions",
   "changelog-sections": [
     {"type": "feat", "section": "Features"},
@@ -15,12 +15,7 @@
     {"type": "build", "section": "Build System", "hidden": true},
     {"type": "ci", "section": "Continuous Integration", "hidden": true}
   ],
-  "extra-files": [
-    "scripts-dist/**/*.js"
-  ],
   "packages": {
-    ".": {
-      "release-as": "3.0.1"
-    }
+    ".": {}
   }
 }
