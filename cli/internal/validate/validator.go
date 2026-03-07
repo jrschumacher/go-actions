@@ -1,6 +1,7 @@
 package validate
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,6 +16,14 @@ type Validator struct {
 	workingDir string
 	fix        bool
 	quiet      bool
+}
+
+type releasePleaseConfig struct {
+	ReleaseType string `json:"release-type"`
+	PackageName string `json:"package-name"`
+	Packages    map[string]struct {
+		Component string `json:"component"`
+	} `json:"packages"`
 }
 
 // New creates a new Validator
@@ -76,7 +85,7 @@ func (v *Validator) validateProject(result *Result) {
 	goFiles, _ := filepath.Glob(filepath.Join(v.workingDir, "*.go"))
 	subGoFiles, _ := filepath.Glob(filepath.Join(v.workingDir, "**/*.go"))
 	allGoFiles := append(goFiles, subGoFiles...)
-	
+
 	if len(allGoFiles) == 0 {
 		result.IsValid = false
 		result.Errors = append(result.Errors, "No Go source files found")
@@ -134,7 +143,7 @@ func (v *Validator) validateGolangciLint(result *Result) {
 	if config.Version == nil {
 		result.IsValid = false
 		result.Errors = append(result.Errors, "golangci-lint config missing required 'version: 2' field")
-		
+
 		if v.fix {
 			if v.fixGolangciVersion(configPath, data) {
 				v.log("  🔧 Fixed: Added 'version: 2' to config")
@@ -263,10 +272,12 @@ func (v *Validator) validateReleaseConfig(result *Result) {
 	v.log("\n🔍 Validating release configuration...")
 
 	// Check Release Please config
-	if !v.fileExists(".release-please-config.json") {
-		result.Warnings = append(result.Warnings, "Missing .release-please-config.json (required for release action)")
+	configPath := v.findReleasePleaseConfig()
+	if configPath == "" {
+		result.Warnings = append(result.Warnings, "Missing release-please-config.json (required for release action)")
 	} else {
-		v.log("  ✅ .release-please-config.json found")
+		v.log("  ✅ %s found", filepath.Base(configPath))
+		v.validateReleasePleaseConfig(configPath, result)
 	}
 
 	if !v.fileExists(".release-please-manifest.json") {
@@ -280,5 +291,42 @@ func (v *Validator) validateReleaseConfig(result *Result) {
 		result.Warnings = append(result.Warnings, "Missing .goreleaser.yaml (required for release action)")
 	} else {
 		v.log("  ✅ GoReleaser configuration found")
+	}
+}
+
+func (v *Validator) findReleasePleaseConfig() string {
+	for _, name := range []string{"release-please-config.json", ".release-please-config.json"} {
+		path := filepath.Join(v.workingDir, name)
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	return ""
+}
+
+func (v *Validator) validateReleasePleaseConfig(configPath string, result *Result) {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		result.IsValid = false
+		result.Errors = append(result.Errors, fmt.Sprintf("Failed to read %s: %v", filepath.Base(configPath), err))
+		return
+	}
+
+	var config releasePleaseConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		result.IsValid = false
+		result.Errors = append(result.Errors, fmt.Sprintf("Invalid JSON in %s: %v", filepath.Base(configPath), err))
+		return
+	}
+
+	rootPackage, ok := config.Packages["."]
+	if !ok || rootPackage.Component == "" {
+		return
+	}
+
+	if config.ReleaseType != "" || config.PackageName != "" {
+		result.IsValid = false
+		result.Errors = append(result.Errors, "release-please config mixes top-level release defaults with a component-scoped root package; this can create duplicate release tracks")
 	}
 }

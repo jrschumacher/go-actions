@@ -3,6 +3,7 @@ package validate
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -125,5 +126,86 @@ func TestValidateGolangciLintFix(t *testing.T) {
 
 	if string(data[:10]) != "version: 2" {
 		t.Errorf("Expected 'version: 2' at start of file, got: %s", string(data[:20]))
+	}
+}
+
+func TestValidateReleaseConfigAcceptsStandardFilename(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	writeReleaseValidationProject(t, tmpDir)
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "release-please-config.json"), []byte(`{
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "component": "go-actions",
+      "package-name": "go-actions"
+    }
+  }
+}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	v := New(Options{WorkingDir: tmpDir})
+	result := v.Validate()
+
+	for _, warning := range result.Warnings {
+		if strings.Contains(warning, "release-please-config.json") && strings.Contains(warning, "Missing") {
+			t.Fatalf("expected standard release-please-config.json filename to be accepted, got warning: %s", warning)
+		}
+	}
+}
+
+func TestValidateReleaseConfigRejectsMixedRootDefaultsAndComponent(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	writeReleaseValidationProject(t, tmpDir)
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "release-please-config.json"), []byte(`{
+  "release-type": "simple",
+  "package-name": "go-actions",
+  "packages": {
+    ".": {
+      "component": "go-actions"
+    }
+  }
+}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	v := New(Options{WorkingDir: tmpDir})
+	result := v.Validate()
+
+	if result.IsValid {
+		t.Fatal("expected mixed release-please config to fail validation")
+	}
+
+	found := false
+	for _, err := range result.Errors {
+		if strings.Contains(err, "duplicate release tracks") {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Fatalf("expected duplicate release track error, got: %v", result.Errors)
+	}
+}
+
+func writeReleaseValidationProject(t *testing.T, dir string) {
+	t.Helper()
+
+	files := map[string]string{
+		"go.mod":                        "module test\n\ngo 1.21\n",
+		"main.go":                       "package main\n\nfunc main() {}\n",
+		".release-please-manifest.json": "{\n  \".\": \"3.0.1\"\n}\n",
+		".goreleaser.yaml":              "project_name: test\n",
+	}
+
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
