@@ -56,6 +56,9 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// Apply environment variable overrides (action inputs > config file > defaults)
+	config.ApplyEnvOverrides(cfg)
+
 	// Determine output format
 	format := formatFlag
 	if format == "auto" {
