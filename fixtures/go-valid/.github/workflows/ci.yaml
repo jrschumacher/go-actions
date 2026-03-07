@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: test
 
@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: lint
 
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: benchmark
 
@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: jrschumacher/go-actions/release@v1
+      - uses: jrschumacher/go-actions/release@v3
         with:
           release-token: ${{ secrets.RELEASE_TOKEN }}
 
@@ -39,4 +39,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: jrschumacher/go-actions/self-validate@v1
+      - uses: jrschumacher/go-actions/self-validate@v3

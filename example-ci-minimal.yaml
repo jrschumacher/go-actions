@@ -18,13 +18,13 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: jrschumacher/go-actions/self-validate@v1
+      - uses: jrschumacher/go-actions/self-validate@v3
 
   test:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: test
 
@@ -32,12 +32,6 @@ jobs:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
-      - uses: jrschumacher/go-actions/ci@v1
+      - uses: jrschumacher/go-actions/ci@v3
         with:
           job: lint
-
-  comment:
-    runs-on: ubuntu-latest
-    if: always() && github.event_name == 'pull_request'
-    steps:
-      - uses: jrschumacher/go-actions/comment@v1
