@@ -264,7 +264,7 @@ func TestApplyEnvOverrides(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear all env vars
 			for _, key := range envKeys {
-				os.Unsetenv(key)
+				t.Setenv(key, "")
 			}
 			// Set test-specific env vars
 			for k, v := range tt.envVars {

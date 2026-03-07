@@ -53,8 +53,8 @@ func runConfigGet(cmd *cobra.Command, args []string) error {
 	}
 
 	value := getConfigValue(cfg, args[0])
-	fmt.Fprint(os.Stdout, value)
-	return nil
+	_, err = fmt.Fprint(os.Stdout, value)
+	return err
 }
 
 // getConfigValue retrieves a config value by dot-separated key path.
