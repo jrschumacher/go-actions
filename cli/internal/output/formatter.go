@@ -17,6 +17,7 @@ type CheckResult struct {
 	Threshold     float64       `json:"threshold,omitempty"`
 	Vulnerabilities int         `json:"vulnerabilities,omitempty"`
 	Message       string        `json:"message,omitempty"`
+	Output        string        `json:"output,omitempty"`
 }
 
 // Results represents all check results
@@ -88,6 +89,12 @@ func (f *Formatter) printText(results *Results) error {
 
 		if _, err := fmt.Fprintln(f.writer, line); err != nil {
 			return fmt.Errorf("failed to write check result: %w", err)
+		}
+
+		if check.Output != "" {
+			if _, err := fmt.Fprintf(f.writer, "\n%s\n", check.Output); err != nil {
+				return fmt.Errorf("failed to write check output: %w", err)
+			}
 		}
 	}
 

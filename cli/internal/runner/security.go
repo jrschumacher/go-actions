@@ -71,6 +71,7 @@ func (r *Runner) RunSecurity() (output.CheckResult, error) {
 		if err != nil {
 			result.Status = "error"
 			result.Message = "security check failed"
+			result.Output = stderrJSON.String()
 		}
 		return result, parseErr
 	}

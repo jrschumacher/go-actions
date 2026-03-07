@@ -196,6 +196,15 @@ runs:
           [ "$issues" != "0" ] && [ "$issues" != "null" ] && echo "  Issues: ${issues}"
           [ "$vulns" != "0" ] && [ "$vulns" != "null" ] && echo "  Vulnerabilities: ${vulns}"
           [ -n "$message" ] && [ "$message" != "null" ] && echo "  Message: ${message}"
+
+          # Display command output if present (e.g., test failure details)
+          check_output=$(jq -r '.checks[0].output // ""' /tmp/result.json)
+          if [ -n "$check_output" ] && [ "$check_output" != "null" ]; then
+            echo ""
+            echo "--- Command Output ---"
+            echo "$check_output"
+            echo "--- End Command Output ---"
+          fi
         else
           echo "status=error" >> $GITHUB_OUTPUT
           echo "coverage=0" >> $GITHUB_OUTPUT

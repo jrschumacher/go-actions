@@ -56,6 +56,7 @@ func (r *Runner) RunTest() (output.CheckResult, error) {
 	if err != nil {
 		result.Status = "fail"
 		result.Message = "tests failed"
+		result.Output = outputStr
 		return result, nil
 	}
 

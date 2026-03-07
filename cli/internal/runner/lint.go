@@ -58,6 +58,7 @@ func (r *Runner) RunLint() (output.CheckResult, error) {
 		if err != nil {
 			result.Status = "error"
 			result.Message = "lint check failed"
+			result.Output = stderr.String()
 		}
 		return result, parseErr
 	}
