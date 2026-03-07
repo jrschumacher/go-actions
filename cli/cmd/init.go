@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/jrschumacher/go-actions/cli/internal/config"
 	"github.com/spf13/cobra"
@@ -82,12 +83,9 @@ func detectProjectSettings(cfg *config.Config) error {
 		if info.IsDir() && (info.Name() == "vendor" || info.Name() == ".git") {
 			return filepath.SkipDir
 		}
-		if filepath.Ext(path) == ".go" && filepath.Base(path) != "go.mod" {
-			// Check if it's a test file
-			if len(filepath.Base(path)) > 8 && filepath.Base(path)[len(filepath.Base(path))-8:] == "_test.go" {
-				hasTests = true
-				return filepath.SkipAll
-			}
+		if strings.HasSuffix(path, "_test.go") {
+			hasTests = true
+			return filepath.SkipAll
 		}
 		return nil
 	})
