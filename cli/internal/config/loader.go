@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
@@ -72,6 +73,29 @@ func FindConfigFile() (string, error) {
 
 	// No config found, return default path
 	return filepath.Join(cwd, ".go-actions.yaml"), nil
+}
+
+// ApplyEnvOverrides applies GO_ACTIONS_* environment variable overrides to the config.
+// Only non-empty env vars override config values. This establishes the precedence:
+// env vars (from action inputs) > config file > defaults.
+func ApplyEnvOverrides(cfg *Config) {
+	if v := os.Getenv("GO_ACTIONS_TEST_ARGS"); v != "" {
+		cfg.CI.Test.Args = v
+	}
+	if v := os.Getenv("GO_ACTIONS_LINT_ARGS"); v != "" {
+		cfg.CI.Lint.Args = v
+	}
+	if v := os.Getenv("GO_ACTIONS_BENCHMARK_ARGS"); v != "" {
+		cfg.CI.Benchmark.Args = v
+	}
+	if v := os.Getenv("GO_ACTIONS_BENCHMARK_COUNT"); v != "" {
+		if count, err := strconv.Atoi(v); err == nil && count > 0 {
+			cfg.CI.Benchmark.Count = count
+		}
+	}
+	if v := os.Getenv("GO_ACTIONS_SECURITY_ARGS"); v != "" {
+		cfg.CI.Security.Args = v
+	}
 }
 
 // Save writes a config to a file

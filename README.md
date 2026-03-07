@@ -89,6 +89,39 @@ jobs:
 
 ---
 
+## Configuration with `.go-actions.yaml`
+
+You can optionally create a `.go-actions.yaml` file to centralize your CI settings. Without it, everything works using sensible defaults. With it, you get:
+
+- **Local/CI parity** — Run `go-actions check test` locally with the same settings as your CI workflow, no drift between environments
+- **Simpler workflows** — Define test args, coverage thresholds, and benchmark settings once in config instead of passing them as inputs in every workflow job
+- **Project defaults** — Set your coverage threshold to 90%, customize lint args, or disable benchmarks in one place that's versioned with your code
+
+```yaml
+# .go-actions.yaml
+version: 1
+
+ci:
+  test:
+    args: "-v -race ./..."
+    coverage:
+      threshold: 90
+  lint:
+    version: auto
+  benchmark:
+    enabled: false
+  security:
+    fail-on: high
+
+release:
+  goreleaser:
+    args: "release --clean"
+```
+
+**Precedence:** Action inputs (when explicitly set) override `.go-actions.yaml`, which overrides built-in defaults. If you don't create this file, nothing changes — all existing workflows continue to work exactly as before.
+
+---
+
 ## Actions Reference
 
 ### CI Action
@@ -105,13 +138,13 @@ Runs test, lint, benchmark, or security jobs for Go projects. Lint results inclu
 | `go-version` | No | from go.mod | Explicit Go version |
 | `go-version-file` | No | `go.mod` | Path to version file |
 | `working-directory` | No | `.` | Working directory |
-| `test-args` | No | `-v -race -coverprofile=coverage.out` | Arguments for `go test` |
+| `test-args` | No | from config or built-in | Arguments for `go test` (overrides `.go-actions.yaml`) |
 | `golangci-lint-version` | No | `auto` | `auto` (stable matrix), `latest` (bleeding edge), or explicit like `v2.8.0` |
-| `lint-args` | No | - | Arguments for golangci-lint |
-| `benchmark-args` | No | `-bench=. -benchmem` | Benchmark arguments |
-| `benchmark-count` | No | `5` | Number of benchmark iterations |
+| `lint-args` | No | from config or built-in | Arguments for golangci-lint (overrides `.go-actions.yaml`) |
+| `benchmark-args` | No | from config or built-in | Benchmark arguments (overrides `.go-actions.yaml`) |
+| `benchmark-count` | No | from config or `5` | Number of benchmark iterations (overrides `.go-actions.yaml`) |
 | `govulncheck-version` | No | `latest` | govulncheck version (security job) |
-| `security-args` | No | - | Arguments for govulncheck |
+| `security-args` | No | from config or built-in | Arguments for govulncheck (overrides `.go-actions.yaml`) |
 
 #### Outputs
 
@@ -198,6 +231,7 @@ Automates releases using Release Please and GoReleaser.
 | `go-version-file` | No | `go.mod` | Path to version file |
 | `working-directory` | No | `.` | Working directory |
 | `create-version-aliases` | No | `false` | Create v1, v1.2 aliases pointing to v1.2.3 |
+| `goreleaser-args` | No | from config or `release --clean` | GoReleaser arguments (overrides `.go-actions.yaml`) |
 
 #### Required Files
 

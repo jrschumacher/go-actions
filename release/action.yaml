@@ -30,6 +30,10 @@ inputs:
     description: 'Create major/minor version aliases (e.g., v1 -> v1.2.3, v1.2 -> v1.2.3). Defaults to false for reproducible builds.'
     required: false
     default: 'false'
+  goreleaser-args:
+    description: 'GoReleaser arguments. Overrides .go-actions.yaml release.goreleaser.args. Defaults to "release --clean".'
+    required: false
+    default: ''
 
 runs:
   using: "composite"
@@ -39,6 +43,35 @@ runs:
       with:
         go-version: ${{ inputs.go-version }}
         go-version-file: ${{ !inputs.go-version && inputs.go-version-file || '' }}
+
+    - name: Build go-actions CLI
+      shell: bash
+      run: |
+        echo "Building go-actions CLI..."
+        cd "${{ github.action_path }}/../cli"
+        go build -o /tmp/go-actions .
+        echo "CLI built successfully"
+
+    - name: Read release config
+      id: config
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        # Determine goreleaser args: action input > config file > default
+        goreleaser_args="release --clean"
+
+        if [ -n "${{ inputs.goreleaser-args }}" ]; then
+          goreleaser_args="${{ inputs.goreleaser-args }}"
+          echo "Using goreleaser args from action input: $goreleaser_args"
+        elif [ -f ".go-actions.yaml" ]; then
+          config_args=$(/tmp/go-actions config get release.goreleaser.args 2>/dev/null || echo "")
+          if [ -n "$config_args" ]; then
+            goreleaser_args="$config_args"
+            echo "Using goreleaser args from .go-actions.yaml: $goreleaser_args"
+          fi
+        fi
+
+        echo "goreleaser-args=$goreleaser_args" >> $GITHUB_OUTPUT
 
     - name: Run Release Please
       uses: googleapis/release-please-action@v4.2.0
@@ -68,7 +101,7 @@ runs:
       with:
         distribution: goreleaser
         version: latest
-        args: release --clean
+        args: ${{ steps.config.outputs.goreleaser-args }}
       env:
         GITHUB_TOKEN: ${{ inputs.release-token || github.token }}
         

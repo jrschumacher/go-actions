@@ -21,9 +21,9 @@ inputs:
 
   # Test job specific inputs
   test-args:
-    description: 'Additional arguments for go test (test job only)'
+    description: 'Arguments for go test. Overrides .go-actions.yaml ci.test.args. Leave empty for defaults.'
     required: false
-    default: '-v -race -coverprofile=coverage.out ./...'
+    default: ''
 
   # Lint job specific inputs
   golangci-lint-version:
@@ -31,19 +31,19 @@ inputs:
     required: false
     default: 'auto'
   lint-args:
-    description: 'Additional arguments for golangci-lint (lint job only)'
+    description: 'Arguments for golangci-lint. Overrides .go-actions.yaml ci.lint.args. Leave empty for defaults.'
     required: false
     default: ''
 
   # Benchmark job specific inputs
   benchmark-args:
-    description: 'Additional arguments for go test -bench (benchmark job only)'
+    description: 'Arguments for go test -bench. Overrides .go-actions.yaml ci.benchmark.args. Leave empty for defaults.'
     required: false
-    default: '-bench=. -benchmem'
+    default: ''
   benchmark-count:
-    description: 'Number of benchmark runs (benchmark job only)'
+    description: 'Number of benchmark runs. Overrides .go-actions.yaml ci.benchmark.count. Leave empty for default (5).'
     required: false
-    default: '5'
+    default: ''
 
   # Security job specific inputs
   govulncheck-version:
@@ -51,7 +51,7 @@ inputs:
     required: false
     default: 'latest'
   security-args:
-    description: 'Additional arguments for govulncheck (security job only)'
+    description: 'Arguments for govulncheck. Overrides .go-actions.yaml ci.security.args. Leave empty for defaults.'
     required: false
     default: ''
 
