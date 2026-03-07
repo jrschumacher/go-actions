@@ -37,12 +37,17 @@ runs:
       working-directory: ${{ github.workspace }}
       run: |
         # Run the pre-built Go CLI validator (avoids go download messages in output)
-        if output=$(/tmp/go-actions-validator validate --format json --quiet 2>&1); then
+        if output=$(/tmp/go-actions-validator validate --format json --quiet 2>/tmp/validate.stderr); then
           echo "validation_passed=true" >> $GITHUB_OUTPUT
           echo "result=$output" >> $GITHUB_OUTPUT
         else
           echo "validation_passed=false" >> $GITHUB_OUTPUT
           echo "result=$output" >> $GITHUB_OUTPUT
+        fi
+
+        # Show stderr warnings in logs
+        if [ -s /tmp/validate.stderr ]; then
+          cat /tmp/validate.stderr >&2
         fi
 
         # Always output the JSON for downstream processing
