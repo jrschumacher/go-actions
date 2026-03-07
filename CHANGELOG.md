@@ -1,5 +1,31 @@
 # Changelog
 
+## [3.1.0](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.0.1...go-actions-v3.1.0) (2026-03-07)
+
+
+### Features
+
+* enforce caller-provided checkout across all actions ([#44](https://github.com/jrschumacher/go-actions/issues/44)) ([9bba67a](https://github.com/jrschumacher/go-actions/commit/9bba67ae92ef72e90e7a8d7f892027d7de8536ca))
+* integrate .go-actions.yaml config into CI and release actions ([#46](https://github.com/jrschumacher/go-actions/issues/46)) ([2b6d6b0](https://github.com/jrschumacher/go-actions/commit/2b6d6b0cf5fd0b6a7a194e97d97b186e0d856412))
+* merge-aware PR commenting with race handling ([#49](https://github.com/jrschumacher/go-actions/issues/49)) ([c9c41ae](https://github.com/jrschumacher/go-actions/commit/c9c41aef258ef752a24ab87b57d6e6a7d2466c69))
+* **release:** pass through release-please config-file and manifest-file inputs ([#40](https://github.com/jrschumacher/go-actions/issues/40)) ([40ae089](https://github.com/jrschumacher/go-actions/commit/40ae089116760b5433070989bde494647e832069)), closes [#39](https://github.com/jrschumacher/go-actions/issues/39)
+* surface test/lint/security output in CI action for better failure diagnostics ([#50](https://github.com/jrschumacher/go-actions/issues/50)) ([fbf376e](https://github.com/jrschumacher/go-actions/commit/fbf376ecbb8ec9a3f3ac893d25017f1ec0f74d69))
+
+
+### Bug Fixes
+
+* remove duplicate release-please config at top level ([#58](https://github.com/jrschumacher/go-actions/issues/58)) ([89ccb98](https://github.com/jrschumacher/go-actions/commit/89ccb98dffd480b45c676726d49715ce8b4a9023))
+* restore component name in release-please config ([#54](https://github.com/jrschumacher/go-actions/issues/54)) ([b34fec6](https://github.com/jrschumacher/go-actions/commit/b34fec64f75df9f629d5bcb637839fa6ff87e8db))
+* update release-please config for Go CLI ([#51](https://github.com/jrschumacher/go-actions/issues/51)) ([9c562cb](https://github.com/jrschumacher/go-actions/commit/9c562cbd9063ad2a7e14ad778c3f519f08d24eaf))
+* use correct action inputs and quote shell variables ([#60](https://github.com/jrschumacher/go-actions/issues/60)) ([4495a84](https://github.com/jrschumacher/go-actions/commit/4495a840c89c8affa0c5ab051adb00999849787f))
+* validate release-please config setup ([#62](https://github.com/jrschumacher/go-actions/issues/62)) ([302632e](https://github.com/jrschumacher/go-actions/commit/302632ec5d06d3ff2ff531882448031e5992e183))
+
+
+### Documentation
+
+* add Wails v2 and v3 setup recommendations for go-actions ([#43](https://github.com/jrschumacher/go-actions/issues/43)) ([d787fa9](https://github.com/jrschumacher/go-actions/commit/d787fa9d087b4627c02cf8956187b07b7d53e33a))
+* address issues [#36](https://github.com/jrschumacher/go-actions/issues/36) and [#38](https://github.com/jrschumacher/go-actions/issues/38) — improve README and setup guidance ([#42](https://github.com/jrschumacher/go-actions/issues/42)) ([ad6e463](https://github.com/jrschumacher/go-actions/commit/ad6e463b1c15edbd2d50fe21cddaf31ef5d7233a))
+
 ## [3.0.1](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.0.0...go-actions-v3.0.1) (2026-02-03)
 
 
