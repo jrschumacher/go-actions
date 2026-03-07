@@ -16,7 +16,6 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "component": "go-actions",
       "package-name": "go-actions"
     }
   }
