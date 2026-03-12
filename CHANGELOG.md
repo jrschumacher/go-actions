@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.1.1](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.1.0...go-actions-v3.1.1) (2026-03-12)
+
+
+### Bug Fixes
+
+* separate stderr from JSON output to prevent corruption ([#64](https://github.com/jrschumacher/go-actions/issues/64)) ([2e5488d](https://github.com/jrschumacher/go-actions/commit/2e5488de251812a2daec3da0190a412565ab7fea))
+* update PATH in current shell before running golangci-lint ([#66](https://github.com/jrschumacher/go-actions/issues/66)) ([342c5b5](https://github.com/jrschumacher/go-actions/commit/342c5b55f90a60363ea033be10949f9cacc49885))
+
 ## [3.1.0](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.0.1...go-actions-v3.1.0) (2026-03-07)
 
 
