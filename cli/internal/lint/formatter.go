@@ -102,11 +102,11 @@ func FormatGroupedIssues(groups []LinterGroup, options FormatOptions) string {
 		if issuesShown >= options.MaxTotalIssues {
 			remaining := totalIssues - issuesShown
 			remainingLinters := totalLinters - lintersShown
-			output.WriteString(fmt.Sprintf("\n*...and %d more issue%s from %d linter%s*\n",
+			fmt.Fprintf(&output, "\n*...and %d more issue%s from %d linter%s*\n",
 				remaining,
 				pluralize(remaining),
 				remainingLinters,
-				pluralize(remainingLinters)))
+				pluralize(remainingLinters))
 			break
 		}
 
@@ -119,12 +119,12 @@ func FormatGroupedIssues(groups []LinterGroup, options FormatOptions) string {
 			// Use collapsible section for each linter
 			isOpen := lintersShown == 1 // First linter is open by default
 			if isOpen {
-				output.WriteString(fmt.Sprintf("\n<details open>\n<summary>%s</summary>\n\n", linterTitle))
+				fmt.Fprintf(&output, "\n<details open>\n<summary>%s</summary>\n\n", linterTitle)
 			} else {
-				output.WriteString(fmt.Sprintf("\n<details>\n<summary>%s</summary>\n\n", linterTitle))
+				fmt.Fprintf(&output, "\n<details>\n<summary>%s</summary>\n\n", linterTitle)
 			}
 		} else {
-			output.WriteString(fmt.Sprintf("\n%s\n", linterTitle))
+			fmt.Fprintf(&output, "\n%s\n", linterTitle)
 		}
 
 		// Show issues up to limit
@@ -134,15 +134,15 @@ func FormatGroupedIssues(groups []LinterGroup, options FormatOptions) string {
 
 		for i := 0; i < actualIssuesToShow; i++ {
 			issue := group.Issues[i]
-			output.WriteString(fmt.Sprintf("- `%s:%d:%d` - %s\n",
-				issue.File, issue.Line, issue.Column, issue.Message))
+			fmt.Fprintf(&output, "- `%s:%d:%d` - %s\n",
+				issue.File, issue.Line, issue.Column, issue.Message)
 			issuesShown++
 		}
 
 		// Show truncation message if needed
 		if len(group.Issues) > actualIssuesToShow {
 			remaining := len(group.Issues) - actualIssuesToShow
-			output.WriteString(fmt.Sprintf("\n*...and %d more from %s*\n", remaining, group.Name))
+			fmt.Fprintf(&output, "\n*...and %d more from %s*\n", remaining, group.Name)
 		}
 
 		if options.UseCollapsible {
@@ -174,12 +174,12 @@ func FormatLintOutput(jsonFilePath string, options FormatOptions) (*FormattedOut
 	// Build header with total count
 	totalIssues := len(report.Issues)
 	var header strings.Builder
-	header.WriteString(fmt.Sprintf("### 🚨 Lint Issues Found (%d issue%s)\n\n",
-		totalIssues, pluralize(totalIssues)))
+	fmt.Fprintf(&header, "### 🚨 Lint Issues Found (%d issue%s)\n\n",
+		totalIssues, pluralize(totalIssues))
 
 	// Add workflow logs link if provided
 	if options.WorkflowLogsURL != "" {
-		header.WriteString(fmt.Sprintf("[📋 View full logs](%s)\n\n", options.WorkflowLogsURL))
+		fmt.Fprintf(&header, "[📋 View full logs](%s)\n\n", options.WorkflowLogsURL)
 	}
 
 	markdown := header.String() + formattedIssues

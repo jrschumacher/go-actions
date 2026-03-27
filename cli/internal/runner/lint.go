@@ -50,17 +50,31 @@ func (r *Runner) RunLint() (output.CheckResult, error) {
 		fmt.Fprintf(os.Stderr, "Warning: failed to save golangci-lint report: %v\n", writeErr)
 	}
 
+	// If command failed and produced no stdout, this is a tool-level error
+	// (e.g. config errors, installation issues). Surface stderr directly.
+	if err != nil && stdout.Len() == 0 {
+		result.Status = "error"
+		result.Message = "golangci-lint failed"
+		if stderrStr := strings.TrimSpace(stderr.String()); stderrStr != "" {
+			result.Output = stderrStr
+		} else {
+			result.Output = err.Error()
+		}
+		return result, nil
+	}
+
 	// Parse JSON output
 	issues, parseErr := parseLintOutput(stdout.Bytes())
 	if parseErr != nil {
-		// If JSON parsing fails, try to count issues from text output
 		result.Issues = 0
-		if err != nil {
-			result.Status = "error"
-			result.Message = "lint check failed"
-			result.Output = stderr.String()
+		result.Status = "error"
+		result.Message = "failed to parse lint output"
+		if stderrStr := strings.TrimSpace(stderr.String()); stderrStr != "" {
+			result.Output = stderrStr
+		} else {
+			result.Output = parseErr.Error()
 		}
-		return result, parseErr
+		return result, nil
 	}
 
 	result.Issues = len(issues)
@@ -68,6 +82,11 @@ func (r *Runner) RunLint() (output.CheckResult, error) {
 	if err != nil {
 		result.Status = "fail"
 		result.Message = "linter found issues"
+	}
+
+	// Include issue details in output for display
+	if len(issues) > 0 {
+		result.Output = formatLintIssues(issues)
 	}
 
 	return result, nil
@@ -87,6 +106,16 @@ type lintIssue struct {
 // lintReport represents golangci-lint JSON output
 type lintReport struct {
 	Issues []lintIssue `json:"Issues"`
+}
+
+func formatLintIssues(issues []lintIssue) string {
+	var buf bytes.Buffer
+	for _, issue := range issues {
+		fmt.Fprintf(&buf, "  %s:%d:%d: %s (%s)\n",
+			issue.Pos.Filename, issue.Pos.Line, issue.Pos.Column,
+			issue.Text, issue.FromLinter)
+	}
+	return strings.TrimRight(buf.String(), "\n")
 }
 
 func parseLintOutput(data []byte) ([]lintIssue, error) {

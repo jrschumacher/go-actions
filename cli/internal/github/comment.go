@@ -232,8 +232,8 @@ func formatTestDetails(check output.CheckResult) string {
 			coverageMsg := getCoverageMessage(check.Coverage)
 
 			details.WriteString("<details><summary>Test Details</summary>\n\n")
-			details.WriteString(fmt.Sprintf("**Coverage: %.1f%%**\n\n", check.Coverage))
-			details.WriteString(fmt.Sprintf("%s %s\n\n", emoji, coverageMsg))
+			fmt.Fprintf(&details, "**Coverage: %.1f%%**\n\n", check.Coverage)
+			fmt.Fprintf(&details, "%s %s\n\n", emoji, coverageMsg)
 			details.WriteString("</details>\n\n")
 		} else {
 			details.WriteString("<details><summary>Test Details</summary>\n\n")
@@ -244,7 +244,7 @@ func formatTestDetails(check output.CheckResult) string {
 		details.WriteString("<details open><summary>Test Issues</summary>\n\n")
 		details.WriteString("**Tests failed!**\n\n")
 		if check.Message != "" {
-			details.WriteString(fmt.Sprintf("**Error:** %s\n\n", check.Message))
+			fmt.Fprintf(&details, "**Error:** %s\n\n", check.Message)
 		} else {
 			details.WriteString("Please check the test logs for details.\n\n")
 		}
@@ -272,7 +272,7 @@ func formatLintDetails(check output.CheckResult) string {
 			if len(issuesOutput) > MaxLintOutputLength {
 				issuesOutput = issuesOutput[:MaxLintOutputLength] + "\n\n... (truncated, see workflow logs for full output)"
 			}
-			details.WriteString(fmt.Sprintf("\n\n```\n%s\n```\n", issuesOutput))
+			fmt.Fprintf(&details, "\n\n```\n%s\n```\n", issuesOutput)
 		} else {
 			details.WriteString("\n\nPlease check the workflow logs for details.")
 		}
@@ -299,11 +299,11 @@ func formatSecurityDetails(check output.CheckResult) string {
 			plural = "y"
 		}
 
-		details.WriteString(fmt.Sprintf("<details open><summary>🚨 %d Vulnerabilit%s Found</summary>\n\n", count, plural))
+		fmt.Fprintf(&details, "<details open><summary>🚨 %d Vulnerabilit%s Found</summary>\n\n", count, plural)
 		details.WriteString("**Security scan detected known CVEs in your dependencies!**")
 
 		if check.Message != "" {
-			details.WriteString(fmt.Sprintf("\n\n%s\n", check.Message))
+			fmt.Fprintf(&details, "\n\n%s\n", check.Message)
 		} else {
 			details.WriteString("\n\nPlease check the workflow logs for details.")
 		}
@@ -326,7 +326,7 @@ func formatBenchmarkDetails(check output.CheckResult) string {
 		details.WriteString("<details open><summary>Benchmark Issues</summary>\n\n")
 		details.WriteString("**Benchmarks failed!**\n\n")
 		if check.Message != "" {
-			details.WriteString(fmt.Sprintf("**Error:** %s\n\n", check.Message))
+			fmt.Fprintf(&details, "**Error:** %s\n\n", check.Message)
 		}
 		details.WriteString("</details>\n\n")
 	}

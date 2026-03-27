@@ -1,0 +1,43 @@
+version: "3"
+
+vars:
+  CLI_DIR: ./cli
+
+tasks:
+  default:
+    desc: Run all checks
+    cmds:
+      - task: test
+      - task: lint
+
+  test:
+    desc: Run Go tests
+    dir: "{{.CLI_DIR}}"
+    cmds:
+      - go test ./...
+
+  lint:
+    desc: Run golangci-lint via go-actions
+    dir: "{{.CLI_DIR}}"
+    cmds:
+      - go run . check lint
+
+  security:
+    desc: Run govulncheck via go-actions
+    dir: "{{.CLI_DIR}}"
+    cmds:
+      - go run . check security
+
+  build:
+    desc: Build the CLI binary
+    dir: "{{.CLI_DIR}}"
+    cmds:
+      - go build -o ../bin/go-actions .
+    generates:
+      - ../bin/go-actions
+
+  check:
+    desc: Run all go-actions checks
+    dir: "{{.CLI_DIR}}"
+    cmds:
+      - go run . check

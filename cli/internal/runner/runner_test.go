@@ -253,6 +253,68 @@ func TestParseLintOutput(t *testing.T) {
 	}
 }
 
+func TestFormatLintIssues(t *testing.T) {
+	tests := []struct {
+		name   string
+		issues []lintIssue
+		want   string
+	}{
+		{
+			name:   "empty issues",
+			issues: []lintIssue{},
+			want:   "",
+		},
+		{
+			name: "single issue",
+			issues: []lintIssue{
+				{
+					FromLinter: "errcheck",
+					Text:       "Error return value not checked",
+					Pos: struct {
+						Filename string `json:"Filename"`
+						Line     int    `json:"Line"`
+						Column   int    `json:"Column"`
+					}{Filename: "main.go", Line: 10, Column: 5},
+				},
+			},
+			want: "  main.go:10:5: Error return value not checked (errcheck)",
+		},
+		{
+			name: "multiple issues",
+			issues: []lintIssue{
+				{
+					FromLinter: "errcheck",
+					Text:       "unchecked error",
+					Pos: struct {
+						Filename string `json:"Filename"`
+						Line     int    `json:"Line"`
+						Column   int    `json:"Column"`
+					}{Filename: "a.go", Line: 1, Column: 1},
+				},
+				{
+					FromLinter: "staticcheck",
+					Text:       "unnecessary nil check",
+					Pos: struct {
+						Filename string `json:"Filename"`
+						Line     int    `json:"Line"`
+						Column   int    `json:"Column"`
+					}{Filename: "b.go", Line: 2, Column: 3},
+				},
+			},
+			want: "  a.go:1:1: unchecked error (errcheck)\n  b.go:2:3: unnecessary nil check (staticcheck)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatLintIssues(tt.issues)
+			if got != tt.want {
+				t.Errorf("formatLintIssues() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParseSecurityOutput(t *testing.T) {
 	tests := []struct {
 		name      string
