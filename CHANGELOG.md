@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.2](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.1.1...go-actions-v3.1.2) (2026-03-28)
+
+
+### Bug Fixes
+
+* move main.go to cmd/go-actions/ so go install produces correct binary name ([dcc77fc](https://github.com/jrschumacher/go-actions/commit/dcc77fcad47df83b6430ea221ed402014fccadc2)), closes [#67](https://github.com/jrschumacher/go-actions/issues/67)
+
 ## [3.1.1](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.1.0...go-actions-v3.1.1) (2026-03-12)
 
 
