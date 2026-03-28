@@ -30,7 +30,7 @@ jobs:
 
       - name: Build Go CLI
         working-directory: cli
-        run: go build -o go-actions .
+        run: go build -o go-actions ./cmd/go-actions
 
   # Handle Release Please for version management
   release-please:

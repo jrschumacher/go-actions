@@ -7,12 +7,12 @@ Local CLI tool for running go-actions CI checks locally, enabling local/CI parit
 ### From Source
 ```bash
 cd cli
-go install .
+go install ./cmd/go-actions
 ```
 
-### Using go install (once published)
+### Using go install
 ```bash
-go install github.com/jrschumacher/go-actions/cli@latest
+go install github.com/jrschumacher/go-actions/cli/cmd/go-actions@latest
 ```
 
 ## Quick Start

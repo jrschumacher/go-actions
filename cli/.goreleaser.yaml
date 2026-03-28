@@ -8,7 +8,7 @@ before:
 
 builds:
   - id: go-actions
-    main: .
+    main: ./cmd/go-actions
     binary: go-actions
     env:
       - CGO_ENABLED=0

@@ -28,7 +28,7 @@ runs:
       shell: bash
       run: |
         cd "${{ github.action_path }}/../cli"
-        go build -o /tmp/go-actions-validator .
+        go build -o /tmp/go-actions-validator ./cmd/go-actions
         echo "✅ CLI built successfully"
 
     - name: Run validation

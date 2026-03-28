@@ -200,7 +200,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd cli
-          go build -o /tmp/go-actions .
+          go build -o /tmp/go-actions ./cmd/go-actions
 
           # Run a quick check and post comment
           # Since we're in the comment job, we just post a summary

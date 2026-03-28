@@ -20,19 +20,19 @@ tasks:
     desc: Run golangci-lint via go-actions
     dir: "{{.CLI_DIR}}"
     cmds:
-      - go run . check lint
+      - go run ./cmd/go-actions check lint
 
   security:
     desc: Run govulncheck via go-actions
     dir: "{{.CLI_DIR}}"
     cmds:
-      - go run . check security
+      - go run ./cmd/go-actions check security
 
   build:
     desc: Build the CLI binary
     dir: "{{.CLI_DIR}}"
     cmds:
-      - go build -o ../bin/go-actions .
+      - go build -o ../bin/go-actions ./cmd/go-actions
     generates:
       - ../bin/go-actions
 
@@ -40,4 +40,4 @@ tasks:
     desc: Run all go-actions checks
     dir: "{{.CLI_DIR}}"
     cmds:
-      - go run . check
+      - go run ./cmd/go-actions check
