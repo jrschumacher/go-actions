@@ -233,8 +233,9 @@ func (v *Validator) validateWorkflows(result *Result) {
 
 	v.log("  Found %d workflow file(s)", len(workflowFiles))
 
-	// Check for go-actions usage
+	// Check for go-actions usage and deprecated inputs
 	goActionsPattern := regexp.MustCompile(`uses:\s*jrschumacher/go-actions/(ci|release|self-validate)@`)
+	deprecatedInputPattern := regexp.MustCompile(`golangci-lint-version\s*:`)
 	actionsFound := make(map[string]bool)
 
 	for _, wf := range workflowFiles {
@@ -248,6 +249,15 @@ func (v *Validator) validateWorkflows(result *Result) {
 			if len(match) > 1 {
 				actionsFound[match[1]] = true
 			}
+		}
+
+		// Warn about deprecated inputs
+		if deprecatedInputPattern.Match(data) {
+			wfName := filepath.Base(wf)
+			result.Warnings = append(result.Warnings, fmt.Sprintf(
+				"%s: 'golangci-lint-version' input is deprecated and ignored — go-actions now automatically selects a compatible version. Remove this input to avoid confusion.",
+				wfName,
+			))
 		}
 	}
 
