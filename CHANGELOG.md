@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.1.4](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.1.3...go-actions-v3.1.4) (2026-03-30)
+
+
+### Bug Fixes
+
+* configure GoReleaser to handle release-please tag prefix ([b935699](https://github.com/jrschumacher/go-actions/commit/b935699b200f66d731dea82ba99bd5e1db1d6240))
+* parse golangci-lint version from plain text output ([f88be92](https://github.com/jrschumacher/go-actions/commit/f88be92c2aff03636a79d6db92b392f2e8108e93))
+
 ## [3.1.3](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.1.2...go-actions-v3.1.3) (2026-03-30)
 
 
