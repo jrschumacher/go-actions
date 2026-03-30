@@ -122,11 +122,11 @@ runs:
         export PATH="$GOBIN:$PATH"
 
         # Check if the prebuilt binary's Go version is compatible
-        lint_go_version=$(golangci-lint version --format=json 2>/dev/null | grep -o '"goVersion":"[^"]*"' | sed 's/"goVersion":"go//' | sed 's/"//')
-        lint_go_minor=$(echo "$lint_go_version" | cut -d. -f2)
+        # Output format: "golangci-lint has version X.Y.Z built with go1.NN.M ..."
+        lint_go_minor=$(golangci-lint version 2>/dev/null | grep -o 'built with go[0-9.]*' | sed 's/built with go//' | cut -d. -f2)
 
         if [ -n "$lint_go_minor" ] && [ "$go_minor" -gt "$lint_go_minor" ]; then
-          echo "⚠️ Prebuilt golangci-lint was built with Go $lint_go_version but project targets Go $go_version"
+          echo "⚠️ Prebuilt golangci-lint was built with older Go (minor $lint_go_minor) than project (minor $go_minor)"
           echo "📦 Rebuilding from source with current Go toolchain..."
           go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$version"
         fi
