@@ -26,10 +26,6 @@ inputs:
     default: ''
 
   # Lint job specific inputs
-  golangci-lint-version:
-    description: 'golangci-lint version: "auto" (stable matrix), "latest" (bleeding edge), or explicit like "v2.8.0"'
-    required: false
-    default: 'auto'
   lint-args:
     description: 'Arguments for golangci-lint. Overrides .go-actions.yaml ci.lint.args. Leave empty for defaults.'
     required: false
@@ -106,41 +102,35 @@ runs:
       if: inputs.job == 'lint'
       shell: bash
       run: |
-        version="${{ inputs.golangci-lint-version }}"
-
-        if [ "$version" = "auto" ] || [ "$version" = "v2" ]; then
-          # Auto-detect compatible version based on Go version using stable matrix
-          go_version=$(go version | awk '{print $3}' | sed 's/go//')
-          go_minor=$(echo "$go_version" | cut -d. -f2)
-
-          # Compatibility matrix: golangci-lint version by Go minor version
-          # Go 1.25+ requires golangci-lint v2.4.0+ (v2.8.0 is latest stable)
-          # Go 1.24 works with v2.3.x
-          # Go 1.23 and earlier work with v2.1.x
-          if [ "$go_minor" -ge "25" ]; then
-            version="v2.8.0"
-          elif [ "$go_minor" -ge "24" ]; then
-            version="v2.3.1"
-          else
-            version="v2.1.0"
-          fi
-          echo "🔍 Auto-detected golangci-lint $version for Go $go_version (stable matrix)"
-        elif [ "$version" = "latest" ]; then
-          # Fetch the actual latest version from GitHub
-          version=$(curl -sS https://api.github.com/repos/golangci/golangci-lint/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-          if [ -z "$version" ] || [ "$version" = "null" ]; then
-            echo "⚠️ Failed to fetch latest version, falling back to v2.8.0"
-            version="v2.8.0"
-          else
-            echo "🚀 Using latest golangci-lint $version (bleeding edge)"
-          fi
-        fi
-
-        echo "Installing golangci-lint $version..."
+        go_version=$(go version | awk '{print $3}' | sed 's/go//')
+        go_minor=$(echo "$go_version" | cut -d. -f2)
         GOBIN="$(go env GOPATH)/bin"
+
+        # Fetch the latest golangci-lint version from GitHub
+        version=$(curl -sS https://api.github.com/repos/golangci/golangci-lint/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        if [ -z "$version" ] || [ "$version" = "null" ]; then
+          version="v2.11.4"
+          echo "⚠️ Failed to fetch latest version, falling back to $version"
+        fi
+        echo "🔍 Using golangci-lint $version for Go $go_version"
+
+        # Try prebuilt binary first (fast), fall back to source install if
+        # the binary was built with an older Go than the project targets.
+        echo "Installing golangci-lint $version..."
         curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$GOBIN" "$version"
         echo "$GOBIN" >> "$GITHUB_PATH"
         export PATH="$GOBIN:$PATH"
+
+        # Check if the prebuilt binary's Go version is compatible
+        lint_go_version=$(golangci-lint version --format=json 2>/dev/null | grep -o '"goVersion":"[^"]*"' | sed 's/"goVersion":"go//' | sed 's/"//')
+        lint_go_minor=$(echo "$lint_go_version" | cut -d. -f2)
+
+        if [ -n "$lint_go_minor" ] && [ "$go_minor" -gt "$lint_go_minor" ]; then
+          echo "⚠️ Prebuilt golangci-lint was built with Go $lint_go_version but project targets Go $go_version"
+          echo "📦 Rebuilding from source with current Go toolchain..."
+          go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$version"
+        fi
+
         golangci-lint version
 
     - name: Install govulncheck

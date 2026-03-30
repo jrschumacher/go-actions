@@ -40,7 +40,6 @@ jobs:
       - uses: jrschumacher/go-actions/ci@v3
         with:
           job: lint
-          golangci-lint-version: v2.1.0  # Use v2.1.0 for best compatibility
 
   benchmark:
     name: Benchmarks

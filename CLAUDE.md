@@ -67,7 +67,7 @@ The Go CLI handles PR commenting directly (no TypeScript/Node.js needed):
 ### Go CLI Development
 ```bash
 cd cli && go test ./...   # Run all CLI tests
-cd cli && go build .      # Build the CLI binary
+cd cli && go build ./cmd/go-actions  # Build the CLI binary
 ```
 
 ### Testing Infrastructure
@@ -92,7 +92,7 @@ cd cli && go build .      # Build the CLI binary
 
 **Job-Specific Inputs:**
 - **Test**: `test-args` (defaults to `-v -race -coverprofile=coverage.out`)
-- **Lint**: `golangci-lint-version` (defaults to `auto` for Go-version-aware selection from stable matrix, or `latest` for bleeding edge), `lint-args`
+- **Lint**: `lint-args`
 - **Benchmark**: `benchmark-args` (defaults to `-bench=. -benchmem`), `benchmark-count` (defaults to 5)
 - **Security**: `govulncheck-version` (defaults to `latest`), `security-args`
 
@@ -135,37 +135,13 @@ cd cli && go build .      # Build the CLI binary
 - Self-validate uses Go CLI for validation
 
 ### golangci-lint Version Management
-- **Three version modes**:
-  - `auto` (default): Uses stable compatibility matrix based on Go version
-  - `latest`: Fetches newest release from GitHub (bleeding edge)
-  - Explicit version (e.g., `v2.8.0`): Pinned for reproducibility
-- **Auto-detection compatibility matrix**:
-  - Go 1.25+: uses golangci-lint v2.8.0
-  - Go 1.24: uses golangci-lint v2.3.1
-  - Go 1.23 and earlier: uses golangci-lint v2.1.0
+- **Version modes**:
+  - `auto` (default) / `latest`: Fetches newest release from GitHub, with automatic source rebuild if needed
+  - Explicit version (e.g., `v2.11.4`): Pinned for reproducibility
+- **Automatic Go compatibility**: When the prebuilt binary was compiled with an older Go than the project targets, the action automatically rebuilds golangci-lint from source using the project's Go toolchain. This eliminates the need for a manual compatibility matrix.
 - Self-validate checks version compatibility between workflow and config file
 - Supports both `.golangci.yml` and `.golangci.yaml` formats
 - Validates major version compatibility (v1 vs v2)
-
-**Version Update Process**:
-
-The CI action uses manual installation of golangci-lint (not golangci-lint-action) to avoid cache collision issues. Auto-detection ensures compatibility with the project's Go version.
-
-**To update the compatibility matrix**:
-1. Check [golangci-lint releases](https://github.com/golangci/golangci-lint/releases) for new v2.x versions
-2. Update the compatibility matrix in `ci/action.yaml` (Install golangci-lint step)
-3. Test the change:
-   - Run `cd cli && go test ./...` to ensure all tests pass
-   - Test in a real workflow with actual Go projects
-   - Verify the new version doesn't introduce breaking changes
-4. Update this documentation with new version mappings
-5. Document any breaking changes or new features in commit message
-
-**Maintenance Schedule**: Check for new v2.x releases quarterly to catch:
-- Go version compatibility updates (new Go releases need newer golangci-lint)
-- Security patches
-- Performance improvements
-- New linter support
 
 **Why Manual Installation**:
 - Enables Go-version-aware auto-detection of compatible golangci-lint

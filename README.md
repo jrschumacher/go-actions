@@ -139,7 +139,6 @@ Runs test, lint, benchmark, or security jobs for Go projects. Lint results inclu
 | `go-version-file` | No | `go.mod` | Path to version file |
 | `working-directory` | No | `.` | Working directory |
 | `test-args` | No | from config or built-in | Arguments for `go test` (overrides `.go-actions.yaml`) |
-| `golangci-lint-version` | No | `auto` | `auto` (stable matrix), `latest` (bleeding edge), or explicit like `v2.8.0` |
 | `lint-args` | No | from config or built-in | Arguments for golangci-lint (overrides `.go-actions.yaml`) |
 | `benchmark-args` | No | from config or built-in | Benchmark arguments (overrides `.go-actions.yaml`) |
 | `benchmark-count` | No | from config or `5` | Number of benchmark iterations (overrides `.go-actions.yaml`) |
@@ -170,25 +169,11 @@ Runs test, lint, benchmark, or security jobs for Go projects. Lint results inclu
     job: test
     test-args: '-v -short'
 
-# Lint (auto - stable matrix based on Go version)
+# Lint (automatically picks compatible golangci-lint version)
 - uses: actions/checkout@v4
 - uses: jrschumacher/go-actions/ci@v3
   with:
     job: lint
-
-# Lint with latest (bleeding edge)
-- uses: actions/checkout@v4
-- uses: jrschumacher/go-actions/ci@v3
-  with:
-    job: lint
-    golangci-lint-version: latest
-
-# Lint with pinned version (for reproducibility)
-- uses: actions/checkout@v4
-- uses: jrschumacher/go-actions/ci@v3
-  with:
-    job: lint
-    golangci-lint-version: v2.8.0
 
 # Benchmark
 - uses: actions/checkout@v4
@@ -210,17 +195,9 @@ Action inputs (e.g., `test-args`, `lint-args`) are passed directly as arguments 
 
 For example, if you set `test-args: '-v -short'`, the default `-race -coverprofile=coverage.out` flags are **not** included unless you add them yourself.
 
-#### golangci-lint Version Compatibility
+#### golangci-lint Version
 
-When `golangci-lint-version` is set to `auto` (the default), the action selects a compatible version based on your Go version:
-
-| Go Version | golangci-lint Version | Notes |
-|------------|----------------------|-------|
-| 1.25+ | v2.8.0 | Latest stable for modern Go |
-| 1.24 | v2.3.1 | Compatible with Go 1.24 |
-| 1.23 and earlier | v2.1.0 | Minimum v2 support |
-
-**Important**: Different golangci-lint minor versions may have different config schemas. Use `linters.exclusions.paths` for path exclusions (not the deprecated `run.skip-dirs`). When in doubt, pin a specific version for reproducibility.
+The action automatically fetches the latest golangci-lint release. If the prebuilt binary was compiled with an older Go than your project targets, it rebuilds from source using your Go toolchain. No configuration needed.
 
 ---
 
