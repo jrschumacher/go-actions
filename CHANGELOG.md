@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.3](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.1.2...go-actions-v3.1.3) (2026-03-30)
+
+
+### Bug Fixes
+
+* auto-select compatible golangci-lint version for any Go release ([6b5d056](https://github.com/jrschumacher/go-actions/commit/6b5d056474d38f2341f80c67d399c774a9df360b)), closes [#37](https://github.com/jrschumacher/go-actions/issues/37)
+
 ## [3.1.2](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.1.1...go-actions-v3.1.2) (2026-03-28)
 
 
