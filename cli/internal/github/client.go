@@ -17,9 +17,9 @@ const mergeRetries = 3
 
 // Client is a minimal GitHub API client for PR comments
 type Client struct {
-	token   string
-	apiURL  string
-	client  *http.Client
+	token  string
+	apiURL string
+	client *http.Client
 }
 
 // NewClient creates a new GitHub API client
@@ -32,7 +32,7 @@ func NewClient(ctx *GitHubContext) *Client {
 	return &Client{
 		token:  ctx.Token,
 		apiURL: strings.TrimSuffix(apiURL, "/"),
-		client: &http.Client{},
+		client: &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -47,7 +47,7 @@ type Comment struct {
 
 // ListComments gets all comments on a PR
 func (c *Client) ListComments(owner, repo string, prNumber int) ([]Comment, error) {
-	url := fmt.Sprintf("%s/repos/%s/%s/issues/%d/comments", c.apiURL, owner, repo, prNumber)
+	url := fmt.Sprintf("%s/repos/%s/%s/issues/%d/comments?per_page=100", c.apiURL, owner, repo, prNumber)
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	if err != nil {

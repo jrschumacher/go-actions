@@ -3,6 +3,7 @@ package validate
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -81,12 +82,29 @@ func (v *Validator) validateProject(result *Result) {
 		v.log("  ✅ go.mod found")
 	}
 
-	// Check for Go source files
-	goFiles, _ := filepath.Glob(filepath.Join(v.workingDir, "*.go"))
-	subGoFiles, _ := filepath.Glob(filepath.Join(v.workingDir, "**/*.go"))
-	allGoFiles := append(goFiles, subGoFiles...)
+	// Check for Go source files (using WalkDir for recursive search)
+	hasGoFiles := false
+	hasTestFiles := false
+	_ = filepath.WalkDir(v.workingDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(path, ".go") {
+			hasGoFiles = true
+			if strings.HasSuffix(path, "_test.go") {
+				hasTestFiles = true
+			}
+		}
+		if hasGoFiles && hasTestFiles {
+			return filepath.SkipAll
+		}
+		return nil
+	})
 
-	if len(allGoFiles) == 0 {
+	if !hasGoFiles {
 		result.IsValid = false
 		result.Errors = append(result.Errors, "No Go source files found")
 	} else {
@@ -94,11 +112,7 @@ func (v *Validator) validateProject(result *Result) {
 	}
 
 	// Check for test files (warning only)
-	testFiles, _ := filepath.Glob(filepath.Join(v.workingDir, "*_test.go"))
-	subTestFiles, _ := filepath.Glob(filepath.Join(v.workingDir, "**/*_test.go"))
-	allTestFiles := append(testFiles, subTestFiles...)
-
-	if len(allTestFiles) == 0 {
+	if !hasTestFiles {
 		result.Warnings = append(result.Warnings, "No test files found (recommended for test job)")
 	} else {
 		v.log("  ✅ Test files found")

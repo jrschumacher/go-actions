@@ -132,7 +132,7 @@ func FormatGroupedIssues(groups []LinterGroup, options FormatOptions) string {
 		remainingSpace := options.MaxTotalIssues - issuesShown
 		actualIssuesToShow := min(issuesToShow, remainingSpace)
 
-		for i := 0; i < actualIssuesToShow; i++ {
+		for i := range actualIssuesToShow {
 			issue := group.Issues[i]
 			fmt.Fprintf(&output, "- `%s:%d:%d` - %s\n",
 				issue.File, issue.Line, issue.Column, issue.Message)
@@ -222,12 +222,4 @@ func pluralize(count int) string {
 		return ""
 	}
 	return "s"
-}
-
-// min returns the minimum of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

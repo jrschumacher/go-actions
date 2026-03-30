@@ -54,9 +54,11 @@ runs:
 
     - name: Build go-actions CLI
       shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
       run: |
         echo "Building go-actions CLI..."
-        cd "${{ github.action_path }}/../cli"
+        cd "$ACTION_PATH/../cli"
         go build -o /tmp/go-actions ./cmd/go-actions
         echo "CLI built successfully"
 
@@ -64,12 +66,14 @@ runs:
       id: config
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+      env:
+        GORELEASER_ARGS_INPUT: ${{ inputs.goreleaser-args }}
       run: |
         # Determine goreleaser args: action input > config file > default
         goreleaser_args="release --clean"
 
-        if [ -n "${{ inputs.goreleaser-args }}" ]; then
-          goreleaser_args="${{ inputs.goreleaser-args }}"
+        if [ -n "$GORELEASER_ARGS_INPUT" ]; then
+          goreleaser_args="$GORELEASER_ARGS_INPUT"
           echo "Using goreleaser args from action input: $goreleaser_args"
         elif [ -f ".go-actions.yaml" ]; then
           config_args=$(/tmp/go-actions config get release.goreleaser.args 2>/dev/null || echo "")
@@ -94,11 +98,15 @@ runs:
         
     - name: Check Release Please outputs
       shell: bash
+      env:
+        RELEASE_CREATED: ${{ steps.release.outputs.release_created }}
+        TAG_NAME: ${{ steps.release.outputs.tag_name }}
+        VERSION: ${{ steps.release.outputs.version }}
       run: |
-        echo "Release created: '${{ steps.release.outputs.release_created }}'"
-        echo "Tag name: '${{ steps.release.outputs.tag_name }}'"
-        echo "Version: '${{ steps.release.outputs.version }}'"
-        if [ "${{ steps.release.outputs.release_created }}" = "true" ]; then
+        echo "Release created: '$RELEASE_CREATED'"
+        echo "Tag name: '$TAG_NAME'"
+        echo "Version: '$VERSION'"
+        if [ "$RELEASE_CREATED" = "true" ]; then
           echo "✅ Release was created, proceeding with GoReleaser"
         else
           echo "ℹ️  No release was created, skipping GoReleaser"
@@ -117,10 +125,10 @@ runs:
     - name: Create version aliases for Go modules
       if: steps.release.outputs.release_created == 'true' && inputs.create-version-aliases == 'true'
       shell: bash
+      env:
+        VERSION: ${{ steps.release.outputs.version }}
+        TAG_NAME: ${{ steps.release.outputs.tag_name }}
       run: |
-        VERSION="${{ steps.release.outputs.version }}"
-        TAG_NAME="${{ steps.release.outputs.tag_name }}"
-        
         echo "Creating version aliases for version: $VERSION"
         echo "Tag name: $TAG_NAME"
         

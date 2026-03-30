@@ -26,8 +26,10 @@ runs:
 
     - name: Build CLI
       shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
       run: |
-        cd "${{ github.action_path }}/../cli"
+        cd "$ACTION_PATH/../cli"
         go build -o /tmp/go-actions-validator ./cmd/go-actions
         echo "✅ CLI built successfully"
 

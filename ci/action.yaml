@@ -76,11 +76,12 @@ runs:
   steps:
     - name: Validate job input
       shell: bash
+      env:
+        JOB: ${{ inputs.job }}
       run: |
         valid_jobs="test lint benchmark security"
-        job="${{ inputs.job }}"
-        if [[ ! " $valid_jobs " =~ " $job " ]]; then
-          echo "::error::Invalid job type: $job. Valid options are: $valid_jobs"
+        if [[ ! " $valid_jobs " =~ " $JOB " ]]; then
+          echo "::error::Invalid job type: $JOB. Valid options are: $valid_jobs"
           exit 1
         fi
 
@@ -92,9 +93,11 @@ runs:
 
     - name: Build go-actions CLI
       shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
       run: |
         echo "Building go-actions CLI..."
-        cd "${{ github.action_path }}/../cli"
+        cd "$ACTION_PATH/../cli"
         go build -o /tmp/go-actions ./cmd/go-actions
         echo "✅ CLI built successfully"
 
@@ -136,9 +139,11 @@ runs:
     - name: Install govulncheck
       if: inputs.job == 'security'
       shell: bash
+      env:
+        GOVULNCHECK_VERSION: ${{ inputs.govulncheck-version }}
       run: |
         echo "Installing govulncheck..."
-        go install golang.org/x/vuln/cmd/govulncheck@${{ inputs.govulncheck-version }}
+        go install "golang.org/x/vuln/cmd/govulncheck@$GOVULNCHECK_VERSION"
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
     - name: Run check
@@ -151,18 +156,20 @@ runs:
         GO_ACTIONS_BENCHMARK_ARGS: ${{ inputs.benchmark-args }}
         GO_ACTIONS_BENCHMARK_COUNT: ${{ inputs.benchmark-count }}
         GO_ACTIONS_SECURITY_ARGS: ${{ inputs.security-args }}
+        JOB: ${{ inputs.job }}
+        GITHUB_COMMENT: ${{ inputs.github-comment }}
       run: |
         set +e  # Don't exit on error, we'll handle it
 
-        echo "Running ${{ inputs.job }} check..."
+        echo "Running $JOB check..."
 
         # Build command with optional github-comment flag
         comment_flag=""
-        if [ "${{ inputs.github-comment }}" = "true" ]; then
+        if [ "$GITHUB_COMMENT" = "true" ]; then
           comment_flag="--github-comment"
         fi
 
-        /tmp/go-actions check ${{ inputs.job }} --format=json $comment_flag > /tmp/result.json 2>/tmp/result.stderr
+        /tmp/go-actions check "$JOB" --format=json $comment_flag > /tmp/result.json 2>/tmp/result.stderr
         exit_code=$?
 
         # Show stderr warnings in logs (kept separate from JSON output)
@@ -214,8 +221,8 @@ runs:
 
         # Exit with original code
         if [ "$exit_code" -ne 0 ]; then
-          echo "::error::${{ inputs.job }} check failed"
+          echo "::error::$JOB check failed"
           exit $exit_code
         fi
 
-        echo "✅ ${{ inputs.job }} check passed"
+        echo "✅ $JOB check passed"
