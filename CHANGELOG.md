@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.2.0](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.1.4...go-actions-v3.2.0) (2026-03-30)
+
+
+### Features
+
+* warn consumers about deprecated golangci-lint-version input ([5c97641](https://github.com/jrschumacher/go-actions/commit/5c97641be45123e7bb8352abfad3188696659b71))
+
+
+### Bug Fixes
+
+* harden action scripts and fix Go code issues from review ([06b573c](https://github.com/jrschumacher/go-actions/commit/06b573cfd2256bdfe1e0c34501d34e416d9b4337))
+
 ## [3.1.4](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.1.3...go-actions-v3.1.4) (2026-03-30)
 
 
