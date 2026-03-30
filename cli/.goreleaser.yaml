@@ -2,6 +2,9 @@ version: 2
 
 project_name: go-actions
 
+monorepo:
+  tag_prefix: go-actions-
+
 before:
   hooks:
     - go mod tidy
