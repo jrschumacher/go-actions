@@ -85,6 +85,14 @@ runs:
           exit 1
         fi
 
+    - name: Clean stale Go module cache (self-hosted workaround)
+      # Works around actions/setup-go cache restore failing with
+      # "tar: Cannot open: File exists" when the module download cache persists
+      # between jobs on self-hosted runners. See issue #74.
+      if: runner.environment == 'self-hosted' || contains(runner.labels, 'self-hosted')
+      shell: bash
+      run: rm -rf "${GOPATH:-$HOME/go}/pkg/mod/cache/download" || true
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
