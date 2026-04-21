@@ -85,13 +85,34 @@ runs:
           exit 1
         fi
 
-    - name: Clean stale Go module cache (self-hosted workaround)
+    - name: Setup go-actions scratch dir
+      # Per-job scratch dir isolates this job's tool binaries, built CLI, and
+      # intermediate result files from other jobs sharing a self-hosted runner.
+      # RUNNER_TEMP is scoped per job and cleaned by the runner.
+      shell: bash
+      run: |
+        scratch="${RUNNER_TEMP}/go-actions-${GITHUB_JOB}"
+        mkdir -p "$scratch/gobin"
+        echo "GO_ACTIONS_SCRATCH=$scratch" >> "$GITHUB_ENV"
+        echo "GOBIN=$scratch/gobin" >> "$GITHUB_ENV"
+        echo "$scratch/gobin" >> "$GITHUB_PATH"
+
+    - name: Clean stale Go build and module caches (self-hosted workaround)
       # Works around actions/setup-go cache restore failing with
-      # "tar: Cannot open: File exists" when the module download cache persists
-      # between jobs on self-hosted runners. See issue #74.
+      # "tar: Cannot open: File exists" when cache dirs persist between jobs
+      # on self-hosted runners. Covers both GOMODCACHE and GOCACHE since
+      # setup-go restores/saves both. See issues #74 and #76.
       if: runner.environment == 'self-hosted' || contains(runner.labels, 'self-hosted')
       shell: bash
-      run: rm -rf "${GOPATH:-$HOME/go}/pkg/mod/cache/download" || true
+      run: |
+        warn_on_fail() {
+          local path="$1"
+          if [ -e "$path" ] && ! rm -rf "$path" 2>/dev/null; then
+            echo "::warning::Failed to clean $path (non-fatal, but setup-go may error)"
+          fi
+        }
+        warn_on_fail "${GOPATH:-$HOME/go}/pkg/mod"
+        warn_on_fail "$HOME/.cache/go-build"
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -106,7 +127,7 @@ runs:
       run: |
         echo "Building go-actions CLI..."
         cd "$ACTION_PATH/../cli"
-        go build -o /tmp/go-actions ./cmd/go-actions
+        go build -o "$GO_ACTIONS_SCRATCH/go-actions" ./cmd/go-actions
         echo "✅ CLI built successfully"
 
     - name: Install golangci-lint
@@ -115,7 +136,6 @@ runs:
       run: |
         go_version=$(go version | awk '{print $3}' | sed 's/go//')
         go_minor=$(echo "$go_version" | cut -d. -f2)
-        GOBIN="$(go env GOPATH)/bin"
 
         # Fetch the latest golangci-lint version from GitHub
         version=$(curl -sS https://api.github.com/repos/golangci/golangci-lint/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
@@ -127,9 +147,10 @@ runs:
 
         # Try prebuilt binary first (fast), fall back to source install if
         # the binary was built with an older Go than the project targets.
-        echo "Installing golangci-lint $version..."
+        # Install to job-scoped GOBIN so a pinned version in one repo can't
+        # overwrite another's on a shared runner.
+        echo "Installing golangci-lint $version to $GOBIN..."
         curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$GOBIN" "$version"
-        echo "$GOBIN" >> "$GITHUB_PATH"
         export PATH="$GOBIN:$PATH"
 
         # Check if the prebuilt binary's Go version is compatible
@@ -150,9 +171,8 @@ runs:
       env:
         GOVULNCHECK_VERSION: ${{ inputs.govulncheck-version }}
       run: |
-        echo "Installing govulncheck..."
+        echo "Installing govulncheck to $GOBIN..."
         go install "golang.org/x/vuln/cmd/govulncheck@$GOVULNCHECK_VERSION"
-        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
     - name: Run check
       id: run-check
@@ -177,27 +197,30 @@ runs:
           comment_flag="--github-comment"
         fi
 
-        /tmp/go-actions check "$JOB" --format=json $comment_flag > /tmp/result.json 2>/tmp/result.stderr
+        result_json="$GO_ACTIONS_SCRATCH/result.json"
+        result_stderr="$GO_ACTIONS_SCRATCH/result.stderr"
+
+        "$GO_ACTIONS_SCRATCH/go-actions" check "$JOB" --format=json $comment_flag > "$result_json" 2>"$result_stderr"
         exit_code=$?
 
         # Show stderr warnings in logs (kept separate from JSON output)
-        if [ -s /tmp/result.stderr ]; then
+        if [ -s "$result_stderr" ]; then
           echo "--- Stderr ---"
-          cat /tmp/result.stderr
+          cat "$result_stderr"
           echo "--- End stderr ---"
         fi
 
         echo "--- Raw output ---"
-        cat /tmp/result.json
+        cat "$result_json"
         echo "--- End output ---"
 
         # Parse JSON output using jq for reliable parsing
-        if [ -f /tmp/result.json ] && command -v jq &> /dev/null && jq -e '.status' /tmp/result.json > /dev/null 2>&1; then
-          status=$(jq -r '.status // "unknown"' /tmp/result.json)
-          coverage=$(jq -r '.checks[0].coverage // 0' /tmp/result.json)
-          issues=$(jq -r '.checks[0].issues // 0' /tmp/result.json)
-          vulns=$(jq -r '.checks[0].vulnerabilities // 0' /tmp/result.json)
-          message=$(jq -r '.checks[0].message // ""' /tmp/result.json)
+        if [ -f "$result_json" ] && command -v jq &> /dev/null && jq -e '.status' "$result_json" > /dev/null 2>&1; then
+          status=$(jq -r '.status // "unknown"' "$result_json")
+          coverage=$(jq -r '.checks[0].coverage // 0' "$result_json")
+          issues=$(jq -r '.checks[0].issues // 0' "$result_json")
+          vulns=$(jq -r '.checks[0].vulnerabilities // 0' "$result_json")
+          message=$(jq -r '.checks[0].message // ""' "$result_json")
 
           echo "status=${status}" >> $GITHUB_OUTPUT
           echo "coverage=${coverage}" >> $GITHUB_OUTPUT
@@ -212,7 +235,7 @@ runs:
           [ -n "$message" ] && [ "$message" != "null" ] && echo "  Message: ${message}"
 
           # Display command output if present (e.g., test failure details)
-          check_output=$(jq -r '.checks[0].output // ""' /tmp/result.json)
+          check_output=$(jq -r '.checks[0].output // ""' "$result_json")
           if [ -n "$check_output" ] && [ "$check_output" != "null" ]; then
             echo ""
             echo "--- Command Output ---"
