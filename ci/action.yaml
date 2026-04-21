@@ -91,15 +91,57 @@ runs:
         go-version: ${{ inputs.go-version }}
         go-version-file: ${{ !inputs.go-version && inputs.go-version-file || '' }}
 
-    - name: Build go-actions CLI
+    - name: Install go-actions CLI
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
       run: |
-        echo "Building go-actions CLI..."
+        set -e
+
+        bin_name="go-actions"
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          bin_name="go-actions.exe"
+        fi
+        install_path="$RUNNER_TEMP/$bin_name"
+
+        os=$(echo "$RUNNER_OS" | tr '[:upper:]' '[:lower:]')
+        case "$RUNNER_ARCH" in
+          X64) arch=amd64 ;;
+          ARM64) arch=arm64 ;;
+          *) arch="" ;;
+        esac
+
+        version_file="$ACTION_PATH/../VERSION"
+        if [ -n "$arch" ] && [ -f "$version_file" ]; then
+          version=$(tr -d '[:space:]' < "$version_file")
+          ext="tar.gz"
+          if [ "$os" = "windows" ]; then
+            ext="zip"
+          fi
+          url="https://github.com/jrschumacher/go-actions/releases/download/go-actions-v${version}/go-actions_${version}_${os}_${arch}.${ext}"
+          tmp=$(mktemp -d)
+          echo "Downloading prebuilt go-actions v${version} (${os}/${arch}) from ${url}"
+          if curl -sSfL "$url" -o "$tmp/archive.$ext"; then
+            if [ "$ext" = "zip" ]; then
+              unzip -q "$tmp/archive.$ext" -d "$tmp"
+            else
+              tar -xzf "$tmp/archive.$ext" -C "$tmp"
+            fi
+            mv "$tmp/$bin_name" "$install_path"
+            chmod +x "$install_path"
+            echo "GO_ACTIONS_BIN=$install_path" >> "$GITHUB_ENV"
+            echo "✅ Installed prebuilt go-actions v${version}"
+            exit 0
+          fi
+          echo "⚠️  Prebuilt binary fetch failed; falling back to source build"
+        else
+          echo "ℹ️  No VERSION file or unsupported arch (${RUNNER_ARCH}); building from source"
+        fi
+
         cd "$ACTION_PATH/../cli"
-        go build -o /tmp/go-actions ./cmd/go-actions
-        echo "✅ CLI built successfully"
+        go build -o "$install_path" ./cmd/go-actions
+        echo "GO_ACTIONS_BIN=$install_path" >> "$GITHUB_ENV"
+        echo "✅ Built go-actions from source"
 
     - name: Install golangci-lint
       if: inputs.job == 'lint'
@@ -169,7 +211,7 @@ runs:
           comment_flag="--github-comment"
         fi
 
-        /tmp/go-actions check "$JOB" --format=json $comment_flag > /tmp/result.json 2>/tmp/result.stderr
+        "$GO_ACTIONS_BIN" check "$JOB" --format=json $comment_flag > /tmp/result.json 2>/tmp/result.stderr
         exit_code=$?
 
         # Show stderr warnings in logs (kept separate from JSON output)
