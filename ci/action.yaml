@@ -70,6 +70,9 @@ outputs:
   status:
     description: "Check status: pass, fail, or error"
     value: ${{ steps.run-check.outputs.status }}
+  install_source:
+    description: "How the CLI was obtained: 'prebuilt' or 'source'"
+    value: ${{ steps.install.outputs.install_source }}
 
 runs:
   using: "composite"
@@ -92,6 +95,7 @@ runs:
         go-version-file: ${{ !inputs.go-version && inputs.go-version-file || '' }}
 
     - name: Install go-actions CLI
+      id: install
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
@@ -134,6 +138,7 @@ runs:
           }
 
           if install_prebuilt; then
+            echo "install_source=prebuilt" >> "$GITHUB_OUTPUT"
             echo "GO_ACTIONS_BIN=$install_path" >> "$GITHUB_ENV"
             echo "✅ Installed prebuilt go-actions v${version}"
             exit 0
@@ -145,6 +150,7 @@ runs:
 
         cd "$ACTION_PATH/../cli"
         go build -o "$install_path" ./cmd/go-actions
+        echo "install_source=source" >> "$GITHUB_OUTPUT"
         echo "GO_ACTIONS_BIN=$install_path" >> "$GITHUB_ENV"
         echo "✅ Built go-actions from source"
 

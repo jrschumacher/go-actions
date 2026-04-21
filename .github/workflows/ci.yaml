@@ -181,6 +181,48 @@ jobs:
           skip-github-pull-request: true
         continue-on-error: true  # Release action may fail in test environment
 
+  smoke-prebuilt-linux:
+    name: Smoke test — prebuilt binary (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout consumer workspace
+        uses: actions/checkout@v4
+
+      - name: Create minimal Go fixture
+        run: |
+          mkdir -p fixture && cd fixture
+          go mod init example.com/fixture
+          cat > main.go <<'EOF'
+          package main
+          func main() {}
+          func Add(a, b int) int { return a + b }
+          EOF
+          cat > main_test.go <<'EOF'
+          package main
+          import "testing"
+          func TestAdd(t *testing.T) {
+              if Add(2, 3) != 5 { t.Fatal("broken") }
+          }
+          EOF
+
+      - name: Run go-actions CI test job
+        id: run
+        uses: ./ci
+        with:
+          job: test
+          working-directory: fixture
+          github-comment: 'false'
+
+      - name: Assert prebuilt path was taken
+        env:
+          SOURCE: ${{ steps.run.outputs.install_source }}
+        run: |
+          echo "install_source=$SOURCE"
+          if [ "$SOURCE" != "prebuilt" ]; then
+            echo "::error::Expected install_source=prebuilt, got $SOURCE"
+            exit 1
+          fi
+
   # Post PR comment with CI results
   comment:
     runs-on: ubuntu-latest
