@@ -121,19 +121,24 @@ runs:
           url="https://github.com/jrschumacher/go-actions/releases/download/go-actions-v${version}/go-actions_${version}_${os}_${arch}.${ext}"
           tmp=$(mktemp -d)
           echo "Downloading prebuilt go-actions v${version} (${os}/${arch}) from ${url}"
-          if curl -sSfL "$url" -o "$tmp/archive.$ext"; then
+
+          install_prebuilt() {
+            curl -sSfL "$url" -o "$tmp/archive.$ext" || return 1
             if [ "$ext" = "zip" ]; then
-              unzip -q "$tmp/archive.$ext" -d "$tmp"
+              unzip -q "$tmp/archive.$ext" -d "$tmp" || return 1
             else
-              tar -xzf "$tmp/archive.$ext" -C "$tmp"
+              tar -xzf "$tmp/archive.$ext" -C "$tmp" || return 1
             fi
-            mv "$tmp/$bin_name" "$install_path"
-            chmod +x "$install_path"
+            mv "$tmp/$bin_name" "$install_path" || return 1
+            chmod +x "$install_path" || return 1
+          }
+
+          if install_prebuilt; then
             echo "GO_ACTIONS_BIN=$install_path" >> "$GITHUB_ENV"
             echo "✅ Installed prebuilt go-actions v${version}"
             exit 0
           fi
-          echo "⚠️  Prebuilt binary fetch failed; falling back to source build"
+          echo "⚠️  Prebuilt binary install failed; falling back to source build"
         else
           echo "ℹ️  No VERSION file or unsupported arch (${RUNNER_ARCH}); building from source"
         fi
