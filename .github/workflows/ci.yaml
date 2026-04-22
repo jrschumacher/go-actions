@@ -211,6 +211,7 @@ jobs:
         with:
           job: test
           working-directory: fixture
+          go-version-file: fixture/go.mod
           github-comment: 'false'
 
       - name: Assert prebuilt path was taken
@@ -256,6 +257,7 @@ jobs:
         with:
           job: test
           working-directory: fixture
+          go-version-file: fixture/go.mod
           github-comment: 'false'
 
       - name: Assert source-build fallback was taken
