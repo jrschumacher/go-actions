@@ -190,8 +190,10 @@ runs:
         go_version=$(go version | awk '{print $3}' | sed 's/go//')
         go_minor=$(echo "$go_version" | cut -d. -f2)
 
-        # Fetch the latest golangci-lint version from GitHub
-        version=$(curl -sS https://api.github.com/repos/golangci/golangci-lint/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        # Fetch the latest golangci-lint version from GitHub. Use jq for
+        # parsing: the previous grep+sed approach captured the wrong field
+        # when the API returned compact JSON.
+        version=$(curl -sS https://api.github.com/repos/golangci/golangci-lint/releases/latest | jq -r '.tag_name // empty')
         if [ -z "$version" ] || [ "$version" = "null" ]; then
           version="v2.11.4"
           echo "⚠️ Failed to fetch latest version, falling back to $version"
