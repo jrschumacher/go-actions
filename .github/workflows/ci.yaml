@@ -181,6 +181,120 @@ jobs:
           skip-github-pull-request: true
         continue-on-error: true  # Release action may fail in test environment
 
+  smoke-prebuilt-linux:
+    name: Smoke test — prebuilt binary (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout consumer workspace
+        uses: actions/checkout@v4
+
+      - name: Check whether the release tagged by VERSION has a linux/amd64 asset
+        id: preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(tr -d '[:space:]' < VERSION)
+          expected_asset="go-actions_${version}_linux_amd64.tar.gz"
+          # Query release assets; tolerate a missing release (new tag, pre-release branch).
+          assets=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/go-actions-v${version}" --jq '[.assets[].name]' 2>/dev/null || echo "[]")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "expected_asset=$expected_asset" >> "$GITHUB_OUTPUT"
+          if echo "$assets" | jq -e --arg a "$expected_asset" 'index($a)' >/dev/null; then
+            echo "asset_present=true" >> "$GITHUB_OUTPUT"
+            echo "✅ Release go-actions-v${version} has $expected_asset"
+          else
+            echo "asset_present=false" >> "$GITHUB_OUTPUT"
+            echo "ℹ️  Release go-actions-v${version} does not have $expected_asset yet — expecting source-build fallback"
+          fi
+
+      - name: Create minimal Go fixture
+        run: |
+          mkdir -p fixture && cd fixture
+          go mod init example.com/fixture
+          cat > main.go <<'EOF'
+          package main
+          func main() {}
+          func Add(a, b int) int { return a + b }
+          EOF
+          cat > main_test.go <<'EOF'
+          package main
+          import "testing"
+          func TestAdd(t *testing.T) {
+              if Add(2, 3) != 5 { t.Fatal("broken") }
+          }
+          EOF
+
+      - name: Run go-actions CI test job
+        id: run
+        uses: ./ci
+        with:
+          job: test
+          working-directory: fixture
+          go-version-file: fixture/go.mod
+          github-comment: 'false'
+
+      - name: Assert install_source matches release state
+        env:
+          SOURCE: ${{ steps.run.outputs.install_source }}
+          ASSET_PRESENT: ${{ steps.preflight.outputs.asset_present }}
+        run: |
+          echo "install_source=$SOURCE (asset_present=$ASSET_PRESENT)"
+          if [ "$ASSET_PRESENT" = "true" ]; then
+            expected=prebuilt
+          else
+            expected=source
+          fi
+          if [ "$SOURCE" != "$expected" ]; then
+            echo "::error::Expected install_source=$expected (asset_present=$ASSET_PRESENT), got $SOURCE"
+            exit 1
+          fi
+
+  smoke-fallback-linux:
+    name: Smoke test — source-build fallback (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout consumer workspace
+        uses: actions/checkout@v4
+
+      - name: Create minimal Go fixture
+        run: |
+          mkdir -p fixture && cd fixture
+          go mod init example.com/fixture
+          cat > main.go <<'EOF'
+          package main
+          func main() {}
+          func Add(a, b int) int { return a + b }
+          EOF
+          cat > main_test.go <<'EOF'
+          package main
+          import "testing"
+          func TestAdd(t *testing.T) {
+              if Add(2, 3) != 5 { t.Fatal("broken") }
+          }
+          EOF
+
+      - name: Force fallback by deleting VERSION file
+        run: rm -f VERSION
+
+      - name: Run go-actions CI test job
+        id: run
+        uses: ./ci
+        with:
+          job: test
+          working-directory: fixture
+          go-version-file: fixture/go.mod
+          github-comment: 'false'
+
+      - name: Assert source-build fallback was taken
+        env:
+          SOURCE: ${{ steps.run.outputs.install_source }}
+        run: |
+          echo "install_source=$SOURCE"
+          if [ "$SOURCE" != "source" ]; then
+            echo "::error::Expected install_source=source, got $SOURCE"
+            exit 1
+          fi
+
   # Post PR comment with CI results
   comment:
     runs-on: ubuntu-latest

@@ -70,6 +70,9 @@ outputs:
   status:
     description: "Check status: pass, fail, or error"
     value: ${{ steps.run-check.outputs.status }}
+  install_source:
+    description: "How the CLI was obtained: 'prebuilt' or 'source'"
+    value: ${{ steps.install.outputs.install_source }}
 
 runs:
   using: "composite"
@@ -120,15 +123,65 @@ runs:
         go-version: ${{ inputs.go-version }}
         go-version-file: ${{ !inputs.go-version && inputs.go-version-file || '' }}
 
-    - name: Build go-actions CLI
+    - name: Install go-actions CLI
+      id: install
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
       run: |
-        echo "Building go-actions CLI..."
+        set -e
+
+        bin_name="go-actions"
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          bin_name="go-actions.exe"
+        fi
+        install_path="$GO_ACTIONS_SCRATCH/$bin_name"
+
+        os=$(echo "$RUNNER_OS" | tr '[:upper:]' '[:lower:]')
+        case "$RUNNER_ARCH" in
+          X64) arch=amd64 ;;
+          ARM64) arch=arm64 ;;
+          *) arch="" ;;
+        esac
+
+        version_file="$ACTION_PATH/../VERSION"
+        if [ -n "$arch" ] && [ -f "$version_file" ]; then
+          version=$(tr -d '[:space:]' < "$version_file")
+          ext="tar.gz"
+          if [ "$os" = "windows" ]; then
+            ext="zip"
+          fi
+          url="https://github.com/jrschumacher/go-actions/releases/download/go-actions-v${version}/go-actions_${version}_${os}_${arch}.${ext}"
+          tmp=$(mktemp -d)
+          echo "Downloading prebuilt go-actions v${version} (${os}/${arch}) from ${url}"
+
+          install_prebuilt() {
+            curl -sSfL "$url" -o "$tmp/archive.$ext" || return 1
+            if [ "$ext" = "zip" ]; then
+              unzip -q "$tmp/archive.$ext" -d "$tmp" || return 1
+            else
+              tar -xzf "$tmp/archive.$ext" -C "$tmp" || return 1
+            fi
+            mv "$tmp/$bin_name" "$install_path" || return 1
+            chmod +x "$install_path" || return 1
+          }
+
+          if install_prebuilt; then
+            echo "install_source=prebuilt" >> "$GITHUB_OUTPUT"
+            echo "GO_ACTIONS_BIN=$install_path" >> "$GITHUB_ENV"
+            echo "✅ Installed prebuilt go-actions v${version}"
+            exit 0
+          fi
+          echo "⚠️  Prebuilt binary install failed; falling back to source build"
+        else
+          echo "ℹ️  No VERSION file or unsupported arch (${RUNNER_ARCH}); building from source"
+        fi
+
         cd "$ACTION_PATH/../cli"
-        go build -o "$GO_ACTIONS_SCRATCH/go-actions" ./cmd/go-actions
-        echo "✅ CLI built successfully"
+        go build -o "$install_path" ./cmd/go-actions
+        echo "install_source=source" >> "$GITHUB_OUTPUT"
+        echo "GO_ACTIONS_BIN=$install_path" >> "$GITHUB_ENV"
+        echo "✅ Built go-actions from source"
 
     - name: Install golangci-lint
       if: inputs.job == 'lint'
@@ -137,8 +190,10 @@ runs:
         go_version=$(go version | awk '{print $3}' | sed 's/go//')
         go_minor=$(echo "$go_version" | cut -d. -f2)
 
-        # Fetch the latest golangci-lint version from GitHub
-        version=$(curl -sS https://api.github.com/repos/golangci/golangci-lint/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        # Fetch the latest golangci-lint version from GitHub. Use jq for
+        # parsing: the previous grep+sed approach captured the wrong field
+        # when the API returned compact JSON.
+        version=$(curl -sS https://api.github.com/repos/golangci/golangci-lint/releases/latest | jq -r '.tag_name // empty')
         if [ -z "$version" ] || [ "$version" = "null" ]; then
           version="v2.11.4"
           echo "⚠️ Failed to fetch latest version, falling back to $version"
@@ -200,7 +255,7 @@ runs:
         result_json="$GO_ACTIONS_SCRATCH/result.json"
         result_stderr="$GO_ACTIONS_SCRATCH/result.stderr"
 
-        "$GO_ACTIONS_SCRATCH/go-actions" check "$JOB" --format=json $comment_flag > "$result_json" 2>"$result_stderr"
+        "$GO_ACTIONS_BIN" check "$JOB" --format=json $comment_flag > "$result_json" 2>"$result_stderr"
         exit_code=$?
 
         # Show stderr warnings in logs (kept separate from JSON output)
