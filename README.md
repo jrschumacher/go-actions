@@ -89,6 +89,22 @@ jobs:
 
 ---
 
+## Platform support
+
+The `ci` action downloads a prebuilt `go-actions` CLI binary when a tagged release is in use, falling back to a source-build otherwise.
+
+| OS      | Architectures   | CI integration test |
+| ------- | --------------- | ------------------- |
+| Linux   | amd64, arm64    | ✅ Tested on every PR |
+| Windows | amd64, arm64    | ⚠️  Built and published, not currently tested in CI |
+| macOS   | amd64, arm64    | ⚠️  Built and published, not currently tested in CI |
+
+Follow-up issues track adding runners for Windows and macOS integration testing.
+
+If you hit a problem on Windows or macOS, please open an issue with the job log — the source-build fallback should keep things working even if the prebuilt download path has a bug.
+
+---
+
 ## Configuration with `.go-actions.yaml`
 
 You can optionally create a `.go-actions.yaml` file to centralize your CI settings. Without it, everything works using sensible defaults. With it, you get:
