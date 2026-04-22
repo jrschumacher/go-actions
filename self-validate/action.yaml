@@ -18,6 +18,15 @@ runs:
     # Note: The calling workflow must check out the repository before using this action.
     # We don't do checkout here to avoid overwriting files created by the calling workflow.
 
+    - name: Setup go-actions scratch dir
+      # Per-job scratch dir isolates this job's built CLI from other jobs
+      # sharing a self-hosted runner. RUNNER_TEMP is scoped per job.
+      shell: bash
+      run: |
+        scratch="${RUNNER_TEMP}/go-actions-${GITHUB_JOB}"
+        mkdir -p "$scratch"
+        echo "GO_ACTIONS_SCRATCH=$scratch" >> "$GITHUB_ENV"
+
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
@@ -30,7 +39,7 @@ runs:
         ACTION_PATH: ${{ github.action_path }}
       run: |
         cd "$ACTION_PATH/../cli"
-        go build -o /tmp/go-actions-validator ./cmd/go-actions
+        go build -o "$GO_ACTIONS_SCRATCH/go-actions-validator" ./cmd/go-actions
         echo "✅ CLI built successfully"
 
     - name: Run validation
@@ -38,8 +47,9 @@ runs:
       shell: bash
       working-directory: ${{ github.workspace }}
       run: |
+        stderr="$GO_ACTIONS_SCRATCH/validate.stderr"
         # Run the pre-built Go CLI validator (avoids go download messages in output)
-        if output=$(/tmp/go-actions-validator validate --format json --quiet 2>/tmp/validate.stderr); then
+        if output=$("$GO_ACTIONS_SCRATCH/go-actions-validator" validate --format json --quiet 2>"$stderr"); then
           echo "validation_passed=true" >> $GITHUB_OUTPUT
           echo "result=$output" >> $GITHUB_OUTPUT
         else
@@ -48,8 +58,8 @@ runs:
         fi
 
         # Show stderr warnings in logs
-        if [ -s /tmp/validate.stderr ]; then
-          cat /tmp/validate.stderr >&2
+        if [ -s "$stderr" ]; then
+          cat "$stderr" >&2
         fi
 
         # Always output the JSON for downstream processing

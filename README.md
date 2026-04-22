@@ -576,6 +576,32 @@ Wails desktop apps have specific CI/CD challenges — CGO dependencies, frontend
 
 ---
 
+## Self-hosted runner requirements
+
+go-actions works on GitHub-hosted runners out of the box. On self-hosted runners, **ephemeral runners are strongly recommended** — Actions Runner Controller (ARC) or ScaleSets configured with `--ephemeral` so each job runs in a fresh container. This is the same posture GitHub itself recommends, and `actions/setup-go`'s caching is only officially supported on GitHub-hosted and ephemeral self-hosted runners.
+
+The action transparently handles the most common self-hosted hazards: it writes all intermediate artifacts to a per-job scratch dir under `$RUNNER_TEMP`, installs `golangci-lint` / `govulncheck` into a job-scoped `GOBIN` so pinned versions in one repo can't overwrite another's, and cleans `$GOPATH/pkg/mod` and `$HOME/.cache/go-build` before `setup-go` runs (only when a self-hosted runner is detected).
+
+If you must run on **persistent** self-hosted runners, these items are your responsibility:
+
+### Runner prerequisites
+
+The action assumes the following tools are on `PATH`: `bash`, `curl`, `git`, `jq`, `tar`. Minimal ARC images (e.g., stock `actions/runner`) often lack `jq` — install it in your runner image. The runner user must own `$HOME` and `$GOPATH` (no stray root-owned files from prior jobs).
+
+### Unbounded caches
+
+`$HOME/.cache/golangci-lint` grows forever on persistent runners and is sensitive to golangci-lint version changes (a cache primed by v2.9 can produce odd results against v2.11). Prune it periodically or mount it as a tmpfs that resets between jobs.
+
+### Concurrent job races
+
+On a static self-hosted host with multiple jobs assigned to the same runner, two jobs starting within seconds of each other can race the cleanup step against `setup-go`. Ephemeral runners eliminate this. On static pools, serialize jobs per runner or accept occasional `tar: File exists` retries.
+
+### Stale working-directory files
+
+If the calling workflow sets `actions/checkout` with `clean: false`, a stale `coverage.out` or other build artifacts can linger between jobs. `go test` overwrites `coverage.out`, but this is one more reason to prefer ephemeral runners or the default `clean: true`.
+
+---
+
 ## Version Policy
 
 - **`@v3`**: Latest stable v3.x.x release (recommended)
