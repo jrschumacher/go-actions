@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.3.0](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.2.0...go-actions-v3.3.0) (2026-04-22)
+
+
+### Features
+
+* **ci:** download prebuilt go-actions CLI with source-build fallback ([#75](https://github.com/jrschumacher/go-actions/issues/75)) ([#83](https://github.com/jrschumacher/go-actions/issues/83)) ([78786f1](https://github.com/jrschumacher/go-actions/commit/78786f14bfde42fc588db6355de8f35831f02f05))
+
+
+### Bug Fixes
+
+* clean stale Go module cache on self-hosted runners before setup-go ([#77](https://github.com/jrschumacher/go-actions/issues/77)) ([efb7fa3](https://github.com/jrschumacher/go-actions/commit/efb7fa37c319a87a5d1adfd79e42aecbff062b8b)), closes [#74](https://github.com/jrschumacher/go-actions/issues/74)
+* harden actions for self-hosted runners (A1–A4 from [#76](https://github.com/jrschumacher/go-actions/issues/76)) ([#79](https://github.com/jrschumacher/go-actions/issues/79)) ([70c37c5](https://github.com/jrschumacher/go-actions/commit/70c37c514954aec9064c4cfad0722031cc9a3ddf))
+
 ## [3.2.0](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.1.4...go-actions-v3.2.0) (2026-03-30)
 
 
