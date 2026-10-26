@@ -14,6 +14,10 @@ inputs:
     description: 'Path to file containing Go version (all jobs). Defaults to go.mod'
     required: false
     default: 'go.mod'
+  cache:
+    description: 'Use the GitHub Actions Go cache: auto enables it only on GitHub-hosted runners; true and false override.'
+    required: false
+    default: 'auto'
   working-directory:
     description: 'Working directory (all jobs)'
     required: false
@@ -100,28 +104,12 @@ runs:
         echo "GOBIN=$scratch/gobin" >> "$GITHUB_ENV"
         echo "$scratch/gobin" >> "$GITHUB_PATH"
 
-    - name: Clean stale Go build and module caches (self-hosted workaround)
-      # Works around actions/setup-go cache restore failing with
-      # "tar: Cannot open: File exists" when cache dirs persist between jobs
-      # on self-hosted runners. Covers both GOMODCACHE and GOCACHE since
-      # setup-go restores/saves both. See issues #74 and #76.
-      if: runner.environment == 'self-hosted' || contains(runner.labels, 'self-hosted')
-      shell: bash
-      run: |
-        warn_on_fail() {
-          local path="$1"
-          if [ -e "$path" ] && ! rm -rf "$path" 2>/dev/null; then
-            echo "::warning::Failed to clean $path (non-fatal, but setup-go may error)"
-          fi
-        }
-        warn_on_fail "${GOPATH:-$HOME/go}/pkg/mod"
-        warn_on_fail "$HOME/.cache/go-build"
-
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: ${{ inputs.go-version }}
         go-version-file: ${{ !inputs.go-version && inputs.go-version-file || '' }}
+        cache: ${{ inputs.cache == 'true' || (inputs.cache == 'auto' && runner.environment != 'self-hosted') }}
 
     - name: Install go-actions CLI
       id: install
