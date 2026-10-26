@@ -153,6 +153,7 @@ Runs test, lint, benchmark, or security jobs for Go projects. Lint results inclu
 | `job` | Yes | - | Job type: `test`, `lint`, `benchmark`, or `security` |
 | `go-version` | No | from go.mod | Explicit Go version |
 | `go-version-file` | No | `go.mod` | Path to version file |
+| `cache` | No | `auto` | Cache Go modules and builds in GitHub Actions on GitHub-hosted runners. Self-hosted jobs keep their local caches; use `true` or `false` to override. |
 | `working-directory` | No | `.` | Working directory |
 | `test-args` | No | from config or built-in | Arguments for `go test` (overrides `.go-actions.yaml`) |
 | `lint-args` | No | from config or built-in | Arguments for golangci-lint (overrides `.go-actions.yaml`) |
