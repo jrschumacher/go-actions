@@ -38,6 +38,7 @@ jobs:
         run: |
           bash ci/test-resolve-cache.sh
           bash ci/test-install-golangci-lint.sh
+          bash release/test-checkout-release-tag.sh
 
       - name: Validate action.yaml files
         run: |

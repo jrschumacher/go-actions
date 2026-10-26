@@ -137,6 +137,14 @@ runs:
         else
           echo "ℹ️  No release was created, skipping GoReleaser"
         fi
+
+    - name: Check out release tag
+      if: steps.release.outputs.release_created == 'true'
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        TAG_NAME: ${{ steps.release.outputs.tag_name }}
+      run: bash "$ACTION_PATH/checkout-release-tag.sh" "$TAG_NAME"
         
     - name: Run GoReleaser
       if: steps.release.outputs.release_created == 'true'
