@@ -21,7 +21,7 @@ check false auto unknown
 check true true self-hosted
 check false false github-hosted
 
-if GITHUB_OUTPUT="$output" bash "$action_dir/resolve-cache.sh" invalid github-hosted; then
+if GITHUB_OUTPUT="$output" bash "$action_dir/resolve-cache.sh" invalid github-hosted 2>/dev/null; then
   echo 'invalid cache setting was accepted' >&2
   exit 1
 fi
