@@ -153,6 +153,7 @@ Runs test, lint, benchmark, or security jobs for Go projects. Lint results inclu
 | `job` | Yes | - | Job type: `test`, `lint`, `benchmark`, or `security` |
 | `go-version` | No | from go.mod | Explicit Go version |
 | `go-version-file` | No | `go.mod` | Path to version file |
+| `cache` | No | `auto` | Cache Go modules and builds in GitHub Actions on GitHub-hosted runners. Self-hosted jobs keep their local caches; use `true` or `false` to override. |
 | `working-directory` | No | `.` | Working directory |
 | `test-args` | No | from config or built-in | Arguments for `go test` (overrides `.go-actions.yaml`) |
 | `lint-args` | No | from config or built-in | Arguments for golangci-lint (overrides `.go-actions.yaml`) |
@@ -578,9 +579,9 @@ Wails desktop apps have specific CI/CD challenges — CGO dependencies, frontend
 
 ## Self-hosted runner requirements
 
-go-actions works on GitHub-hosted runners out of the box. On self-hosted runners, **ephemeral runners are strongly recommended** — Actions Runner Controller (ARC) or ScaleSets configured with `--ephemeral` so each job runs in a fresh container. This is the same posture GitHub itself recommends, and `actions/setup-go`'s caching is only officially supported on GitHub-hosted and ephemeral self-hosted runners.
+go-actions works on GitHub-hosted runners out of the box. On self-hosted runners, **ephemeral runners are strongly recommended**. If several runner processes share one container or home directory, they also share Go's local caches.
 
-The action transparently handles the most common self-hosted hazards: it writes all intermediate artifacts to a per-job scratch dir under `$RUNNER_TEMP`, installs `golangci-lint` / `govulncheck` into a job-scoped `GOBIN` so pinned versions in one repo can't overwrite another's, and cleans `$GOPATH/pkg/mod` and `$HOME/.cache/go-build` before `setup-go` runs (only when a self-hosted runner is detected).
+The action writes intermediate artifacts to a per-job scratch dir under `$RUNNER_TEMP` and installs `golangci-lint` / `govulncheck` into a job-scoped `GOBIN`. With the default `cache: auto`, it skips GitHub cache restore/upload on self-hosted runners and leaves local Go caches intact. Mount those caches on persistent storage if they should survive a runner container redeploy.
 
 If you must run on **persistent** self-hosted runners, these items are your responsibility:
 
@@ -594,7 +595,7 @@ The action assumes the following tools are on `PATH`: `bash`, `curl`, `git`, `jq
 
 ### Concurrent job races
 
-On a static self-hosted host with multiple jobs assigned to the same runner, two jobs starting within seconds of each other can race the cleanup step against `setup-go`. Ephemeral runners eliminate this. On static pools, serialize jobs per runner or accept occasional `tar: File exists` retries.
+On a self-hosted host with multiple jobs sharing one home directory, setting `cache: true` can restore an archive while another job is writing those same files. Keep the default `auto` or set `cache: false` in that setup. Only force `cache: true` when each job has an isolated cache directory.
 
 ### Stale working-directory files
 
