@@ -34,6 +34,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Test action cache and installer behavior
+        run: |
+          bash ci/test-resolve-cache.sh
+          bash ci/test-install-golangci-lint.sh
+
       - name: Validate action.yaml files
         run: |
           # Check that all action.yaml files are valid
