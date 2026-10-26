@@ -2,9 +2,6 @@ version: 2
 
 project_name: go-actions
 
-monorepo:
-  tag_prefix: go-actions-
-
 before:
   hooks:
     - go mod tidy
@@ -41,18 +38,3 @@ checksum:
 
 changelog:
   disable: true  # Release Please handles changelog
-
-brews:
-  - name: go-actions
-    repository:
-      owner: jrschumacher
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
-    homepage: "https://github.com/jrschumacher/go-actions"
-    description: "Local CLI for go-actions CI checks - enables local/CI parity"
-    license: "MIT"
-    test: |
-      system "#{bin}/go-actions", "version"
-    install: |
-      bin.install "go-actions"
