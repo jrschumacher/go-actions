@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
 
 jobs:
@@ -47,8 +48,9 @@ jobs:
         uses: googleapis/release-please-action@v4
         id: release
         with:
-          # Use GITHUB_TOKEN since we only need basic permissions for Release Please
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          # Repository Settings > Actions > General must allow Actions to create
+          # pull requests. The workflow grants the required permissions above.
+          token: ${{ github.token }}
 
   # Update major/minor tags for GitHub Actions usage
   update-action-tags:
@@ -114,8 +116,7 @@ jobs:
           args: release --clean
           workdir: cli
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          HOMEBREW_TAP_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
 
   # Build and test the release
   test-actions:
