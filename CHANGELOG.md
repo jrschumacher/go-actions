@@ -1,5 +1,31 @@
 # Changelog
 
+## [3.3.0](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.2.0...go-actions-v3.3.0) (2026-11-13)
+
+
+### Features
+
+* **ci:** download prebuilt go-actions CLI with source-build fallback ([#75](https://github.com/jrschumacher/go-actions/issues/75)) ([#83](https://github.com/jrschumacher/go-actions/issues/83)) ([78786f1](https://github.com/jrschumacher/go-actions/commit/78786f14bfde42fc588db6355de8f35831f02f05))
+
+
+### Bug Fixes
+
+* build release from newly created tag ([#85](https://github.com/jrschumacher/go-actions/issues/85)) ([ec41bc9](https://github.com/jrschumacher/go-actions/commit/ec41bc90cd4807a6ffafe83add1d401fd2dbe721))
+* **ci:** avoid shared Go cache collisions on self-hosted runners ([1ee396d](https://github.com/jrschumacher/go-actions/commit/1ee396d0025fd95305258151246e56b057d77674))
+* **ci:** avoid shared Go cache collisions on self-hosted runners ([ac84488](https://github.com/jrschumacher/go-actions/commit/ac844888f131fd5a3265adcdb40569c4b5687d15))
+* **ci:** avoid shared Go cache collisions on self-hosted runners ([3e1d802](https://github.com/jrschumacher/go-actions/commit/3e1d802403cf3b3e6ccdd9f82a20fed36f274735))
+* **ci:** fall back to verified Go source when linter binary fails ([ac6ebab](https://github.com/jrschumacher/go-actions/commit/ac6ebab69edc9ba2e9f68e5e57ee683e8f3bc85c))
+* **ci:** pin golangci-lint and fetch its installer from the same tag ([#88](https://github.com/jrschumacher/go-actions/issues/88)) ([2191f46](https://github.com/jrschumacher/go-actions/commit/2191f4687dbe4a0b55a1445ec56d10e41ab2ea57))
+* clean stale Go module cache on self-hosted runners before setup-go ([#77](https://github.com/jrschumacher/go-actions/issues/77)) ([efb7fa3](https://github.com/jrschumacher/go-actions/commit/efb7fa37c319a87a5d1adfd79e42aecbff062b8b)), closes [#74](https://github.com/jrschumacher/go-actions/issues/74)
+* harden actions for self-hosted runners (A1–A4 from [#76](https://github.com/jrschumacher/go-actions/issues/76)) ([#79](https://github.com/jrschumacher/go-actions/issues/79)) ([70c37c5](https://github.com/jrschumacher/go-actions/commit/70c37c514954aec9064c4cfad0722031cc9a3ddf))
+* **release:** authenticate release workflow with the workflow token ([#86](https://github.com/jrschumacher/go-actions/issues/86)) ([0e52d23](https://github.com/jrschumacher/go-actions/commit/0e52d234e52963692b9da4bdcebb88685a9fad59))
+* **release:** build release assets with OSS GoReleaser ([#87](https://github.com/jrschumacher/go-actions/issues/87)) ([14e3e1a](https://github.com/jrschumacher/go-actions/commit/14e3e1a57db835862df66b26b3282f49891ec836))
+
+
+### Dependencies
+
+* bring actions, Go versions and CLI dependencies up to date ([#89](https://github.com/jrschumacher/go-actions/issues/89)) ([3217753](https://github.com/jrschumacher/go-actions/commit/3217753cd5b786dedc903ab2a8ddc0d7eed97c8a))
+
 ## [3.2.0](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.1.4...go-actions-v3.2.0) (2026-03-30)
 
 
