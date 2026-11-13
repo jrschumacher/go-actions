@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.1](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.3.0...go-actions-v3.3.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **release:** keep the VERSION file in step with releases ([#92](https://github.com/jrschumacher/go-actions/issues/92)) ([e74eaa8](https://github.com/jrschumacher/go-actions/commit/e74eaa824097bf6b31f53de2f2816b451157e18a))
+
 ## [3.3.0](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.2.0...go-actions-v3.3.0) (2026-11-13)
 
 
