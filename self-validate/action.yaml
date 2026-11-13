@@ -28,7 +28,7 @@ runs:
         echo "GO_ACTIONS_SCRATCH=$scratch" >> "$GITHUB_ENV"
 
     - name: Setup Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v7
       with:
         go-version-file: '${{ github.action_path }}/../cli/go.mod'
         cache: false

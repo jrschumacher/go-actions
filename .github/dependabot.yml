@@ -1,0 +1,28 @@
+version: 2
+updates:
+  # Keep pinned actions current in workflows and in the composite actions
+  # that consumers run (ci/, release/, self-validate/).
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /ci
+      - /release
+      - /self-validate
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+
+  # Go CLI dependencies
+  - package-ecosystem: gomod
+    directory: /cli
+    schedule:
+      interval: weekly
+    groups:
+      go-deps:
+        patterns: ["*"]
+    commit-message:
+      prefix: deps

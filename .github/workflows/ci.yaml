@@ -19,7 +19,7 @@ jobs:
         job: [test, lint, security]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Test Go CLI with go-actions
         uses: ./ci
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Test action cache and installer behavior
         run: |
@@ -92,7 +92,7 @@ jobs:
             job: benchmark
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create minimal Go project for testing
         run: |
@@ -140,7 +140,7 @@ jobs:
         uses: ./ci
         with:
           job: ${{ matrix.job }}
-          go-version: '1.21'
+          go-version: '1.27'
 
       - name: Test self-validate action
         if: matrix.action == 'self-validate'
@@ -152,7 +152,7 @@ jobs:
     needs: [test-go-cli, validate-actions]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create minimal release configuration
         run: |
@@ -192,7 +192,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout consumer workspace
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check whether the release tagged by VERSION has a linux/amd64 asset
         id: preflight
@@ -260,7 +260,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout consumer workspace
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create minimal Go fixture
         run: |
@@ -308,10 +308,10 @@ jobs:
     if: always() && github.event_name == 'pull_request'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: cli/go.mod
 

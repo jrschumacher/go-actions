@@ -114,7 +114,7 @@ runs:
       run: bash "$ACTION_PATH/resolve-cache.sh" "$CACHE_SETTING" "$RUNNER_ENVIRONMENT"
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v7
       with:
         go-version: ${{ inputs.go-version }}
         go-version-file: ${{ !inputs.go-version && inputs.go-version-file || '' }}
