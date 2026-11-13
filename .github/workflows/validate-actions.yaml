@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate all action.yaml files
         run: |
@@ -50,13 +50,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.19', '1.20', '1.21']
+        go-version: ['1.26', '1.27']
     steps:
       - name: Checkout go-actions
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -223,7 +223,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Test with empty Go project
         run: |
@@ -265,13 +265,13 @@ jobs:
     strategy:
       matrix:
         fixture: ['go-valid', 'go-invalid']
-        go-version: ['1.21']
+        go-version: ['1.27']
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -308,12 +308,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: '1.21'
+          go-version: '1.27'
 
       - name: Test CI action with example project
         uses: ./ci

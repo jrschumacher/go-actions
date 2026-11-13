@@ -15,12 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
@@ -45,7 +45,7 @@ jobs:
       patch: ${{ steps.release.outputs.patch }}
     steps:
       - name: Create Release Please PR or Release
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@v5
         id: release
         with:
           # Repository Settings > Actions > General must allow Actions to create
@@ -59,7 +59,7 @@ jobs:
     if: needs.release-please.outputs.release-created == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -95,7 +95,7 @@ jobs:
     if: needs.release-please.outputs.release-created == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           # Checkout the specific tag that was released - GoReleaser validates
@@ -103,7 +103,7 @@ jobs:
           ref: ${{ needs.release-please.outputs.tag-name }}
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
@@ -121,7 +121,7 @@ jobs:
           fi
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: latest
@@ -148,7 +148,7 @@ jobs:
     if: needs.release-please.outputs.release-created == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create test Go project
         run: |
@@ -211,7 +211,7 @@ jobs:
     if: needs.release-please.outputs.release-created == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Update README with latest version
         env:
