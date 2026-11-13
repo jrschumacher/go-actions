@@ -86,7 +86,7 @@ jobs:
 
           echo "✅ Updated action tags for GitHub Actions consumers"
 
-  # Build and publish CLI binaries with GoReleaser
+  # Build CLI binaries with OSS GoReleaser and upload to Release Please's tag.
   goreleaser:
     runs-on: ubuntu-latest
     needs: release-please
@@ -106,16 +106,38 @@ jobs:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
 
+      - name: Create local SemVer alias
+        env:
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag-name }}
+          VERSION: v${{ needs.release-please.outputs.major }}.${{ needs.release-please.outputs.minor }}.${{ needs.release-please.outputs.patch }}
+        run: |
+          test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$(git rev-parse HEAD)"
+          if git rev-parse --verify --quiet "refs/tags/$VERSION" >/dev/null; then
+            test "$(git rev-list -n 1 "$VERSION")" = "$(git rev-parse HEAD)"
+          else
+            git tag "$VERSION" HEAD
+          fi
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean
+          # OSS GoReleaser cannot publish to Release Please's component-prefixed
+          # tag. Build under a SemVer tag, then upload to the existing release.
+          args: release --clean --skip=publish,announce
           workdir: cli
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          HOMEBREW_TAP_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GORELEASER_CURRENT_TAG: v${{ needs.release-please.outputs.major }}.${{ needs.release-please.outputs.minor }}.${{ needs.release-please.outputs.patch }}
+
+      - name: Upload CLI assets
+        working-directory: cli
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag-name }}
+        run: |
+          test -f dist/checksums.txt
+          gh release upload "$RELEASE_TAG" dist/go-actions_*.tar.gz dist/go-actions_*.zip dist/checksums.txt
 
   # Build and test the release
   test-actions:
@@ -234,7 +256,7 @@ jobs:
           echo "- New release $TAG_NAME is now available" >> $GITHUB_STEP_SUMMARY
           echo "- Major tag \`v$MAJOR\` has been updated" >> $GITHUB_STEP_SUMMARY
           echo "- CLI binaries published to GitHub Releases" >> $GITHUB_STEP_SUMMARY
-          echo "- Homebrew formula updated in jrschumacher/homebrew-tap" >> $GITHUB_STEP_SUMMARY
+          echo "- Homebrew tap update is not included in this workflow" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### GitHub Actions Usage" >> $GITHUB_STEP_SUMMARY
           echo "You can now use:" >> $GITHUB_STEP_SUMMARY
