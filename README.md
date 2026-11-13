@@ -156,6 +156,7 @@ Runs test, lint, benchmark, or security jobs for Go projects. Lint results inclu
 | `cache` | No | `auto` | Cache Go modules and builds in GitHub Actions on GitHub-hosted runners. Self-hosted jobs keep their local caches; use `true` or `false` to override. |
 | `working-directory` | No | `.` | Working directory |
 | `test-args` | No | from config or built-in | Arguments for `go test` (overrides `.go-actions.yaml`) |
+| `golangci-lint-version` | No | `v2.15.0` | golangci-lint version for the lint job; `latest` asks GitHub for the newest release |
 | `lint-args` | No | from config or built-in | Arguments for golangci-lint (overrides `.go-actions.yaml`) |
 | `benchmark-args` | No | from config or built-in | Benchmark arguments (overrides `.go-actions.yaml`) |
 | `benchmark-count` | No | from config or `5` | Number of benchmark iterations (overrides `.go-actions.yaml`) |
@@ -186,7 +187,7 @@ Runs test, lint, benchmark, or security jobs for Go projects. Lint results inclu
     job: test
     test-args: '-v -short'
 
-# Lint (automatically picks compatible golangci-lint version)
+# Lint (golangci-lint is pinned; see golangci-lint-version)
 - uses: actions/checkout@v4
 - uses: jrschumacher/go-actions/ci@v3
   with:
@@ -214,7 +215,7 @@ For example, if you set `test-args: '-v -short'`, the default `-race -coverprofi
 
 #### golangci-lint Version
 
-The action automatically fetches the latest golangci-lint release. If the prebuilt binary was compiled with an older Go than your project targets, it rebuilds from source using your Go toolchain. No configuration needed.
+The action installs a pinned golangci-lint version (`v2.15.0`), so lint results don't change under you when golangci-lint releases. Set `golangci-lint-version` to choose another tag, or to `latest` to follow the newest release. The installer script is fetched from the same tag as the version it installs. If the prebuilt binary was compiled with an older Go than your project targets, it rebuilds from source using your Go toolchain.
 
 ---
 

@@ -136,8 +136,10 @@ cd cli && go build ./cmd/go-actions  # Build the CLI binary
 
 ### golangci-lint Version Management
 - **Version modes**:
-  - `auto` (default) / `latest`: Fetches newest release from GitHub, with automatic source rebuild if needed
-  - Explicit version (e.g., `v2.11.4`): Pinned for reproducibility
+  - Pinned default (`v2.15.0`, `default_version` in `ci/install-golangci-lint.sh`): used when the `golangci-lint-version` input is empty
+  - Explicit version (e.g., `v2.11.4`) via the `golangci-lint-version` input
+  - `latest` / `auto`: fetches the newest release from GitHub (parsed with `jq`), falling back to the pinned default
+  - The installer script is fetched from the version's tag, never from `master`
 - **Automatic Go compatibility**: When the prebuilt binary was compiled with an older Go than the project targets, the action automatically rebuilds golangci-lint from source using the project's Go toolchain. This eliminates the need for a manual compatibility matrix.
 - Self-validate checks version compatibility between workflow and config file
 - Supports both `.golangci.yml` and `.golangci.yaml` formats
