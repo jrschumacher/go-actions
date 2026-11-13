@@ -1,18 +1,35 @@
 version: 2
 updates:
-  # Keep pinned actions current in workflows and in the composite actions
-  # that consumers run (ci/, release/, self-validate/).
+  # Workflows that only run in this repository.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+
+  # Composite actions that consumers run (ci/, release/, self-validate/).
   - package-ecosystem: github-actions
     directories:
-      - /
       - /ci
       - /release
       - /self-validate
     schedule:
       interval: weekly
     groups:
-      github-actions:
+      composite-actions:
         patterns: ["*"]
+    ignore:
+      # setup-go v6+ exports GOTOOLCHAIN=local for every later step, so
+      # `go install` of tools that need a newer Go than the consumer's go.mod
+      # (govulncheck@latest, golangci-lint's source fallback) stops switching
+      # toolchains and fails. Move these actions past v5 deliberately, together
+      # with a fix for that, not through an automated bump.
+      - dependency-name: actions/setup-go
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: ci
 
