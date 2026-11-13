@@ -18,9 +18,7 @@
       "release-type": "simple",
       "component": "go-actions",
       "package-name": "go-actions",
-      "extra-files": [
-        "VERSION"
-      ]
+      "version-file": "VERSION"
     }
   }
 }
