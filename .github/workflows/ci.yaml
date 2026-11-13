@@ -154,6 +154,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate OSS GoReleaser config
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: check --config cli/.goreleaser.yaml
+
       - name: Create minimal release configuration
         run: |
           # Create Release Please config
