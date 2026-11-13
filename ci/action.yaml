@@ -30,6 +30,10 @@ inputs:
     default: ''
 
   # Lint job specific inputs
+  golangci-lint-version:
+    description: 'golangci-lint version for the lint job, e.g. v2.15.0. Empty uses the pinned default; "latest" (or "auto") asks GitHub for the newest release.'
+    required: false
+    default: ''
   lint-args:
     description: 'Arguments for golangci-lint. Overrides .go-actions.yaml ci.lint.args. Leave empty for defaults.'
     required: false
@@ -185,6 +189,7 @@ runs:
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
+        GOLANGCI_LINT_VERSION: ${{ inputs.golangci-lint-version }}
       run: bash "$ACTION_PATH/install-golangci-lint.sh"
 
     - name: Install govulncheck
