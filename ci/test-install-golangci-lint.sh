@@ -8,8 +8,10 @@ mkdir -p "$test_dir/mock-bin" "$test_dir/gobin"
 
 cat > "$test_dir/mock-bin/curl" <<'MOCK_CURL'
 #!/usr/bin/env bash
+echo "$*" >> "$MOCK_CURL_LOG"
 case "$*" in
-  *releases/latest*) printf '{"tag_name":"v2.15.0"}\n' ;;
+  # GitHub's API now answers on one line; the reactions block ends in "eyes".
+  *releases/latest*) printf '{"url":"x","tag_name":"v2.15.0","reactions":{"+1":1,"eyes":0}}' ;;
   *install.sh*) cat <<'MOCK_INSTALLER'
 #!/bin/sh
 cat > "$GOBIN/golangci-lint" <<'MOCK_BINARY'
@@ -49,6 +51,7 @@ chmod +x "$test_dir/mock-bin/curl" "$test_dir/mock-bin/go"
 export PATH="$test_dir/mock-bin:$PATH"
 export GOBIN="$test_dir/gobin"
 export MOCK_GO_INSTALL_LOG="$test_dir/go-install.log"
+export MOCK_CURL_LOG="$test_dir/curl.log"
 
 export MOCK_INSTALLER_MODE=fail
 bash "$action_dir/install-golangci-lint.sh"
@@ -61,3 +64,28 @@ bash "$action_dir/install-golangci-lint.sh"
 [[ -x "$GOBIN/golangci-lint" ]]
 
 echo 'golangci-lint install cases passed'
+
+# The pinned default: no call to the releases API, and the installer comes
+# from the version's tag rather than master.
+rm -f "$GOBIN/golangci-lint" "$MOCK_CURL_LOG"
+unset GOLANGCI_LINT_VERSION
+bash "$action_dir/install-golangci-lint.sh"
+! grep -q 'releases/latest' "$MOCK_CURL_LOG"
+grep -q 'golangci-lint/v2.15.0/install.sh' "$MOCK_CURL_LOG"
+! grep -q '/master/' "$MOCK_CURL_LOG"
+
+# "latest" reads the tag from one-line JSON (where a grep/sed parse found "eyes").
+rm -f "$GOBIN/golangci-lint" "$MOCK_CURL_LOG"
+out=$(GOLANGCI_LINT_VERSION=latest bash "$action_dir/install-golangci-lint.sh")
+grep -q 'Using golangci-lint v2.15.0' <<<"$out"
+grep -q 'releases/latest' "$MOCK_CURL_LOG"
+
+# A version that isn't a tag is refused before anything is downloaded.
+rm -f "$GOBIN/golangci-lint" "$MOCK_CURL_LOG"
+if GOLANGCI_LINT_VERSION=eyes bash "$action_dir/install-golangci-lint.sh" >/dev/null 2>&1; then
+  echo 'a version that is not a tag was accepted' >&2
+  exit 1
+fi
+[[ ! -s "$MOCK_CURL_LOG" ]]
+
+echo "golangci-lint version pinning cases passed"
