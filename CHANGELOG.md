@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.2](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.3.1...go-actions-v3.3.2) (2026-11-13)
+
+
+### Dependencies
+
+* move the CLI to Go 1.26 ([#94](https://github.com/jrschumacher/go-actions/issues/94)) ([2b47b42](https://github.com/jrschumacher/go-actions/commit/2b47b42ebd8d07cb44d122ffc7e334b987cde9ec))
+
 ## [3.3.1](https://github.com/jrschumacher/go-actions/compare/go-actions-v3.3.0...go-actions-v3.3.1) (2026-11-13)
 
 
