@@ -326,7 +326,7 @@ func TestParseSecurityOutput(t *testing.T) {
 			name:      "empty output",
 			input:     []byte{},
 			wantCount: 0,
-			wantErr:   false,
+			wantErr:   true,
 		},
 		{
 			name:      "valid vulnerability",
@@ -359,7 +359,7 @@ func TestParseSecurityOutput(t *testing.T) {
 			name:      "empty lines",
 			input:     []byte("\n\n"),
 			wantCount: 0,
-			wantErr:   false,
+			wantErr:   true,
 		},
 	}
 
@@ -548,21 +548,9 @@ func TestParseLintOutputWithOnlyNewline(t *testing.T) {
 }
 
 func TestParseSecurityOutputMalformedJSON(t *testing.T) {
-	// Test that malformed JSON lines are gracefully skipped
 	input := []byte(`{malformed json}
-{"finding":{"osv":{"id":"GO-2023-1234","summary":"valid vuln"}}}
-{more malformed}`)
-
-	vulns, err := parseSecurityOutput(input)
-
-	if err != nil {
-		t.Errorf("parseSecurityOutput() should not error on malformed lines, got %v", err)
-	}
-	// Should only find the one valid vulnerability
-	if len(vulns) != 1 {
-		t.Errorf("parseSecurityOutput() should find 1 vulnerability, got %d", len(vulns))
-	}
-	if len(vulns) > 0 && vulns[0].OSV.ID != "GO-2023-1234" {
-		t.Errorf("parseSecurityOutput() got ID %s, want GO-2023-1234", vulns[0].OSV.ID)
+{"finding":{"osv":"GO-2023-1234"}}`)
+	if _, err := parseSecurityOutput(input); err == nil {
+		t.Fatal("malformed JSON must fail closed")
 	}
 }

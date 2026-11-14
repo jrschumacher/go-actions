@@ -26,6 +26,9 @@ jobs:
         with:
           job: ${{ matrix.job }}
           working-directory: cli
+          # Scan the supported toolchain's standard library while retaining
+          # the module's Go 1.22 compatibility in the test and lint jobs.
+          go-version: ${{ matrix.job == 'security' && 'stable' || '' }}
           go-version-file: cli/go.mod
 
   validate-actions:

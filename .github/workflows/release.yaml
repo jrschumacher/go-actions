@@ -22,7 +22,9 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: cli/go.mod
+          # Build releases with a supported standard library; CI separately
+          # verifies the minimum Go version declared in cli/go.mod.
+          go-version: stable
           cache-dependency-path: cli/go.sum
 
       - name: Run Go CLI tests
@@ -105,7 +107,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: cli/go.mod
+          go-version: stable
           cache-dependency-path: cli/go.sum
 
       - name: Create local SemVer alias

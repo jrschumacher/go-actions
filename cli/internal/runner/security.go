@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -34,7 +35,7 @@ func (r *Runner) RunSecurity() (output.CheckResult, error) {
 	if len(argsJSON) == 0 {
 		argsJSON = []string{"./..."}
 	}
-	argsJSON = append(argsJSON, "-json")
+	argsJSON = append([]string{"-json"}, argsJSON...)
 
 	cmdJSON := exec.Command("govulncheck", argsJSON...)
 	var stdoutJSON, stderrJSON bytes.Buffer
@@ -59,21 +60,34 @@ func (r *Runner) RunSecurity() (output.CheckResult, error) {
 	cmdText.Stdout = &stdoutText
 	cmdText.Stderr = &stdoutText
 
-	_ = cmdText.Run() // Ignore error, we have JSON output
+	textErr := cmdText.Run()
 	if writeErr := os.WriteFile("govulncheck-output.txt", stdoutText.Bytes(), 0644); writeErr != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to save govulncheck text report: %v\n", writeErr)
 	}
 
-	// Parse JSON output
+	// Scanner failures must never be interpreted as a clean scan. Preserve both
+	// diagnostics because the text invocation can explain an otherwise empty report.
+	result.Output = strings.TrimSpace(stderrJSON.String() + "\n" + stdoutText.String())
+	if err != nil {
+		result.Status = "error"
+		result.Message = "security JSON scan failed"
+		return result, fmt.Errorf("govulncheck JSON scan failed: %w", err)
+	}
 	vulns, parseErr := parseSecurityOutput(stdoutJSON.Bytes())
 	if parseErr != nil {
-		result.Vulnerabilities = 0
-		if err != nil {
-			result.Status = "error"
-			result.Message = "security check failed"
-			result.Output = stderrJSON.String()
-		}
+		result.Status = "error"
+		result.Message = "invalid security JSON report"
 		return result, parseErr
+	}
+	// Text mode uses exit code 3 to signal findings, rather than a scanner error.
+	textFindings := false
+	if exitErr, ok := textErr.(*exec.ExitError); ok {
+		textFindings = exitErr.ExitCode() == 3 && len(vulns) > 0
+	}
+	if textErr != nil && !textFindings {
+		result.Status = "error"
+		result.Message = "security text scan failed"
+		return result, fmt.Errorf("govulncheck text scan failed: %w", textErr)
 	}
 
 	result.Vulnerabilities = len(vulns)
@@ -96,31 +110,51 @@ type vulnerability struct {
 }
 
 func parseSecurityOutput(data []byte) ([]vulnerability, error) {
-	if len(data) == 0 {
-		return []vulnerability{}, nil
-	}
-
-	// govulncheck outputs newline-delimited JSON
-	lines := bytes.Split(data, []byte("\n"))
+	// govulncheck emits a stream of JSON objects, which may span multiple lines.
+	decoder := json.NewDecoder(bytes.NewReader(data))
 	var vulns []vulnerability
-
-	for _, line := range lines {
-		if len(line) == 0 {
-			continue
+	messages := 0
+	for {
+		var entry map[string]json.RawMessage
+		err := decoder.Decode(&entry)
+		if err == io.EOF {
+			break
 		}
-
-		var entry struct {
-			Finding *vulnerability `json:"finding,omitempty"`
+		if err != nil {
+			return nil, fmt.Errorf("parse govulncheck JSON: %w", err)
 		}
-
-		if err := json.Unmarshal(line, &entry); err != nil {
-			continue // Skip malformed lines
+		recognized := false
+		for _, key := range []string{"config", "progress", "osv", "finding", "SBOM"} {
+			if value, ok := entry[key]; ok && len(value) > 0 && string(value) != "null" {
+				recognized = true
+			}
 		}
-
-		if entry.Finding != nil {
-			vulns = append(vulns, *entry.Finding)
+		if !recognized {
+			return nil, fmt.Errorf("unrecognized govulncheck JSON message")
+		}
+		messages++
+		if finding, ok := entry["finding"]; ok {
+			var fields struct {
+				OSV json.RawMessage `json:"osv"`
+			}
+			if err := json.Unmarshal(finding, &fields); err != nil {
+				return nil, fmt.Errorf("parse govulncheck finding: %w", err)
+			}
+			var vuln vulnerability
+			if err := json.Unmarshal(fields.OSV, &vuln.OSV.ID); err != nil {
+				// Retain compatibility with reports containing embedded OSV objects.
+				if err := json.Unmarshal(finding, &vuln); err != nil {
+					return nil, fmt.Errorf("parse govulncheck finding: %w", err)
+				}
+			}
+			if vuln.OSV.ID == "" {
+				return nil, fmt.Errorf("govulncheck finding is missing an OSV ID")
+			}
+			vulns = append(vulns, vuln)
 		}
 	}
-
+	if messages == 0 {
+		return nil, fmt.Errorf("govulncheck returned an empty JSON report")
+	}
 	return vulns, nil
 }
